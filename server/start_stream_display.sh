@@ -23,6 +23,7 @@ chromium-browser \
   --no-default-browser-check \
   --disable-fre \
   --disable-search-engine-choice-screen \
+  --disable-features=Translate \
   --enable-webgl \
   --ignore-gpu-blocklist \
   --window-size=1920,1080 \

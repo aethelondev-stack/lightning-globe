@@ -32,6 +32,15 @@ const clients = new Set();
 wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[KickChatBridge] Frontend client connected (Total: ${clients.size})`);
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString());
+      if (msg && msg.type === 'COMMAND') {
+        broadcastCommand(msg.command, msg.user || 'Admin');
+      }
+    } catch {}
+  });
   
   ws.on('close', () => {
     clients.delete(ws);
