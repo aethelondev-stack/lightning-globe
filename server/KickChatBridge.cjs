@@ -1,6 +1,6 @@
 const { WebSocketServer, WebSocket } = require('ws');
 
-const KICK_PUSHER_URL = 'wss://ws-us2.pusher.com/app/eb1d5f283081a78b932c?protocol=7&client=js&version=7.6.0&flash=false';
+const KICK_PUSHER_URL = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false';
 const KICK_CHATROOM_ID = process.env.KICK_CHATROOM_ID || '127326358';
 const INTERNAL_PORT = parseInt(process.env.STREAM_WS_PORT || '3001', 10);
 
