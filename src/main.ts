@@ -128,8 +128,13 @@ function init(): void {
   const hydrate24HTrails = async (): Promise<void> => {
     const now = Date.now();
     try {
-      // 1. Fetch real 24h strikes from Unified Hub
-      const hubStrikes = await unifiedStreamProvider.fetch24hHistory(now - 86400000);
+      // 1. Fetch real 24h strikes from Unified Hub (if backend is available)
+      let hubStrikes: LightningEvent[] = [];
+      try {
+        hubStrikes = await unifiedStreamProvider.fetch24hHistory(now - 86400000);
+      } catch {
+        // Standalone or Cloudflare environment: Hub archive endpoint is optional
+      }
 
       // 2. Fetch local IndexedDB strikes
       const historicalStrikes = await strikeArchive.getStrikesByTimeRange(now - 86400000, now);
@@ -222,6 +227,49 @@ function init(): void {
     }
   });
 
+  let harmonizerEngaged = false;
+
+  const engageHarmonizerFallback = (): void => {
+    if (currentSourceMode === 'LIVE' && !harmonizerEngaged) {
+      harmonizerEngaged = true;
+      console.log('⚡ [Live Ingest] Engaging browser-direct MultiSourceHarmonizer (Blitzortung WebSocket)...');
+      multiSourceHarmonizer.connect().catch(console.error);
+    }
+  };
+
+  const startLiveStream = (): void => {
+    // 1. Try connecting Unified Hub SSE stream
+    unifiedStreamProvider.connect().catch(() => {
+      engageHarmonizerFallback();
+    });
+
+    // 2. If Unified Hub is STALE / not LIVE after 2.5s (e.g. running on Cloudflare), engage fallback
+    setTimeout(() => {
+      if (currentSourceMode === 'LIVE' && unifiedStreamProvider.status !== 'LIVE') {
+        engageHarmonizerFallback();
+      }
+    }, 2500);
+
+    unifiedStreamProvider.onStatusChange((status) => {
+      if (status === 'LIVE') {
+        if (harmonizerEngaged) {
+          multiSourceHarmonizer.disconnect();
+          harmonizerEngaged = false;
+        }
+      } else if ((status === 'STALE' || status === 'OFFLINE') && currentSourceMode === 'LIVE') {
+        engageHarmonizerFallback();
+      }
+    });
+  };
+
+  const stopLiveStream = (): void => {
+    unifiedStreamProvider.disconnect();
+    if (harmonizerEngaged) {
+      multiSourceHarmonizer.disconnect();
+      harmonizerEngaged = false;
+    }
+  };
+
   const switchDataSource = (mode: DataSourceMode): void => {
     if (mode === currentSourceMode) return;
 
@@ -239,11 +287,9 @@ function init(): void {
 
     if (mode === 'LIVE') {
       scenarioManager.disconnect();
-      unifiedStreamProvider.connect().catch((err) => {
-        console.error('Failed to connect unified stream provider:', err);
-      });
+      startLiveStream();
     } else {
-      unifiedStreamProvider.disconnect();
+      stopLiveStream();
       scenarioManager.connect().catch((err) => {
         console.error('Failed to connect scenario manager:', err);
       });
@@ -524,7 +570,7 @@ function init(): void {
     }
   });
 
-  unifiedStreamProvider.onEvent((event) => {
+  const enqueueStrike = (event: LightningEvent) => {
     if (currentSourceMode === 'LIVE') {
       if (event.source === 'blitzortung') {
         // Instant RF: zero delay bypass directly to instant queue
@@ -535,7 +581,10 @@ function init(): void {
         presentationQueue.enqueue(event, jitterTime, false);
       }
     }
-  });
+  };
+
+  unifiedStreamProvider.onEvent(enqueueStrike);
+  multiSourceHarmonizer.onEvent(enqueueStrike);
 
 
 
@@ -583,7 +632,7 @@ function init(): void {
 
   // 18. Setup HUD elements, storm batching, leaderboard, and throttled metrics tracking (4Hz)
   setupHud(
-    () => (currentSourceMode === 'LIVE' ? unifiedStreamProvider : scenarioManager),
+    () => (currentSourceMode === 'LIVE' ? (unifiedStreamProvider.status === 'LIVE' ? unifiedStreamProvider : multiSourceHarmonizer) : scenarioManager),
     () => currentSourceMode,
     unifiedStreamProvider,
     store,
@@ -639,9 +688,7 @@ function init(): void {
   // 22. Start engine loop and connect initial provider stream
   engine.start();
   if ((currentSourceMode as DataSourceMode) === 'LIVE') {
-    unifiedStreamProvider.connect().catch((err) => {
-      console.error('Failed to connect unified stream provider:', err);
-    });
+    startLiveStream();
   } else {
     scenarioManager.connect().catch((err) => {
       console.error('Failed to connect scenario manager:', err);
