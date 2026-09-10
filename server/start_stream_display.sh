@@ -19,6 +19,10 @@ chromium-browser \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu-sandbox \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-fre \
+  --disable-search-engine-choice-screen \
   --enable-webgl \
   --ignore-gpu-blocklist \
   --window-size=1920,1080 \
