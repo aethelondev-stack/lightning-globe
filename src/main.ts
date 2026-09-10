@@ -24,6 +24,7 @@ import { CountryLeaderboard } from './services/analytics/CountryLeaderboard';
 import { StrikeArchiveDB } from './services/storage/StrikeArchiveDB';
 import { StochasticRingBufferQueue } from './services/queue/StochasticRingBufferQueue';
 import { UIController } from './ui/UIController';
+import { StreamController } from './services/stream/StreamController';
 import { EngineConfig } from './core/Config';
 import { haversineDistanceKm, vector3ToLatLng, latLngToVector3 } from './utils/coordinates';
 import type { ILightningProvider } from './types/provider';
@@ -386,6 +387,60 @@ function init(): void {
     onDroneAngleChange: (angle, distance) => {
       cameraDirector.setDroneAngle(angle);
       cameraDirector.setDroneDistance(distance);
+    }
+  });
+
+  // 16b. Initialize Live Broadcast Chat Command & HUD Controller
+  const streamController = new StreamController({
+    onCommand: (payload) => {
+      const cmd = (payload.command || '').toLowerCase().trim();
+      const currentCoords = vector3ToLatLng(engine.camera.position);
+      const currentDist = engine.camera.position.length();
+
+      if (cmd === '!turkiye' || cmd === '!turk' || cmd === '!tr') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(39.0, 35.2, 220);
+        streamController.showToast(payload.user, "🇹🇷 Türkiye'ye odaklanılıyor!");
+      } else if (cmd === '!firtina' || cmd === '!storm') {
+        const queue = eventDirector.getQueue();
+        const target = queue.length > 0 ? queue[0].cluster : eventDirector.getNextTarget(Date.now());
+        if (target) {
+          cameraDirector.startCinematicFlight(target);
+          const geo = geoEnricher.lookup(target.centroid.latitude, target.centroid.longitude);
+          streamController.showToast(payload.user, `⚡ En aktif fırtınaya (${geo.flag} ${geo.country}) uçuluyor!`);
+        } else {
+          streamController.showToast(payload.user, "⚡ Şu anda fırtına odağı taranıyor...");
+        }
+      } else if (cmd === '!dunya' || cmd === '!world') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, 380);
+        streamController.showToast(payload.user, "🌍 Dünya genel görünümüne geçildi.");
+      } else if (cmd === '!oto' || cmd === '!auto') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'AUTO', autoFollow: true });
+        streamController.showToast(payload.user, "🎥 Otonom sinematik kamera devrede.");
+      } else if (cmd === '!zoom') {
+        cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, Math.max(150, currentDist * 0.7));
+        streamController.showToast(payload.user, "🔍 Yakınlaştırıldı.");
+      } else if (cmd === '!uzaklas' || cmd === '!out') {
+        cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, Math.min(380, currentDist * 1.4));
+        streamController.showToast(payload.user, "🔭 Uzaklaştırıldı.");
+      } else if (cmd === '!avrupa' || cmd === '!europe') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(50.0, 10.0, 240);
+        streamController.showToast(payload.user, "🇪🇺 Avrupa kıtasına odaklanılıyor.");
+      } else if (cmd === '!amerika' || cmd === '!usa') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(38.0, -97.0, 260);
+        streamController.showToast(payload.user, "🇺🇸 Kuzey Amerika'ya odaklanılıyor.");
+      } else if (cmd === '!asya' || cmd === '!asia') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(34.0, 100.0, 280);
+        streamController.showToast(payload.user, "🌏 Asya kıtasına odaklanılıyor.");
+      } else if (cmd === '!japonya' || cmd === '!japan') {
+        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+        cameraDirector.flyToLocation(36.2, 138.2, 220);
+        streamController.showToast(payload.user, "🇯🇵 Japonya'ya odaklanılıyor.");
+      }
     }
   });
 

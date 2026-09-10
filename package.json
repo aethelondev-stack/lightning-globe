@@ -15,11 +15,13 @@
     "gsap": "^3.15.0",
     "h5wasm": "^0.10.3",
     "three": "^0.168.0",
-    "three-globe": "^2.35.0"
+    "three-globe": "^2.35.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
     "@types/three": "^0.168.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.6.2",
     "vite": "^5.4.3"
   }
