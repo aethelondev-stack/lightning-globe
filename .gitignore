@@ -2,8 +2,13 @@ node_modules/
 dist/
 .env
 EUMETSAT_CREDENTIALS.md
+*.key
+isaretli_ekran.png
 .cache/
 scratch/
 *.log
 .DS_Store
 
+
+
+isaretli_ekran*.png
