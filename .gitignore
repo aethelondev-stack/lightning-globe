@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+EUMETSAT_CREDENTIALS.md
+.cache/
+scratch/
+*.log
+.DS_Store
+

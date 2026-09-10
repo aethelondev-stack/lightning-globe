@@ -1,0 +1,26 @@
+{
+  "name": "lightning-globe",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "npx tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@types/gsap": "^1.20.2",
+    "camera-controls": "^3.1.2",
+    "gsap": "^3.15.0",
+    "h5wasm": "^0.10.3",
+    "three": "^0.168.0",
+    "three-globe": "^2.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/three": "^0.168.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.3"
+  }
+}
