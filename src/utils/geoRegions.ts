@@ -275,4 +275,55 @@ export class GeoIndex {
 
     return false;
   }
+
+  public static getThematicLocation(lat: number, lon: number): { name: string; flag: string } {
+    // 1. Check known countries
+    for (const country of POPULAR_COUNTRIES) {
+      if (this.isCoordInCountry(lat, lon, country.name)) {
+        const continentIcons: Record<string, string> = {
+          EU: '🌍', AF: '🌍', NA: '🌎', SA: '🌎', AS: '🌏', OC: '🌏'
+        };
+        const flag = (country.continent && continentIcons[country.continent]) ? continentIcons[country.continent] : '⚡';
+        return { name: `${country.name} Semaları`, flag };
+      }
+    }
+
+    // 2. Check known meteorological regions / hotspots
+    for (const reg of REGIONS) {
+      if (this.isCoordInRegion(lat, lon, reg.id)) {
+        return { name: `${reg.name} Semaları`, flag: '⚡' };
+      }
+    }
+
+    // 3. Oceanic and Polar Resolution
+    if (lat > 66) return { name: 'Kuzey Kutup Dairesi', flag: '❄️' };
+    if (lat < -60) return { name: 'Antarktika Buzul Sahası', flag: '❄️' };
+
+    // Atlantic Ocean
+    if (lon >= -70 && lon <= -10) {
+      if (lat > 15) return { name: 'Kuzey Atlantik Havzası', flag: '🌊' };
+      if (lat <= 15) return { name: 'Güney Atlantik Havzası', flag: '🌊' };
+    }
+
+    // Pacific Ocean
+    if (lon <= -100 || lon >= 140) {
+      if (lat > 10) return { name: 'Kuzey Pasifik Okyanusu', flag: '🌊' };
+      if (lat <= 10) return { name: 'Güney Pasifik Okyanusu', flag: '🌊' };
+    }
+
+    // Indian Ocean
+    if (lat <= 25 && lat >= -45 && lon >= 45 && lon <= 110) {
+      return { name: 'Hint Okyanusu Havzası', flag: '🌊' };
+    }
+
+    // Fallback based on continent bounding
+    if (this.isCoordInContinent(lat, lon, 'EU')) return { name: 'Avrupa Kıtası Semaları', flag: '🌍' };
+    if (this.isCoordInContinent(lat, lon, 'AF')) return { name: 'Afrika Kıtası Semaları', flag: '🌍' };
+    if (this.isCoordInContinent(lat, lon, 'AS')) return { name: 'Asya Kıtası Semaları', flag: '🌏' };
+    if (this.isCoordInContinent(lat, lon, 'NA')) return { name: 'Kuzey Amerika Havzası', flag: '🌎' };
+    if (this.isCoordInContinent(lat, lon, 'SA')) return { name: 'Güney Amerika Havzası', flag: '🌎' };
+    if (this.isCoordInContinent(lat, lon, 'OC')) return { name: 'Okyanusya & Pasifik', flag: '🌏' };
+
+    return { name: 'Açık Deniz / Küresel Odak', flag: '🌐' };
+  }
 }

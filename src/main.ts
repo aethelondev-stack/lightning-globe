@@ -24,6 +24,7 @@ import { CountryLeaderboard } from './services/analytics/CountryLeaderboard';
 import { StrikeArchiveDB } from './services/storage/StrikeArchiveDB';
 import { StochasticRingBufferQueue } from './services/queue/StochasticRingBufferQueue';
 import { UIController } from './ui/UIController';
+import { BackgroundMusicPlayer } from './services/audio/BackgroundMusicPlayer';
 import { StreamController } from './services/stream/StreamController';
 import { EngineConfig } from './core/Config';
 import { haversineDistanceKm, vector3ToLatLng, latLngToVector3 } from './utils/coordinates';
@@ -390,17 +391,66 @@ function init(): void {
     }
   });
 
-  // 16b. Initialize Live Broadcast Chat Command & HUD Controller
+  // 16b. Initialize Background Instrumental Ambient Music Player (20 Tracks)
+  const bgMusicPlayer = new BackgroundMusicPlayer();
+  bgMusicPlayer.init();
+  uiController.setupMusicPlayer(bgMusicPlayer);
+
+  // 16d. Setup Procedural Sound Director (Volume, Profiles, Test Strike)
+  uiController.setupSoundDirector(soundDirector);
+
+  // Hook Dynamic Cadence Acceleration: cut current dwell by 50% on viewer request
+  eventDirector.onCadenceAccelerate(() => {
+    cameraDirector.accelerateCadence(0.5);
+  });
+
+  // 16c. Initialize Live Broadcast Chat Command & HUD Controller
   const streamController = new StreamController({
     onCommand: (payload) => {
       const cmd = (payload.command || '').toLowerCase().trim();
       const currentCoords = vector3ToLatLng(engine.camera.position);
       const currentDist = engine.camera.position.length();
 
-      if (cmd === '!turkiye' || cmd === '!turk' || cmd === '!tr') {
-        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
-        cameraDirector.flyToLocation(39.0, 35.2, 220);
-        streamController.showToast(payload.user, "🇹🇷 Türkiye'ye odaklanılıyor!");
+      // Audience Interactive Country Targeting (Full AI Automation)
+      let requestedCountry: string | null = null;
+      if (cmd === '!turkiye' || cmd === '!turk' || cmd === '!tr' || cmd === '!türkiye') {
+        requestedCountry = 'Türkiye';
+      } else if (cmd === '!brezilya' || cmd === '!brazil' || cmd === '!br') {
+        requestedCountry = 'Brezilya';
+      } else if (cmd === '!amerika' || cmd === '!usa' || cmd === '!us') {
+        requestedCountry = 'Amerika Birleşik Devletleri';
+      } else if (cmd === '!japonya' || cmd === '!japan' || cmd === '!jp') {
+        requestedCountry = 'Japonya';
+      } else if (cmd === '!almanya' || cmd === '!germany' || cmd === '!de') {
+        requestedCountry = 'Almanya';
+      } else if (cmd === '!fransa' || cmd === '!france' || cmd === '!fr') {
+        requestedCountry = 'Fransa';
+      } else if (cmd === '!ingiltere' || cmd === '!uk' || cmd === '!gb') {
+        requestedCountry = 'Birleşik Krallık';
+      } else if (cmd === '!italya' || cmd === '!italy' || cmd === '!it') {
+        requestedCountry = 'İtalya';
+      } else if (cmd === '!ispanya' || cmd === '!spain' || cmd === '!es') {
+        requestedCountry = 'İspanya';
+      } else if (cmd === '!kanada' || cmd === '!canada' || cmd === '!ca') {
+        requestedCountry = 'Kanada';
+      } else if (cmd === '!avustralya' || cmd === '!australia' || cmd === '!au') {
+        requestedCountry = 'Avustralya';
+      } else if (cmd.startsWith('!ulke ') || cmd.startsWith('!ülke ') || cmd.startsWith('!country ')) {
+        requestedCountry = payload.command.substring(cmd.indexOf(' ') + 1).trim();
+      }
+
+      if (requestedCountry) {
+        const res = eventDirector.addViewerRequest({
+          username: payload.user,
+          countryName: requestedCountry,
+          platform: 'kick'
+        });
+        if (res.success) {
+          const statusNote = res.isCalmSky ? '🛰️ Sakin alan' : '⚡ Aktif fırtına';
+          streamController.showToast(payload.user, `🎯 @${payload.user} -> ${requestedCountry} (#${res.position} | ${statusNote})`);
+        } else {
+          streamController.showToast(payload.user, `⚠️ @${payload.user}: ${res.message}`);
+        }
       } else if (cmd === '!firtina' || cmd === '!storm') {
         const queue = eventDirector.getQueue();
         const target = queue.length > 0 ? queue[0].cluster : eventDirector.getNextTarget(Date.now());
@@ -424,22 +474,6 @@ function init(): void {
       } else if (cmd === '!uzaklas' || cmd === '!out') {
         cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, Math.min(380, currentDist * 1.4));
         streamController.showToast(payload.user, "🔭 Uzaklaştırıldı.");
-      } else if (cmd === '!avrupa' || cmd === '!europe') {
-        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
-        cameraDirector.flyToLocation(50.0, 10.0, 240);
-        streamController.showToast(payload.user, "🇪🇺 Avrupa kıtasına odaklanılıyor.");
-      } else if (cmd === '!amerika' || cmd === '!usa') {
-        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
-        cameraDirector.flyToLocation(38.0, -97.0, 260);
-        streamController.showToast(payload.user, "🇺🇸 Kuzey Amerika'ya odaklanılıyor.");
-      } else if (cmd === '!asya' || cmd === '!asia') {
-        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
-        cameraDirector.flyToLocation(34.0, 100.0, 280);
-        streamController.showToast(payload.user, "🌏 Asya kıtasına odaklanılıyor.");
-      } else if (cmd === '!japonya' || cmd === '!japan') {
-        cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
-        cameraDirector.flyToLocation(36.2, 138.2, 220);
-        streamController.showToast(payload.user, "🇯🇵 Japonya'ya odaklanılıyor.");
       }
     }
   });
@@ -465,10 +499,38 @@ function init(): void {
     uiController.populateCountries(geoEnricher.getAllCountriesList());
   });
 
+  const scratchAudioToCam = new THREE.Vector3();
+  const scratchAudioNormal = new THREE.Vector3();
+  const scratchAudioProjected = new THREE.Vector3();
+
+  const isStrikeVisibleToCamera = (pos: THREE.Vector3): boolean => {
+    // 1. Front hemisphere test
+    scratchAudioNormal.copy(pos).normalize();
+    scratchAudioToCam.copy(engine.camera.position).sub(pos).normalize();
+    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.08) {
+      return false;
+    }
+
+    // 2. Camera frustum projection test (NDC bounds)
+    scratchAudioProjected.copy(pos).project(engine.camera);
+    if (
+      scratchAudioProjected.z < -1 ||
+      scratchAudioProjected.z > 1 ||
+      Math.abs(scratchAudioProjected.x) > 1.08 ||
+      Math.abs(scratchAudioProjected.y) > 1.08
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
   const triggerStrikeVfxAndAudio = (e: LightningEvent) => {
     lightningRenderer.addEvent(e);
     const strikePos = latLngToVector3(e.latitude, e.longitude, 0, EngineConfig.globe.radius);
-    soundDirector.playStrikeSound(e.peakCurrent ?? 25, strikePos, engine.camera.position);
+    if (isStrikeVisibleToCamera(strikePos)) {
+      soundDirector.playStrikeSound(e.peakCurrent ?? 25, strikePos, engine.camera.position);
+    }
   };
 
   // Arrival-synced flash playback hook: 1.2s before touchdown, trigger focal strike so user witnesses flash & shockwave live
@@ -822,20 +884,22 @@ function setupHud(
       if (currentMode === 'LIVE') {
         const modeLabel = 'HİBRİT (RF + 3 UYDU + 3 YER AĞI)';
         if (unifiedStreamProvider.status === 'LIVE') {
-          setTextIfChanged(dataSourceEl, `CANLI (${modeLabel})`);
+          setTextIfChanged(dataSourceEl, '● CANLI HİBRİT');
+          dataSourceEl.title = modeLabel;
           dataSourceEl.style.color = '#38bdf8';
-          setTextIfChanged(statusEl, `CANLI (${modeLabel})`);
+          setTextIfChanged(statusEl, 'CANLI HİBRİT');
         } else if (unifiedStreamProvider.status === 'STALE') {
-          setTextIfChanged(dataSourceEl, `GECİKMELİ (${modeLabel})`);
+          setTextIfChanged(dataSourceEl, '● GECİKMELİ');
+          dataSourceEl.title = 'Son veri korunuyor (Stale)';
           dataSourceEl.style.color = '#fbbf24';
           setTextIfChanged(statusEl, 'GECİKMELİ');
         } else {
-          setTextIfChanged(dataSourceEl, 'BAĞLANILIYOR...');
+          setTextIfChanged(dataSourceEl, '● BAĞLANIYOR...');
           dataSourceEl.style.color = '#94a3b8';
-          setTextIfChanged(statusEl, 'BAĞLANILIYOR');
+          setTextIfChanged(statusEl, 'BAĞLANIYOR');
         }
       } else {
-        setTextIfChanged(dataSourceEl, 'SİMÜLASYON');
+        setTextIfChanged(dataSourceEl, '● SİMÜLASYON');
         dataSourceEl.style.color = '#34d399';
         setTextIfChanged(statusEl, 'SİMÜLASYON (DEMO)');
       }
@@ -907,6 +971,19 @@ function setupHud(
     // Event Director Queue & Cooldown metrics
     const currentQueue = eventDirector.getQueue();
     setTextIfChanged(queueCountEl, currentQueue.length.toString());
+
+    // Update 20-target Interleaved Camera Queue in right accordion panel
+    const interleavedQueue = eventDirector.getInterleavedQueue(20);
+    uiController.updateCameraQueue(interleavedQueue);
+
+    // Update bottom-left Viewer Flight HUD Card
+    const remainingDwell = cameraDirector.getRemainingDwellTime();
+    uiController.updateViewerFlightHUD(
+      eventDirector.getCurrentViewerRequest(),
+      eventDirector.getNextUpcomingViewerRequest(),
+      remainingDwell
+    );
+
     if (nextStormEl) {
       if (currentQueue.length > 0) {
         const nextCluster = currentQueue[0].cluster;

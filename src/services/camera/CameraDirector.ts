@@ -38,8 +38,8 @@ export class CameraDirector {
   private filterMatrix: CameraFilterMatrix = {
     autoFollow: true,
     cameraMode: 'AUTO',
-    shotScale: 'COUNTRY',
-    pitchDeg: 25,
+    shotScale: 'AUTO_DIVERSITY',
+    pitchDeg: 15,
     manualDistance: 220,
     continents: [],
     regions: [],
@@ -283,6 +283,30 @@ export class CameraDirector {
     }
 
     return true;
+  }
+
+  /**
+   * Accelerates camera cadence by shortening current HOLD dwell time by reductionRatio (default 50%).
+   * Triggered when a viewer requests a target to prevent long chat wait times.
+   */
+  public accelerateCadence(reductionRatio: number = 0.5): void {
+    if (this.cameraState === 'HOLD') {
+      const remaining = Math.max(0, this.holdDurationSec - this.phaseElapsedSec);
+      this.phaseElapsedSec = Math.max(0, this.holdDurationSec - (remaining * reductionRatio));
+    }
+  }
+
+  /**
+   * Returns remaining dwell time in seconds for the active flight presentation.
+   */
+  public getRemainingDwellTime(): number {
+    if (this.cameraState === 'APPROACH' || (this.flightPhase as string).startsWith('APPROACH_')) {
+      return Math.max(0, this.approachDurationSec - this.phaseElapsedSec) + this.holdDurationSec;
+    }
+    if (this.cameraState === 'HOLD' || this.flightPhase === 'HOLD') {
+      return Math.max(0, this.holdDurationSec - this.phaseElapsedSec);
+    }
+    return 0;
   }
 
   public getFilterMatrix(): CameraFilterMatrix {

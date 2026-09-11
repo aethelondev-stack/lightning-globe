@@ -1,0 +1,142 @@
+[
+  {
+    "id": "stellardrone-eternity",
+    "index": 1,
+    "title": "Eternity",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/01_stellardrone_eternity.mp3"
+  },
+  {
+    "id": "stellardrone-red-giant",
+    "index": 2,
+    "title": "Red Giant",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/02_stellardrone_red_giant.mp3"
+  },
+  {
+    "id": "stellardrone-in-time",
+    "index": 3,
+    "title": "In Time",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/03_stellardrone_in_time.mp3"
+  },
+  {
+    "id": "stellardrone-airglow",
+    "index": 4,
+    "title": "Airglow",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/04_stellardrone_airglow.mp3"
+  },
+  {
+    "id": "stellardrone-light-years",
+    "index": 5,
+    "title": "Light Years",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/05_stellardrone_light_years.mp3"
+  },
+  {
+    "id": "stellardrone-cepheid",
+    "index": 6,
+    "title": "Cepheid",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/06_stellardrone_cepheid.mp3"
+  },
+  {
+    "id": "stellardrone-comet-halley",
+    "index": 7,
+    "title": "Comet Halley",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/07_stellardrone_comet_halley.mp3"
+  },
+  {
+    "id": "stellardrone-ultra-deep-field",
+    "index": 8,
+    "title": "Ultra Deep Field",
+    "artist": "Stellardrone",
+    "src": "/audio/ambient/08_stellardrone_ultra_deep_field.mp3"
+  },
+  {
+    "id": "scott-buckley-undertow",
+    "index": 9,
+    "title": "Undertow",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/09_scott_buckley_undertow.mp3"
+  },
+  {
+    "id": "scott-buckley-filaments",
+    "index": 10,
+    "title": "Filaments",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/10_scott_buckley_filaments.mp3"
+  },
+  {
+    "id": "scott-buckley-permafrost",
+    "index": 11,
+    "title": "Permafrost",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/11_scott_buckley_permafrost.mp3"
+  },
+  {
+    "id": "scott-buckley-passage",
+    "index": 12,
+    "title": "Passage",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/12_scott_buckley_passage.mp3"
+  },
+  {
+    "id": "scott-buckley-adrift",
+    "index": 13,
+    "title": "Adrift Among Infinite Stars",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/13_scott_buckley_adrift.mp3"
+  },
+  {
+    "id": "scott-buckley-distant-sun",
+    "index": 14,
+    "title": "The Distant Sun",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/14_scott_buckley_distant_sun.mp3"
+  },
+  {
+    "id": "scott-buckley-aphelion",
+    "index": 15,
+    "title": "Aphelion",
+    "artist": "Scott Buckley",
+    "src": "/audio/ambient/15_scott_buckley_aphelion.mp3"
+  },
+  {
+    "id": "kai-engel-endless-story",
+    "index": 16,
+    "title": "Endless Story About Sun and Moon",
+    "artist": "Kai Engel",
+    "src": "/audio/ambient/16_kai_engel_endless_story.mp3"
+  },
+  {
+    "id": "kai-engel-silence",
+    "index": 17,
+    "title": "Silence",
+    "artist": "Kai Engel",
+    "src": "/audio/ambient/17_kai_engel_silence.mp3"
+  },
+  {
+    "id": "kai-engel-highway-to-stars",
+    "index": 18,
+    "title": "Highway to the Stars",
+    "artist": "Kai Engel",
+    "src": "/audio/ambient/18_kai_engel_highway_to_stars.mp3"
+  },
+  {
+    "id": "kai-engel-universe-in-hands",
+    "index": 19,
+    "title": "Universe in Hands",
+    "artist": "Kai Engel",
+    "src": "/audio/ambient/19_kai_engel_universe_in_hands.mp3"
+  },
+  {
+    "id": "kai-engel-low-horizon",
+    "index": 20,
+    "title": "Low Horizon",
+    "artist": "Kai Engel",
+    "src": "/audio/ambient/20_kai_engel_low_horizon.mp3"
+  }
+]

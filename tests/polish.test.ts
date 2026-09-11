@@ -89,8 +89,39 @@ function runPolishTests(): void {
   soundDirector.setMuted(true);
   assert.equal(soundDirector.isMuted(), true, 'setMuted(true) must restore muted state');
 
+  // Test volume control and clamping
+  assert.equal(typeof soundDirector.getVolume(), 'number', 'Volume must be a number');
+  soundDirector.setVolume(0.5);
+  assert.equal(soundDirector.getVolume(), 0.5, 'Volume should be 0.5');
+  soundDirector.setVolume(1.5);
+  assert.equal(soundDirector.getVolume(), 1.0, 'Volume must clamp to 1.0');
+  soundDirector.setVolume(-0.2);
+  assert.equal(soundDirector.getVolume(), 0.0, 'Volume must clamp to 0.0');
+
+  // Test sound profiles (v1, v2, v3, v4, DYNAMIC)
+  soundDirector.setProfile('v1');
+  assert.equal(soundDirector.getProfile(), 'v1', 'Profile should be v1');
+  soundDirector.setProfile('v2');
+  assert.equal(soundDirector.getProfile(), 'v2', 'Profile should be v2');
+  soundDirector.setProfile('v3');
+  assert.equal(soundDirector.getProfile(), 'v3', 'Profile should be v3');
+  soundDirector.setProfile('v4');
+  assert.equal(soundDirector.getProfile(), 'v4', 'Profile should be v4');
+  soundDirector.setProfile('DYNAMIC');
+  assert.equal(soundDirector.getProfile(), 'DYNAMIC', 'Profile should be DYNAMIC');
+
+  // Verify test strike and procedural synthesis calls do not throw in headless environment
+  assert.doesNotThrow(() => {
+    soundDirector.playTestStrike();
+    soundDirector.playTestStrike('v2');
+    soundDirector.playStrikeSound(15, undefined, undefined, 'v4'); // Small strike (<25kA)
+    soundDirector.playStrikeSound(45, undefined, undefined, 'DYNAMIC'); // Medium strike (25-60kA -> v1)
+    soundDirector.playStrikeSound(85, undefined, undefined, 'DYNAMIC'); // Strong strike (60-120kA -> v3)
+    soundDirector.playStrikeSound(160, undefined, undefined, 'DYNAMIC'); // Superbolt (>120kA -> v2)
+  }, 'All procedural profiles and adaptive dynamic mode calls must execute safely');
+
   soundDirector.dispose();
-  console.log('  -> SoundDirector headless safety, default mute, and toggle verified: OK');
+  console.log('  -> SoundDirector headless safety, default mute, profiles & volume verified: OK');
 
   console.log('\n--- ALL PHASE 14 POLISH TESTS FINISHED: OK ---');
 }

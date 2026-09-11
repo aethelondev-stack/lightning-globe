@@ -12,6 +12,7 @@ scratch/
 
 
 isaretli_ekran*.png
+isaretli_ekran*.png
 get_chatroom.cjs
 test_cmd.cjs
 test_kick_key.cjs
@@ -19,3 +20,4 @@ test_kick_ws.cjs
 inspect_ws.py
 find_kick_key.py
 test_pusher.cjs
+stream_snapshot*.png

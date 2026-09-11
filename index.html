@@ -15,11 +15,11 @@
       <!-- Glassmorphism Telemetry HUD Panel -->
       <div class="hud-panel" role="region" aria-label="Sistem Telemetrisi">
         <div class="hud-header">
-          <div class="hud-status-badge">
-            <span class="status-dot"></span>
-            <span id="hud-status">CANLI YAYIN</span>
+          <div class="hud-header-title-wrap">
+            <span class="live-pulse"></span>
+            <span class="hud-title">YILDIRIM GÖZLEMEVİ</span>
           </div>
-          <span class="hud-title">YILDIRIM DÜNYASI</span>
+          <span id="hud-status" class="hud-status-chip hidden">CANLI</span>
           <button id="btn-hud-toggle" class="hud-toggle-btn" title="Paneli Katla / Genişlet" aria-label="Toggle HUD">▾</button>
         </div>
         <div class="hud-metrics">
@@ -59,10 +59,7 @@
             <span class="metric-label">HÜCRE SINIFI</span>
             <span class="metric-val" id="hud-top-class">-</span>
           </div>
-          <div class="metric-item">
-            <span class="metric-label">YAYIN DURUMU</span>
-            <span class="metric-val" id="hud-data-source"><span class="live-dot"></span> CANLI</span>
-          </div>
+
           <div class="metric-item perf-metric">
             <span class="metric-label">PERFORMANS (FPS/MS)</span>
             <span class="metric-val"><span id="hud-perf-fps">60</span> fps / <span id="hud-perf-frame-time">1.8</span> ms</span>
@@ -78,11 +75,132 @@
         </div>
       </div>
 
-      <!-- Uzay Çağı Kompakt HUD Konsolu (Tek Satır, No-Wrap, 3 Segmentli) -->
-      <nav id="experience-controls" class="controls-bar" aria-label="Kontrol Konsolu">
-        <!-- 1. Segment: Navigasyon ve Bölge Seçimi -->
-        <div class="control-group">
-          <!-- Hidden camera control elements kept for UIController binding compatibility -->
+      <!-- Üst Kontrol Merkezi: Tek ve Sade Kontrol Şeridi -->
+      <header id="top-control-deck" class="top-control-deck">
+        <nav id="experience-controls" class="controls-bar" aria-label="Kontrol Konsolu">
+          <!-- 1. KAMERA (Açılır Mega Yönetmen Menüsü) -->
+          <div class="dropdown-wrapper">
+            <button id="btn-camera-main-toggle" class="ui-btn btn-camera-main" title="Kamera Yönetmeni, Modlar ve Açılar">📹 Kamera ▾</button>
+            <div id="dropdown-camera-mega" class="hierarchy-dropdown camera-mega-dropdown hidden">
+              <div class="cam-mega-header">
+                <span class="cam-mega-title">📹 SİNEMATİK KAMERA YÖNETMENİ</span>
+                <div class="cam-quick-toggle-wrap">
+                  <button id="btn-cam-quick-toggle" class="cam-quick-toggle-btn auto-active" title="Hızlı Manuel / Otomatik Geçiş">
+                    <span class="toggle-mode-dot"></span>
+                    <span id="label-quick-mode">🎬 OTO</span>
+                  </button>
+                  <div id="badge-filter-status" class="filter-status-pill" title="Aktif Kriterler">Tümü Açık</div>
+                </div>
+              </div>
+
+              <!-- Kamera Modları & Bakış & Kapsam Izgarası -->
+              <div class="cam-mega-grid">
+                <!-- Sütun 1: Takip Modu -->
+                <div class="cam-mega-col">
+                  <div class="cam-mega-subhead">TAKİP MODU</div>
+                  <div class="cam-dropdown-option active" data-cam-mode="AUTO">
+                    <span class="opt-icon">🎬</span>
+                    <div class="opt-text">
+                      <div class="opt-title">Otomatik (Fırtına Takibi)</div>
+                      <div class="opt-desc">En aktif fırtınalara sinematik uçar</div>
+                    </div>
+                  </div>
+                  <div class="cam-dropdown-option" data-cam-mode="MANUAL">
+                    <span class="opt-icon">🕹️</span>
+                    <div class="opt-text">
+                      <div class="opt-title">Manuel (Kullanıcı Serbest)</div>
+                      <div class="opt-desc">Kamera serbest kalır, fareyle gezilir</div>
+                    </div>
+                  </div>
+                  <div class="cam-dropdown-option" data-cam-mode="ORBIT">
+                    <span class="opt-icon">🛰️</span>
+                    <div class="opt-text">
+                      <div class="opt-title">Yörünge Süzülmesi</div>
+                      <div class="opt-desc">Dünya etrafında hipnotik yavaş tur</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sütun 2: Bakış Açısı & İrtifa -->
+                <div class="cam-mega-col">
+                  <div class="cam-mega-subhead">BAKIŞ AÇISI & İRTİFA</div>
+                  <div class="pitch-preset-row">
+                    <button class="pitch-preset-btn" data-pitch="0">0° (Dik)</button>
+                    <button class="pitch-preset-btn active" data-pitch="15">15°</button>
+                    <button class="pitch-preset-btn" data-pitch="25">25°</button>
+                    <button class="pitch-preset-btn" data-pitch="45">45°</button>
+                    <button class="pitch-preset-btn" data-pitch="60">60°</button>
+                    <button class="pitch-preset-btn" data-pitch="75">75°</button>
+                  </div>
+
+                  <div class="cam-slider-group">
+                    <div class="cam-slider-label-row">
+                      <span>Eğim Açısı (Pitch)</span>
+                      <span id="val-pitch-slider" class="cam-slider-val">15°</span>
+                    </div>
+                    <input type="range" id="slider-cam-pitch" min="0" max="75" step="1" value="15" class="cam-range-slider" />
+                  </div>
+
+                  <div class="cam-slider-group">
+                    <div class="cam-slider-label-row">
+                      <span>Kamera İrtifası</span>
+                      <span id="val-dist-slider" class="cam-slider-val">220u</span>
+                    </div>
+                    <input type="range" id="slider-cam-dist" min="115" max="500" step="5" value="220" class="cam-range-slider" />
+                  </div>
+                </div>
+
+                <!-- Sütun 3: Çekim Ölçeği -->
+                <div class="cam-mega-col">
+                  <div class="cam-mega-subhead">ÇEKİM ÖLÇEĞİ</div>
+                  <div class="cam-scale-grid">
+                    <button class="cam-scale-btn active" data-scale="AUTO_DIVERSITY">🎲 Oto Çeşitlilik</button>
+                    <button class="cam-scale-btn" data-scale="VERY_CLOSE">115u Çok Yakın</button>
+                    <button class="cam-scale-btn" data-scale="CLOSE">140u Yakın</button>
+                    <button class="cam-scale-btn" data-scale="COUNTRY">200u Ülkesel</button>
+                    <button class="cam-scale-btn" data-scale="REGIONAL">260u Bölgesel</button>
+                    <button class="cam-scale-btn" data-scale="CONTINENTAL">310u Kıtasal</button>
+                    <button class="cam-scale-btn" data-scale="ATMOSPHERIC">400u Atmosferik</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Coğrafi Sekmeler: Kıtalar / Koridorlar / Ülke Arama -->
+              <div class="cam-mega-geo-section">
+                <div class="dropdown-tabs-header">
+                  <button type="button" class="dropdown-tab-btn active" data-tab="continents">🌐 Kıtalar</button>
+                  <button type="button" class="dropdown-tab-btn" data-tab="corridors">⚡ Fırtına Koridorları</button>
+                  <button type="button" class="dropdown-tab-btn" data-tab="search">🔍 Ülke Ara & Odaklan</button>
+                </div>
+                <div id="tab-pane-continents" class="dropdown-tab-pane">
+                  <div class="dropdown-item" data-lat="0" data-lon="0" data-dist="350">🌐 Tüm Dünya</div>
+                  <div class="dropdown-item" data-lat="50.0" data-lon="15.0" data-dist="240">🌍 Avrupa</div>
+                  <div class="dropdown-item" data-lat="35.0" data-lon="95.0" data-dist="290">🌏 Asya</div>
+                  <div class="dropdown-item" data-lat="2.0" data-lon="20.0" data-dist="270">🌍 Afrika</div>
+                  <div class="dropdown-item" data-lat="40.0" data-lon="-100.0" data-dist="280">🌎 Kuzey Amerika</div>
+                  <div class="dropdown-item" data-lat="-15.0" data-lon="-60.0" data-dist="270">🌎 Güney Amerika</div>
+                  <div class="dropdown-item" data-lat="-25.0" data-lon="135.0" data-dist="260">🌏 Okyanusya</div>
+                  <div class="dropdown-item" data-lat="-80.0" data-lon="0.0" data-dist="260">❄️ Antarktika</div>
+                </div>
+                <div id="tab-pane-corridors" class="dropdown-tab-pane hidden">
+                  <div class="dropdown-item" data-lat="36.0" data-lon="18.0" data-dist="180">🌊 Akdeniz Havzası</div>
+                  <div class="dropdown-item" data-lat="29.0" data-lon="45.0" data-dist="180">🏜️ Orta Doğu</div>
+                  <div class="dropdown-item" data-lat="-1.0" data-lon="23.0" data-dist="180">⚡ Kongo Havzası</div>
+                  <div class="dropdown-item" data-lat="5.0" data-lon="110.0" data-dist="190">🌴 Güneydoğu Asya</div>
+                  <div class="dropdown-item" data-lat="18.0" data-lon="-75.0" data-dist="180">🌀 Karayipler</div>
+                  <div class="dropdown-item" data-lat="38.0" data-lon="-98.0" data-dist="190">🌪️ Kuzey Amerika Ovaları</div>
+                </div>
+                <div id="tab-pane-search" class="dropdown-tab-pane hidden">
+                  <div class="dropdown-search-box">
+                    <input type="text" id="input-country-search" class="dropdown-input" placeholder="🔍 Ülke ara..." autocomplete="off" />
+                  </div>
+                  <div id="country-search-list" class="dropdown-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden compatibility elements kept for UIController binding -->
           <button id="btn-view-mode" style="display: none;"></button>
           <button id="btn-camera-framing" style="display: none;"></button>
           <div id="dropdown-camera-framing" style="display: none;"></div>
@@ -94,59 +212,29 @@
             <span id="drone-dist-val" style="display: none;">280</span>
             <input type="range" id="slider-drone-dist" style="display: none;" />
           </div>
-          
-          <!-- Tekli Mega-Açılır Menü: Kıtalar, Koridorlar ve Ülke Arama -->
-          <div class="dropdown-wrapper">
-            <button id="btn-hierarchy-mega" class="ui-btn btn-hierarchy" title="Bölgeler, Fırtına Koridorları ve Ülke Arama">🗺️ Bölgeler ▾</button>
-            <div id="dropdown-mega" class="hierarchy-dropdown hidden">
-              <div class="dropdown-tabs-header">
-                <button type="button" class="dropdown-tab-btn active" data-tab="continents">🌐 Kıtalar</button>
-                <button type="button" class="dropdown-tab-btn" data-tab="corridors">⚡ Koridorlar</button>
-                <button type="button" class="dropdown-tab-btn" data-tab="search">🔍 Ülke Ara</button>
-              </div>
-              <div id="tab-pane-continents" class="dropdown-tab-pane">
-                <div class="dropdown-item" data-lat="0" data-lon="0" data-dist="350">🌐 Tüm Dünya</div>
-                <div class="dropdown-item" data-lat="50.0" data-lon="15.0" data-dist="240">🌍 Avrupa</div>
-                <div class="dropdown-item" data-lat="35.0" data-lon="95.0" data-dist="290">🌏 Asya</div>
-                <div class="dropdown-item" data-lat="2.0" data-lon="20.0" data-dist="270">🌍 Afrika</div>
-                <div class="dropdown-item" data-lat="40.0" data-lon="-100.0" data-dist="280">🌎 Kuzey Amerika</div>
-                <div class="dropdown-item" data-lat="-15.0" data-lon="-60.0" data-dist="270">🌎 Güney Amerika</div>
-                <div class="dropdown-item" data-lat="-25.0" data-lon="135.0" data-dist="260">🌏 Okyanusya</div>
-                <div class="dropdown-item" data-lat="-80.0" data-lon="0.0" data-dist="260">❄️ Antarktika</div>
-              </div>
-              <div id="tab-pane-corridors" class="dropdown-tab-pane hidden">
-                <div class="dropdown-item" data-lat="36.0" data-lon="18.0" data-dist="180">🌊 Akdeniz Havzası</div>
-                <div class="dropdown-item" data-lat="29.0" data-lon="45.0" data-dist="180">🏜️ Orta Doğu</div>
-                <div class="dropdown-item" data-lat="-1.0" data-lon="23.0" data-dist="180">⚡ Kongo Havzası</div>
-                <div class="dropdown-item" data-lat="5.0" data-lon="110.0" data-dist="190">🌴 Güneydoğu Asya</div>
-                <div class="dropdown-item" data-lat="18.0" data-lon="-75.0" data-dist="180">🌀 Karayipler</div>
-                <div class="dropdown-item" data-lat="38.0" data-lon="-98.0" data-dist="190">🌪️ Kuzey Amerika Ovaları</div>
-              </div>
-              <div id="tab-pane-search" class="dropdown-tab-pane hidden">
-                <div class="dropdown-search-box">
-                  <input type="text" id="input-country-search" class="dropdown-input" placeholder="🔍 Ülke ara..." autocomplete="off" />
-                </div>
-                <div id="country-search-list" class="dropdown-list"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <button id="btn-hierarchy-mega" style="display: none;"></button>
+          <div id="dropdown-mega" style="display: none;"></div>
+          <button id="btn-cam-bar-toggle" style="display: none;"></button>
+          <button id="btn-cam-mode-dropdown" style="display: none;"><span id="label-cam-mode"></span></button>
+          <div id="dropdown-cam-mode" style="display: none;"></div>
+          <button id="btn-cam-pitch-dropdown" style="display: none;"><span id="label-cam-pitch"></span></button>
+          <div id="dropdown-cam-pitch" style="display: none;"></div>
+          <button id="btn-cam-scale-dropdown" style="display: none;"><span id="label-cam-scale"></span></button>
+          <div id="dropdown-cam-scale" style="display: none;"></div>
+          <button id="btn-cam-continents-dropdown" style="display: none;"></button>
+          <div id="dropdown-cam-continents" style="display: none;"><button id="btn-clear-continents"></button><div id="list-continents"></div></div>
+          <button id="btn-cam-regions-dropdown" style="display: none;"></button>
+          <div id="dropdown-cam-regions" style="display: none;"><button id="btn-clear-regions"></button><div id="list-regions"></div></div>
+          <button id="btn-cam-countries-dropdown" style="display: none;"></button>
+          <div id="dropdown-cam-countries" style="display: none;"><button id="btn-clear-countries"></button><input id="input-cam-country-search" /><div id="list-countries"></div></div>
+          <button id="btn-cam-peteks-dropdown" style="display: none;"></button>
+          <div id="dropdown-cam-peteks" style="display: none;"><button id="btn-clear-peteks"></button><div id="list-peteks"></div></div>
+          <button id="btn-feed-mode" style="display: none;"></button>
 
-        <div class="control-divider"></div>
-
-        <!-- 2. Segment: Sensörler & Katmanlar (Kompakt Tek Satır Haplar) -->
-        <div class="control-group">
-          <button id="btn-feed-mode" class="ui-btn btn-feed active" title="Veri Kaynağı: Hibrit / Blitzortung RF / GOES-16 GLM Uydu">📡 Hibrit</button>
+          <!-- 2. ATMOSFER -->
           <button id="btn-atmosphere" class="ui-btn btn-atmosphere active" title="Termodinamik Konvektif Atmosfer Katmanı">🌌 Atmosfer</button>
-          <button id="btn-trails" class="ui-btn btn-trails active" title="24 Saatlik Kalıcı Yıldırım İzleri">⏳ 24S İz</button>
-          <button id="btn-audio" class="ui-btn btn-audio" title="Prosedürel Gök Gürültüsü ve Şimşek Sesleri">🔇 Ses</button>
-        </div>
 
-        <div class="control-divider"></div>
-
-        <!-- 3. Segment: Veri Çekmeceleri & Petek Odak Kilidi -->
-        <div class="control-group">
-          <!-- Petekler Kategori Açılır Menüsü & Odak Kilidi -->
+          <!-- 3. PETEKLER -->
           <div class="dropdown-wrapper">
             <button id="btn-active-peteks" class="ui-btn btn-peteks" title="Kategoriye Göre Aktif Petekler & Odak Kilidi">⬡ Petekler ▾</button>
             <div id="dropdown-peteks" class="hierarchy-dropdown hidden peteks-dropdown">
@@ -186,220 +274,35 @@
             </div>
           </div>
 
+          <!-- 4. FIRTINALAR -->
           <button id="btn-toggle-drawer" class="ui-btn btn-drawer" title="Aktif Fırtına Hücreleri Listesi">
             ⚡ Fırtınalar <span class="drawer-badge">0</span>
           </button>
+
+          <!-- 5. SIRALAMA -->
           <button id="btn-leaderboard" class="ui-btn btn-leaderboard" title="Ülke Yıldırım Liderlik Tablosu">
             🏆 Sıralama
           </button>
+        </nav>
+      </header>
+
+      <!-- Sol Alt: Seyirci Uçuş Takip HUD Kartı -->
+      <div id="viewer-flight-card" class="viewer-flight-card hidden" aria-label="Seyirci Hedef Takibi">
+        <div class="vfc-icon-wrap">
+          <span class="vfc-icon">🎯</span>
         </div>
-      </nav>
-
-      <!-- Sinematik Kamera Yönetmeni Akordiyon Barı (Üst Barın Altında Sağa Açılır) -->
-      <nav id="camera-modes-bar" class="camera-accordion-bar collapsed" aria-label="Kamera Yönetmeni">
-        <!-- Akordiyon Açma/Kapatma Tetikleyici Butonu -->
-        <button id="btn-cam-bar-toggle" class="camera-bar-toggle-btn" title="Kamera Yönetmeni Paneli">
-          <span class="cam-toggle-icon">📹</span>
-          <span class="cam-toggle-text">KAMERA YÖNETMENİ</span>
-          <span class="cam-toggle-arrow">▸</span>
-        </button>
-
-        <!-- Akordiyon İçerik Şeridi (Sağa Doğru Pürüzsüz Açılan Kısım) -->
-        <div class="camera-accordion-content">
-          <!-- 1. Segment: Kamera Modu -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-mode-dropdown" class="cam-btn" title="Kamera Takip Modu">
-              <span class="cam-btn-icon">🎯</span>
-              <span id="label-cam-mode">Mod: Oto</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-mode" class="cam-dropdown hidden">
-              <div class="cam-dropdown-header">KAMERA MODU</div>
-              <div class="cam-dropdown-option active" data-cam-mode="AUTO">
-                <span class="opt-icon">🎬</span>
-                <div class="opt-text">
-                  <div class="opt-title">Otomatik (Fırtına Takibi)</div>
-                  <div class="opt-desc">Kriterlere uyan fırtınalara sinematik uçar</div>
-                </div>
-              </div>
-              <div class="cam-dropdown-option" data-cam-mode="MANUAL">
-                <span class="opt-icon">🕹️</span>
-                <div class="opt-text">
-                  <div class="opt-title">Manuel (Kullanıcı Serbest)</div>
-                  <div class="opt-desc">Kamera serbest kalır, fareyle gezilir</div>
-                </div>
-              </div>
-              <div class="cam-dropdown-option" data-cam-mode="ORBIT">
-                <span class="opt-icon">🛰️</span>
-                <div class="opt-text">
-                  <div class="opt-title">Yörünge Süzülmesi</div>
-                  <div class="opt-desc">Dünya etrafında hipnotik yavaş drone turu</div>
-                </div>
-              </div>
-            </div>
+        <div class="vfc-content">
+          <div class="vfc-row-top">
+            <span id="vfc-badge" class="vfc-badge">SEYİRCİ İSTEĞİ</span>
+            <span id="vfc-user" class="vfc-user">@Kullanıcı</span>
           </div>
-
-          <!-- 2. Segment: Bakış Açısı (Mini Panel: Dik Açı, Hazır Açılar, Hassas Sliderlar) -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-pitch-dropdown" class="cam-btn" title="Kamera Eğim ve Bakış Açısı">
-              <span class="cam-btn-icon">📐</span>
-              <span id="label-cam-pitch">Bakış: 25°</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-pitch" class="cam-dropdown cam-dropdown-wide hidden">
-              <div class="cam-dropdown-header">BAKIŞ AÇISI & İRTİFA AYARI</div>
-              
-              <!-- Hazır Açılar -->
-              <div class="pitch-preset-row">
-                <button class="pitch-preset-btn" data-pitch="0">0° (Dik)</button>
-                <button class="pitch-preset-btn" data-pitch="15">15°</button>
-                <button class="pitch-preset-btn active" data-pitch="25">25°</button>
-                <button class="pitch-preset-btn" data-pitch="45">45°</button>
-                <button class="pitch-preset-btn" data-pitch="60">60°</button>
-                <button class="pitch-preset-btn" data-pitch="75">75°</button>
-              </div>
-
-              <!-- Hassas Açı Çubuğu (1° hassasiyet) -->
-              <div class="cam-slider-group">
-                <div class="cam-slider-label-row">
-                  <span>Eğim Açısı (Pitch)</span>
-                  <span id="val-pitch-slider" class="cam-slider-val">25°</span>
-                </div>
-                <input type="range" id="slider-cam-pitch" min="0" max="75" step="1" value="25" class="cam-range-slider" />
-              </div>
-
-              <!-- Hassas Mesafe Çubuğu -->
-              <div class="cam-slider-group">
-                <div class="cam-slider-label-row">
-                  <span>Kamera Uzaklığı (İrtifa)</span>
-                  <span id="val-dist-slider" class="cam-slider-val">220u</span>
-                </div>
-                <input type="range" id="slider-cam-dist" min="115" max="500" step="5" value="220" class="cam-range-slider" />
-              </div>
-            </div>
+          <div class="vfc-row-mid">
+            <span id="vfc-target-name" class="vfc-target-name">🇹🇷 Türkiye</span>
+            <span id="vfc-countdown" class="vfc-countdown">00:08</span>
           </div>
-
-          <!-- 3. Segment: Çekim Açısı (Kapsam / Shot Scale) -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-scale-dropdown" class="cam-btn" title="Çekim Kapsamı ve Ölçeği">
-              <span class="cam-btn-icon">🔭</span>
-              <span id="label-cam-scale">Çekim: Ülkesel</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-scale" class="cam-dropdown hidden">
-              <div class="cam-dropdown-header">ÇEKİM ÖLÇEĞİ</div>
-              <div class="cam-dropdown-option" data-scale="AUTO_DIVERSITY">
-                <span class="opt-badge">🎲</span>
-                <div class="opt-title">Oto Seçim (Dinamik Çeşitlilik)</div>
-              </div>
-              <div class="cam-dropdown-option" data-scale="VERY_CLOSE">
-                <span class="opt-badge">115u</span>
-                <div class="opt-title">Çok Yakın (Süper Hücre İçi)</div>
-              </div>
-              <div class="cam-dropdown-option" data-scale="CLOSE">
-                <span class="opt-badge">140u</span>
-                <div class="opt-title">Yakın (Fırtına Hattı)</div>
-              </div>
-              <div class="cam-dropdown-option active" data-scale="COUNTRY">
-                <span class="opt-badge">200u</span>
-                <div class="opt-title">Ülkesel (Standart)</div>
-              </div>
-              <div class="cam-dropdown-option" data-scale="REGIONAL">
-                <span class="opt-badge">260u</span>
-                <div class="opt-title">Bölgesel (Geniş Havza)</div>
-              </div>
-              <div class="cam-dropdown-option" data-scale="CONTINENTAL">
-                <span class="opt-badge">310u</span>
-                <div class="opt-title">Kıtasal (Kıta Boyutu)</div>
-              </div>
-              <div class="cam-dropdown-option" data-scale="ATMOSPHERIC">
-                <span class="opt-badge">400u</span>
-                <div class="opt-title">Atmosferik (Tüm Yarımküre)</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. Segment: Kıtalar Çoklu Seçim Dropdown -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-continents-dropdown" class="cam-btn" title="Kıta Filtreleri (Çoklu Seçim)">
-              <span class="cam-btn-icon">🌍</span>
-              <span id="label-cam-continents">Kıtalar</span>
-              <span class="cam-badge-tag hidden" id="badge-continents-count">0</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-continents" class="cam-dropdown cam-dropdown-multiselect hidden">
-              <div class="cam-multi-header">
-                <span>KITANIZI SEÇİN</span>
-                <button type="button" class="cam-clear-btn" id="btn-clear-continents">Temizle</button>
-              </div>
-              <div class="cam-multi-list" id="list-continents"></div>
-            </div>
-          </div>
-
-          <!-- 5. Segment: Bölgeler Çoklu Seçim Dropdown -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-regions-dropdown" class="cam-btn" title="Fırtına Havzaları (Çoklu Seçim)">
-              <span class="cam-btn-icon">⚡</span>
-              <span id="label-cam-regions">Bölgeler</span>
-              <span class="cam-badge-tag hidden" id="badge-regions-count">0</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-regions" class="cam-dropdown cam-dropdown-multiselect hidden">
-              <div class="cam-multi-header">
-                <span>FIRTINA BÖLGESİ</span>
-                <button type="button" class="cam-clear-btn" id="btn-clear-regions">Temizle</button>
-              </div>
-              <div class="cam-multi-list" id="list-regions"></div>
-            </div>
-          </div>
-
-          <!-- 6. Segment: Ülkeler Çoklu Seçim Dropdown -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-countries-dropdown" class="cam-btn" title="Ülke Seçimi (Çoklu Seçim & Arama)">
-              <span class="cam-btn-icon">🚩</span>
-              <span id="label-cam-countries">Ülkeler</span>
-              <span class="cam-badge-tag hidden" id="badge-countries-count">0</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-countries" class="cam-dropdown cam-dropdown-multiselect cam-dropdown-countries hidden">
-              <div class="cam-multi-header">
-                <span>ÜLKE SEÇİMİ</span>
-                <button type="button" class="cam-clear-btn" id="btn-clear-countries">Temizle</button>
-              </div>
-              <div class="cam-search-box">
-                <input type="text" id="input-cam-country-search" class="cam-search-input" placeholder="🔍 Ülke ara..." autocomplete="off" />
-              </div>
-              <div class="cam-multi-list cam-country-scroll" id="list-countries"></div>
-            </div>
-          </div>
-
-          <!-- 7. Segment: Petek Modu Çoklu Seçim Dropdown -->
-          <div class="cam-item dropdown-wrapper">
-            <button id="btn-cam-peteks-dropdown" class="cam-btn" title="Petek / Hücre Tipi (Çoklu Seçim)">
-              <span class="cam-btn-icon">⬡</span>
-              <span id="label-cam-peteks">Petek Modu</span>
-              <span class="cam-badge-tag hidden" id="badge-peteks-count">0</span>
-              <span class="cam-arrow">▾</span>
-            </button>
-            <div id="dropdown-cam-peteks" class="cam-dropdown cam-dropdown-multiselect hidden">
-              <div class="cam-multi-header">
-                <span>PETEK SINIFLARI</span>
-                <button type="button" class="cam-clear-btn" id="btn-clear-peteks">Temizle</button>
-              </div>
-              <div class="cam-multi-list" id="list-peteks"></div>
-            </div>
-          </div>
-
-          <!-- 8. Segment: Hızlı Manuel / Oto Geçiş Switchi -->
-          <div class="cam-quick-toggle-wrap">
-            <button id="btn-cam-quick-toggle" class="cam-quick-toggle-btn auto-active" title="Hızlı Manuel / Otomatik Geçiş">
-              <span class="toggle-mode-dot"></span>
-              <span id="label-quick-mode">🎬 OTO</span>
-            </button>
-            <div id="badge-filter-status" class="filter-status-pill" title="Aktif Kriterler">Tümü Açık</div>
-          </div>
+          <div id="vfc-status-banner" class="vfc-status-banner hidden"></div>
         </div>
-      </nav>
+      </div>
 
       <!-- İnteraktif Yıldırım Vuruş Detay Kartı (Sol Alt) -->
       <div id="strike-detail-card" class="strike-detail-card hidden" aria-label="Vuruş Detayları">
@@ -453,52 +356,135 @@
         </div>
       </div>
 
-      <!-- Aktif Fırtına Hücreleri Çekmecesi (Sağ Panel) -->
-      <aside id="storm-drawer" class="storm-drawer" aria-label="Aktif Fırtına Hücreleri">
-        <div class="drawer-header">
-          <div class="drawer-title">
-            <span class="drawer-icon">⚡</span>
-            <span>AKTİF FIRTINA HÜCRELERİ</span>
-          </div>
-          <button id="btn-close-drawer" class="ui-btn btn-close" aria-label="Çekmeceyi Kapat">✕</button>
-        </div>
-        <div id="storm-list-container" class="storm-list">
-          <div class="empty-drawer-msg">Aktif fırtına hücreleri taranıyor...</div>
-        </div>
-      </aside>
-
-      <!-- Ülke Yıldırım Liderlik Tablosu Çekmecesi (Sağ Panel) -->
-      <aside id="leaderboard-drawer" class="leaderboard-drawer" aria-label="Ülke Yıldırım Liderlik Tablosu">
-        <div class="drawer-header">
-          <div class="drawer-title">
-            <span class="drawer-icon">🏆</span>
-            <span>ÜLKE YILDIRIM SIRALAMASI</span>
-          </div>
-          <button id="btn-close-leaderboard" class="ui-btn btn-close" aria-label="Sıralamayı Kapat">✕</button>
-        </div>
-        <div class="leaderboard-periods" role="tablist">
-          <button id="btn-period-day" class="ui-btn btn-period active" data-period="day">GÜN</button>
-          <button id="btn-period-week" class="ui-btn btn-period" data-period="week">HAFTA</button>
-          <button id="btn-period-month" class="ui-btn btn-period" data-period="month">AY</button>
-          <button id="btn-period-year" class="ui-btn btn-period" data-period="year">YIL</button>
-        </div>
-        <div class="leaderboard-summary">
-          <span class="summary-label">DÖNEM TOPLAM VURUŞ</span>
-          <span id="leaderboard-total-count" class="summary-val">0</span>
-        </div>
-        <div id="leaderboard-list-container" class="leaderboard-list">
-          <div class="empty-drawer-msg">Küresel yıldırım verileri toplanıyor...</div>
-        </div>
-      </aside>
-
       <!-- Ülke Üzerine Gelince Çıkan İpucu (Hover Tooltip) -->
       <div id="country-hover-tooltip" class="country-hover-tooltip hidden" aria-live="polite">
         <span id="tooltip-flag" class="tooltip-flag">🇹🇷</span>
         <span id="tooltip-name" class="tooltip-name">Türkiye</span>
       </div>
 
-      <!-- Sağ Bölme (Right Sidebar): 2 Sabit Boyutlu Akordiyon Panel -->
-      <aside id="right-sidebar" class="right-sidebar" aria-label="Canlı Günlük ve Analiz">
+      <!-- Sağ Üst Köşe: Fon Müziği Widget'ı & Ses Butonu & Popup Çalar -->
+      <div id="music-player-widget" class="music-player-widget">
+        <button id="btn-audio" class="ui-btn btn-audio-widget" title="Yıldırım Vuruş Sesleri & Konsolu">
+          🔊 Ses
+        </button>
+
+        <!-- Şimşek Ses Konsolu Popup Kartı -->
+        <div id="sfx-popup-card" class="sfx-popup-card hidden">
+          <div class="sfx-card-header">
+            <div class="sfx-card-title">
+              <span class="sfx-icon">⚡</span>
+              <span>ŞİMŞEK SES KONSOLU</span>
+            </div>
+            <button id="btn-close-sfx" class="sfx-close-btn" aria-label="Kapat">✕</button>
+          </div>
+          <div class="sfx-card-body">
+            <!-- Ses Seviyesi Slider -->
+            <div class="sfx-control-group">
+              <div class="sfx-label-row">
+                <span class="sfx-label">SES SEVİYESİ</span>
+                <span id="sfx-volume-val" class="sfx-val">80%</span>
+              </div>
+              <input type="range" id="sfx-volume-slider" class="sfx-volume-slider" min="0" max="100" value="80" step="1" />
+            </div>
+
+            <!-- Ses Profilleri -->
+            <div class="sfx-control-group">
+              <div class="sfx-label-row">
+                <span class="sfx-label">PROSEDÜREL SES PROFİLİ</span>
+                <span id="sfx-active-profile-name" class="sfx-val text-neon-gold">⚡ DİNAMİK</span>
+              </div>
+              <div class="sfx-profiles-grid">
+                <button class="sfx-profile-btn active sfx-btn-dynamic" data-profile="DYNAMIC" title="Akım şiddetine göre otomatik profil değişir (Önerilen)">
+                  <span class="profile-badge">⚡ DİNAMİK (Şiddete Duyarlı)</span>
+                  <span class="profile-desc">Vuruş şiddetine (kA) göre profili otomatik seçer</span>
+                </button>
+                <button class="sfx-profile-btn" data-profile="v1" title="Zengin akustik atmosferik gök gürültüsü">
+                  <span class="profile-badge">v1 DOĞAL GÖK GÜRÜLTÜSÜ</span>
+                  <span class="profile-desc">Akustik çıtırtı, Brownian yuvarlanma & sub-bass</span>
+                </button>
+                <button class="sfx-profile-btn" data-profile="v2" title="Derin tektonik sismik sarsıntı">
+                  <span class="profile-badge">v2 SİSMİK SUB-BASS</span>
+                  <span class="profile-desc">16-38 Hz çift osilatörlü göğüs titreten yer sarsıntısı</span>
+                </button>
+                <button class="sfx-profile-btn" data-profile="v3" title="Yüksek voltajlı iyonize ark boşalımı">
+                  <span class="profile-badge">v3 İYONİZE PLAZMA</span>
+                  <span class="profile-desc">Rezonant elektrik ark sweep'i ve iyonize hava cızırtısı</span>
+                </button>
+                <button class="sfx-profile-btn" data-profile="v4" title="Kısa, tok, kulağı yormayan net kırılma">
+                  <span class="profile-badge">v4 TAKTİK KIRILMA</span>
+                  <span class="profile-desc">Hızlı 0.4s atak, tok gövde, sıfır uğultu (Yoğun fırtına dostu)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Test Çakımı Butonu -->
+            <div class="sfx-test-row">
+              <button id="btn-sfx-test-strike" class="ui-btn btn-sfx-test" title="Seçili profille anında test çakımı sesi oynatır">
+                ⚡ Test Çakımı Dinle
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-music-toggle" class="ui-btn btn-music-widget" title="Sakin Gece Fon Müziği">
+          <span class="music-icon-note">🎵</span>
+          <div class="music-ticker-wrap">
+            <div class="music-ticker-inner">
+              <span id="music-widget-label" class="music-ticker-content">Stellardrone — Eternity  •  Stellardrone — Eternity</span>
+            </div>
+          </div>
+          <span id="music-widget-pulse" class="music-mini-eq hidden">
+            <span></span><span></span><span></span>
+          </span>
+        </button>
+        
+        <div id="music-popup-card" class="music-popup-card hidden">
+          <div class="music-card-header">
+            <div class="music-card-title">
+              <span class="music-icon">🎧</span>
+              <span>GECE GÖZLEMİ FON MÜZİĞİ</span>
+            </div>
+            <button id="btn-close-music" class="music-close-btn" aria-label="Kapat">✕</button>
+          </div>
+
+          <div class="music-now-playing">
+            <div class="music-track-info">
+              <span id="music-current-title" class="music-track-title">Eternity</span>
+              <span id="music-current-artist" class="music-track-artist">Stellardrone</span>
+            </div>
+            <span id="music-time-display" class="music-time-display">00:00 / 00:00</span>
+          </div>
+
+          <!-- Progress Scrubber -->
+          <div class="music-progress-container">
+            <input type="range" id="music-progress-bar" class="music-progress-bar" min="0" max="100" value="0" step="0.1" />
+          </div>
+
+          <!-- Transport Controls -->
+          <div class="music-controls-row">
+            <button id="btn-music-prev" class="music-btn" title="Önceki Parça">⏮</button>
+            <button id="btn-music-play" class="music-btn music-btn-play" title="Oynat / Duraklat">▶</button>
+            <button id="btn-music-next" class="music-btn" title="Sonraki Parça">⏭</button>
+            
+            <div class="music-volume-wrap">
+              <button id="btn-music-mute" class="music-btn music-btn-mute" title="Sesi Kapat">🔊</button>
+              <input type="range" id="music-volume-slider" class="music-volume-slider" min="0" max="100" step="1" value="50" />
+            </div>
+          </div>
+
+          <!-- Playlist Section -->
+          <div class="music-playlist-header">
+            <span>ÇALMA LİSTESİ (20 PARÇA)</span>
+            <span class="music-loop-badge">Döngü: Açık</span>
+          </div>
+          <div id="music-playlist-items" class="music-playlist-items">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sağ Bölme (Right Sidebar): Akordiyon Paneller -->
+      <aside id="right-sidebar" class="right-sidebar" aria-label="Canlı Günlük, Fırtına ve Analiz">
         <!-- Panel 1: Canlı Şimşek Günlüğü (Live Strike Feed) -->
         <div class="accordion-panel" id="panel-live-feed">
           <div class="accordion-header" id="header-live-feed">
@@ -522,7 +508,68 @@
           </div>
         </div>
 
-        <!-- Panel 2: Gelişmiş Analiz (Yakında Gelecek - Şık Fütüristik Kabuk) -->
+        <!-- Panel 2: Kamera Hedef Kuyruğu (20 Hedefli Akordiyon) -->
+        <div class="accordion-panel" id="panel-camera-queue">
+          <div class="accordion-header" id="header-camera-queue">
+            <div class="accordion-title">
+              <span class="accordion-icon">📡</span>
+              <span>KAMERA KUYRUĞU</span>
+              <span class="accordion-badge" id="queue-count-badge">0 / 20</span>
+            </div>
+            <button class="accordion-toggle" id="btn-toggle-queue" aria-label="Akordiyonu Aç/Kapat">▾</button>
+          </div>
+          <div class="accordion-content" id="content-camera-queue">
+            <div class="queue-status-bar">
+              <span class="queue-status-text">⚡ 10 Doğal + 10 Seyirci Hedefi</span>
+              <span id="queue-dwell-text" class="queue-dwell-text">Kalış: 7 sn</span>
+            </div>
+            <div id="camera-queue-list" class="camera-queue-list">
+              <div class="empty-queue-msg">Kamera hedefleri hesaplanıyor...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Aktif Fırtına Hücreleri (Sağ Bölme Akordiyon) -->
+        <div class="accordion-panel collapsed" id="panel-storms">
+          <div class="accordion-header" id="header-storms">
+            <div class="accordion-title">
+              <span class="accordion-icon">⚡</span>
+              <span>AKTİF FIRTINA HÜCRELERİ</span>
+              <span class="accordion-badge" id="storms-count-badge">0</span>
+            </div>
+            <button class="accordion-toggle" id="btn-toggle-storms-accordion" aria-label="Akordiyonu Aç/Kapat">▾</button>
+          </div>
+          <div class="accordion-content" id="content-storms">
+            <div id="storm-list-container" class="storm-list right-sidebar-storm-list">
+              <div class="empty-drawer-msg">Aktif fırtına hücreleri taranıyor...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4: Ülke Yıldırım Sıralaması (Sağ Bölme Akordiyon) -->
+        <div class="accordion-panel collapsed" id="panel-leaderboard">
+          <div class="accordion-header" id="header-leaderboard">
+            <div class="accordion-title">
+              <span class="accordion-icon">🏆</span>
+              <span>ÜLKE YILDIRIM SIRALAMASI</span>
+              <span class="accordion-badge badge-gold" id="leaderboard-total-count">0</span>
+            </div>
+            <button class="accordion-toggle" id="btn-toggle-leaderboard-accordion" aria-label="Akordiyonu Aç/Kapat">▾</button>
+          </div>
+          <div class="accordion-content" id="content-leaderboard">
+            <div class="leaderboard-periods" role="tablist">
+              <button id="btn-period-day" class="ui-btn btn-period active" data-period="day">GÜN</button>
+              <button id="btn-period-week" class="ui-btn btn-period" data-period="week">HAFTA</button>
+              <button id="btn-period-month" class="ui-btn btn-period" data-period="month">AY</button>
+              <button id="btn-period-year" class="ui-btn btn-period" data-period="year">YIL</button>
+            </div>
+            <div id="leaderboard-list-container" class="leaderboard-list right-sidebar-leaderboard-list">
+              <div class="empty-drawer-msg">Küresel yıldırım verileri toplanıyor...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 5: Gelişmiş Analiz (Yakında Gelecek - Şık Fütüristik Kabuk) -->
         <div class="accordion-panel collapsed" id="panel-analytics">
           <div class="accordion-header" id="header-analytics">
             <div class="accordion-title">
@@ -548,6 +595,33 @@
           </div>
         </div>
       </aside>
+
+      <!-- Ekran Altı: Seyirci Chat Komut & Yönlendirme Barı (Tek Satır) -->
+      <footer id="bottom-command-bar" class="bottom-command-bar" role="complementary" aria-label="Seyirci Chat Komutları">
+        <div class="bcb-item bcb-title">
+          <span class="bcb-icon">🎮</span>
+          <span>Kamerayı Yönetmek İçin Chat'i Kullan</span>
+        </div>
+        <div class="bcb-divider"></div>
+        <div class="bcb-item bcb-syntax">
+          <span class="bcb-label">Kullanım:</span>
+          <span class="bcb-token">"!ulke [ülke ismi]"</span>
+          <span class="bcb-or">veya</span>
+          <span class="bcb-token">"![ülke]"</span>
+        </div>
+        <div class="bcb-divider"></div>
+        <div class="bcb-item bcb-example">
+          <span class="bcb-label">Örnek:</span>
+          <span class="bcb-pill">!ulke turkiye</span>
+          <span class="bcb-or">veya</span>
+          <span class="bcb-pill">!turkiye</span>
+        </div>
+        <div class="bcb-divider"></div>
+        <div class="bcb-item bcb-note">
+          <span class="bcb-warn-icon">⚠️</span>
+          <span>Türkçe karakter kullanmayın</span>
+        </div>
+      </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

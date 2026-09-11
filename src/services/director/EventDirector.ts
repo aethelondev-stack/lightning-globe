@@ -1,5 +1,5 @@
 import type { ScoredCluster } from '../../types/scoring';
-import type { QueueItem, PresentationHistoryEntry, DirectorConfig } from '../../types/director';
+import type { QueueItem, PresentationHistoryEntry, DirectorConfig, ViewerRequest, InterleavedQueueTarget } from '../../types/director';
 import type { ClassFilter } from '../../types/ui';
 import type { MeteorologicalStormClass } from '../../types/cluster';
 import type { CameraFilterMatrix } from '../../types/camera';
@@ -28,15 +28,14 @@ export const RARE_CONTINENTS: ContinentCode[] = ['EU', 'AS', 'OC', 'AF'];
  * Responsibilities:
  * - Priority Queue (`PresentationQueue`) management for multiple concurrent storm candidates.
  * - Temporal and spatial cooldown enforcement ($45\text{ s}$, $150\text{ km}$) to prevent camera fixation.
- * - Continental Diversity Bonus (+0.55) & Saturation Guard (prevents America/regional fixation).
- * - Emergency Interrupt Threshold checking ($S_{top} \ge 0.70$ and $S_{top} \ge 1.5 \times S_{current}$).
- * - Stale storm filtering to discard decaying clusters before camera focus.
- * - Interactive class filtering (ALL, LOCAL+, REGIONAL+, CONTINENTAL) for user experience control.
- *
- * Referencing PROJECT_SPEC.md Section 1, EVENT_DIRECTOR.md, and ARCHITECTURE.md.
+ * - Dual-Track Interleaving Queue: Interleaves up to 10 Natural Storms with up to 10 Viewer Requests.
+ * - Dynamic Cadence Acceleration: Cuts dwell time by 50% upon new viewer audience request.
  */
 export class EventDirector {
   private queue: QueueItem[] = [];
+  private viewerQueue: ViewerRequest[] = [];
+  private lastTargetType: 'NATURAL' | 'VIEWER' = 'VIEWER';
+  private currentViewerRequest: ViewerRequest | null = null;
   private history: Map<string, PresentationHistoryEntry> = new Map();
   private currentPresentation: ScoredCluster | null = null;
   private classFilter: ClassFilter = 'ALL';
@@ -49,6 +48,8 @@ export class EventDirector {
   private recentTargetIds: string[] = [];
   private lastKnownClusters: ScoredCluster[] = [];
   private presentationCount: number = 0;
+  private cadenceAccelerateListeners: Set<() => void> = new Set();
+  private viewerRequestListeners: Set<(req: ViewerRequest | null) => void> = new Set();
 
   constructor(config?: Partial<DirectorConfig>) {
     this.config = {
@@ -275,13 +276,166 @@ export class EventDirector {
 
 
   /**
+   * Enqueues a verified viewer country target from live stream chat.
+   * Enforces 10-request capacity limit, resolves country bounds, and accelerates current flight cadence.
+   */
+  public addViewerRequest(
+    usernameOrOptions: string | { username: string; countryName: string; platform?: 'kick' | 'youtube' },
+    countryQuery?: string,
+    platform: 'kick' | 'youtube' = 'kick',
+    currentTime: number = Date.now()
+  ): { success: boolean; message: string; position?: number; isCalmSky?: boolean } {
+    let username = '';
+    let query = '';
+    let plat: 'kick' | 'youtube' = platform;
+
+    if (typeof usernameOrOptions === 'object') {
+      username = usernameOrOptions.username;
+      query = usernameOrOptions.countryName;
+      plat = usernameOrOptions.platform || 'kick';
+    } else {
+      username = usernameOrOptions;
+      query = countryQuery || '';
+      plat = platform;
+    }
+
+    if (this.viewerQueue.length >= 10) {
+      return { success: false, message: 'Kamera istek kuyruğu dolu (10/10). Lütfen 2 dakika sonra deneyin.' };
+    }
+
+    // Resolve country via GeoIndex
+    const queryNorm = query.trim().toLowerCase();
+    const allCountries = GeoIndex.getCountryList();
+    const matchedCountry = allCountries.find((c) => {
+      if (c.name.toLowerCase() === queryNorm) return true;
+      if (c.iso && c.iso.toLowerCase() === queryNorm) return true;
+      // Partial / fuzzy matches for common names
+      if (queryNorm === 'türkiye' || queryNorm === 'turkey' || queryNorm === 'tr') return c.iso === 'TR';
+      if (queryNorm === 'abd' || queryNorm === 'usa' || queryNorm === 'amerika') return c.iso === 'US';
+      if (queryNorm === 'brezilya' || queryNorm === 'brazil' || queryNorm === 'br') return c.iso === 'BR';
+      if (queryNorm === 'japonya' || queryNorm === 'japan' || queryNorm === 'jp') return c.iso === 'JP';
+      if (queryNorm === 'almanya' || queryNorm === 'germany' || queryNorm === 'de') return c.iso === 'DE';
+      if (queryNorm === 'ingiltere' || queryNorm === 'uk') return c.iso === 'GB';
+      return false;
+    }) || GeoIndex.getCountry(query);
+
+    const countryName = matchedCountry ? matchedCountry.name : query;
+    const countryIso = matchedCountry?.iso;
+    let countryFlag = '🌍';
+    if (countryIso && countryIso.length === 2) {
+      const codePoints = countryIso.toUpperCase().split('').map((c) => 127397 + c.charCodeAt(0));
+      countryFlag = String.fromCodePoint(...codePoints);
+    }
+    const centerLat = matchedCountry?.lat ?? 0;
+    const centerLon = matchedCountry?.lon ?? 0;
+
+    // Search for an active storm inside or near country boundaries
+    let bestCluster: ScoredCluster | null = null;
+    for (const cluster of this.lastKnownClusters) {
+      const lat = cluster.centroid.latitude;
+      const lon = cluster.centroid.longitude;
+      const dist = haversineDistanceKm(lat, lon, centerLat, centerLon);
+      const isInside = (matchedCountry?.minLat !== undefined &&
+        lat >= matchedCountry.minLat && lat <= (matchedCountry.maxLat ?? 90) &&
+        lon >= (matchedCountry.minLon ?? -180) && lon <= (matchedCountry.maxLon ?? 180)) || dist < 450;
+
+      if (isInside) {
+        if (!bestCluster || cluster.activityScore > bestCluster.activityScore) {
+          bestCluster = cluster;
+        }
+      }
+    }
+
+    const isCalm = bestCluster === null;
+    const targetCluster: ScoredCluster = bestCluster ?? {
+      id: `viewer-${countryIso || 'loc'}-${Date.now()}`,
+      centroid: { latitude: centerLat, longitude: centerLon },
+      events: [],
+      eventCount: 0,
+      firstEventTimestamp: currentTime,
+      lastEventTimestamp: currentTime,
+      boundingRadiusKm: 250,
+      activityScore: 0.10,
+      presentationClass: 'REGIONAL',
+      strikesPerMinute: 0,
+      growthRate: 1.0,
+      breakdown: { rateScore: 0.1, growthScore: 0.1, energyScore: 0.1, clusterSizeScore: 0.1 },
+      stormClass: 'ISOLATED'
+    };
+
+    const requestItem: ViewerRequest = {
+      id: `vreq-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      username,
+      platform: plat,
+      countryName,
+      countryIso,
+      countryFlag,
+      requestedAt: currentTime,
+      cluster: targetCluster,
+      hasStorm: !isCalm,
+      isCalmSky: isCalm,
+      status: isCalm ? 'calm' : 'storm'
+    };
+
+    this.viewerQueue.push(requestItem);
+
+    // Dynamic Cadence Acceleration: Notify camera controller to speed up current dwell by 50%
+    this.cadenceAccelerateListeners.forEach((fn) => fn());
+    this.notifyViewerRequestChange();
+
+    return {
+      success: true,
+      message: `${countryName} kamera kuyruğuna eklendi! (Sıra: ${this.viewerQueue.length})`,
+      position: this.viewerQueue.length,
+      isCalmSky: isCalm
+    };
+  }
+
+  public getViewerQueue(): ViewerRequest[] {
+    return this.viewerQueue;
+  }
+
+  public getCurrentViewerRequest(): ViewerRequest | null {
+    return this.currentViewerRequest;
+  }
+
+  public getNextUpcomingViewerRequest(): ViewerRequest | null {
+    return this.viewerQueue[0] || null;
+  }
+
+  public onCadenceAccelerate(callback: () => void): () => void {
+    this.cadenceAccelerateListeners.add(callback);
+    return () => this.cadenceAccelerateListeners.delete(callback);
+  }
+
+  public onViewerRequestChange(callback: (req: ViewerRequest | null) => void): () => void {
+    this.viewerRequestListeners.add(callback);
+    return () => this.viewerRequestListeners.delete(callback);
+  }
+
+  private notifyViewerRequestChange(): void {
+    const upcoming = this.getNextUpcomingViewerRequest();
+    this.viewerRequestListeners.forEach((fn) => fn(upcoming));
+  }
+
+  /**
    * Retrieves the next eligible storm target when the camera is ready (IDLE).
-   * Automatically marks the storm in presentation history with a cooldown
-   * and registers continental presence to guarantee planetary diversity.
-   *
-   * @param currentTime Current epoch timestamp in milliseconds
+   * Applies the Interleaving (Sandviç) rhythm:
+   * Alternates Natural Storm -> Viewer Request -> Natural Storm -> Viewer Request.
    */
   public getNextTarget(currentTime: number): ScoredCluster | null {
+    // 1. Check if it's turn for a Viewer Request
+    if (this.viewerQueue.length > 0 && this.lastTargetType === 'NATURAL') {
+      const vReq = this.viewerQueue.shift()!;
+      this.lastTargetType = 'VIEWER';
+      this.currentViewerRequest = vReq;
+      this.currentPresentation = vReq.cluster!;
+      this.presentationCount++;
+      this.notifyViewerRequestChange();
+      return vReq.cluster!;
+    }
+
+    // 2. Otherwise process from Natural Priority Queue
     while (this.queue.length > 0) {
       const item = this.queue.shift()!;
 
@@ -292,6 +446,8 @@ export class EventDirector {
 
       const selected = item.cluster;
       this.currentPresentation = selected;
+      this.lastTargetType = 'NATURAL';
+      this.currentViewerRequest = null;
 
       // Track continent visit in LRU queue (max 5)
       const cont = getContinent(selected.centroid.latitude, selected.centroid.longitude);
@@ -323,6 +479,7 @@ export class EventDirector {
       });
 
       this.presentationCount++;
+      this.notifyViewerRequestChange();
       return selected;
     }
 
@@ -330,9 +487,65 @@ export class EventDirector {
   }
 
   /**
+   * Generates a 20-target interleaved queue list for the UI accordion panel.
+   */
+  public getInterleavedQueue(maxItems: number = 20): InterleavedQueueTarget[] {
+    const naturalItems = this.queue.slice(0, 10);
+    const viewerItems = this.viewerQueue.slice(0, 10);
+    const result: InterleavedQueueTarget[] = [];
+
+    let natIdx = 0;
+    let viewIdx = 0;
+
+    while ((natIdx < naturalItems.length || viewIdx < viewerItems.length) && result.length < maxItems) {
+      // Natural item
+      if (natIdx < naturalItems.length) {
+        const item = naturalItems[natIdx++];
+        const cluster = item.cluster;
+        const thematic = GeoIndex.getThematicLocation(cluster.centroid.latitude, cluster.centroid.longitude);
+        result.push({
+          id: `nat-${cluster.id}`,
+          type: 'NATURAL',
+          rank: result.length + 1,
+          countryName: thematic.name,
+          countryFlag: thematic.flag,
+          score: cluster.activityScore,
+          scale: cluster.presentationClass,
+          scaleClass: cluster.presentationClass,
+          cluster
+        });
+      }
+
+      // Viewer item
+      if (viewIdx < viewerItems.length && result.length < maxItems) {
+        const vReq = viewerItems[viewIdx++];
+        result.push({
+          id: vReq.id,
+          type: 'VIEWER',
+          rank: result.length + 1,
+          countryName: vReq.countryName,
+          countryFlag: vReq.countryFlag || '🌍',
+          score: vReq.isCalmSky ? 0.0 : (vReq.cluster?.activityScore ?? 0.5),
+          scale: vReq.isCalmSky ? 'SAKİN' : 'BÖLGESEL',
+          scaleClass: vReq.isCalmSky ? 'SAKİN' : 'BÖLGESEL',
+          viewerUser: vReq.username,
+          isCalmSky: vReq.isCalmSky,
+          viewerRequest: vReq,
+          cluster: vReq.cluster
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Peeks at the next eligible storm target in queue without dequeuing or altering cooldown.
    */
   public peekNextTarget(currentTime: number): ScoredCluster | null {
+    if (this.viewerQueue.length > 0 && this.lastTargetType === 'NATURAL') {
+      return this.viewerQueue[0].cluster || null;
+    }
     for (const item of this.queue) {
       if (currentTime - item.cluster.lastEventTimestamp <= this.config.queueStaleTimeoutMs) {
         return item.cluster;

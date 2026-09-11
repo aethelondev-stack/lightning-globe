@@ -126,10 +126,10 @@ test('CameraDirector - Pitch angle, Shot Scale distances and manual override', (
   const controlsManager = new ControlsManager(camera, container);
   const cameraDirector = new CameraDirector(camera, controlsManager);
 
-  // Default filter matrix checks
+  // Default filter matrix checks (Updated to 15 deg pitch and AUTO_DIVERSITY shot scale)
   const matrix = cameraDirector.getFilterMatrix();
-  assert.equal(matrix.shotScale, 'COUNTRY');
-  assert.equal(matrix.pitchDeg, 25);
+  assert.equal(matrix.shotScale, 'AUTO_DIVERSITY');
+  assert.equal(matrix.pitchDeg, 15);
   assert.equal(matrix.manualDistance, 220);
 
   // Update shot scale to VERY_CLOSE

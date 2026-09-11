@@ -6,8 +6,11 @@ import type { DemoScenarioId } from '../types/scenario';
 import type { DataSourceMode } from '../types/connection';
 import type { LeaderboardPeriod, CountryRankItem } from '../services/analytics/CountryLeaderboard';
 import type { StormCellTelemetry } from '../world/vfx/StormCellRadar';
-import { CONTINENTS, REGIONS, GeoIndex } from '../utils/geoRegions';
+import { GeoIndex } from '../utils/geoRegions';
 import { EngineConfig } from '../core/Config';
+import type { ViewerRequest, InterleavedQueueTarget } from '../types/director';
+import type { BackgroundMusicPlayer } from '../services/audio/BackgroundMusicPlayer';
+import type { SoundDirector, LightningSoundProfile } from '../services/audio/SoundDirector';
 
 /**
  * UIController: Manages the interactive Experience Controls, Active Storms Drawer, and Country Leaderboard.
@@ -95,6 +98,10 @@ export class UIController {
   private rightSidebar: HTMLElement | null = null;
   private panelLiveFeed: HTMLElement | null = null;
   private headerLiveFeed: HTMLElement | null = null;
+  private panelCameraQueue: HTMLElement | null = null;
+  private headerCameraQueue: HTMLElement | null = null;
+  private cameraQueueList: HTMLElement | null = null;
+  private queueCountBadge: HTMLElement | null = null;
   private panelAnalytics: HTMLElement | null = null;
   private headerAnalytics: HTMLElement | null = null;
   private liveFeedScroll: HTMLElement | null = null;
@@ -104,6 +111,45 @@ export class UIController {
   private pendingFeedItems: Array<{ event: any; country?: string; flag?: string }> = [];
   private feedFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private lastFeedFlushTime: number = 0;
+
+  // Right Sidebar Storms & Leaderboard Accordions
+  private panelStorms: HTMLElement | null = null;
+  private headerStorms: HTMLElement | null = null;
+  private stormsCountBadge: HTMLElement | null = null;
+  private panelLeaderboard: HTMLElement | null = null;
+  private headerLeaderboard: HTMLElement | null = null;
+
+  // SFX Console Elements
+  private sfxPopupCard: HTMLElement | null = null;
+  private btnCloseSfx: HTMLButtonElement | null = null;
+  private sfxVolumeSlider: HTMLInputElement | null = null;
+  private sfxVolumeVal: HTMLElement | null = null;
+  private sfxActiveProfileName: HTMLElement | null = null;
+  private sfxProfileButtons: HTMLButtonElement[] = [];
+  private btnSfxTestStrike: HTMLButtonElement | null = null;
+  private soundDirector: SoundDirector | null = null;
+
+  // Background Music Player & Viewer Flight HUD Elements
+  private btnMusicToggle: HTMLButtonElement | null = null;
+  private musicPopupCard: HTMLElement | null = null;
+  private btnCloseMusic: HTMLButtonElement | null = null;
+  private btnMusicPlay: HTMLButtonElement | null = null;
+  private btnMusicPrev: HTMLButtonElement | null = null;
+  private btnMusicNext: HTMLButtonElement | null = null;
+  private btnMusicMute: HTMLButtonElement | null = null;
+  private musicProgressBar: HTMLInputElement | null = null;
+  private musicVolumeSlider: HTMLInputElement | null = null;
+  private musicCurrentTitle: HTMLElement | null = null;
+  private musicCurrentArtist: HTMLElement | null = null;
+  private musicTimeDisplay: HTMLElement | null = null;
+  private musicPlaylistItems: HTMLElement | null = null;
+  private musicWidgetPulse: HTMLElement | null = null;
+  private viewerFlightCard: HTMLElement | null = null;
+  private vfcBadge: HTMLElement | null = null;
+  private vfcUser: HTMLElement | null = null;
+  private vfcTargetName: HTMLElement | null = null;
+  private vfcCountdown: HTMLElement | null = null;
+  private vfcStatusBanner: HTMLElement | null = null;
 
   // Drone View & Live Angle Controls
   private btnDroneView: HTMLButtonElement | null = null;
@@ -126,8 +172,8 @@ export class UIController {
   private camFilterMatrix: CameraFilterMatrix = {
     autoFollow: true,
     cameraMode: 'AUTO',
-    shotScale: 'COUNTRY',
-    pitchDeg: 25,
+    shotScale: 'AUTO_DIVERSITY',
+    pitchDeg: 15,
     manualDistance: 220,
     continents: [],
     regions: [],
@@ -230,11 +276,56 @@ export class UIController {
     this.rightSidebar = document.getElementById('right-sidebar');
     this.panelLiveFeed = document.getElementById('panel-live-feed');
     this.headerLiveFeed = document.getElementById('header-live-feed');
+    this.panelCameraQueue = document.getElementById('panel-camera-queue');
+    this.headerCameraQueue = document.getElementById('header-camera-queue');
+    this.cameraQueueList = document.getElementById('camera-queue-list');
+    this.queueCountBadge = document.getElementById('queue-count-badge');
     this.panelAnalytics = document.getElementById('panel-analytics');
     this.headerAnalytics = document.getElementById('header-analytics');
     this.liveFeedScroll = document.getElementById('live-feed-scroll');
     this.feedCountBadge = document.getElementById('feed-count-badge');
     this.btnClearArchive = document.getElementById('btn-clear-archive') as HTMLButtonElement | null;
+
+    // Right Sidebar Storms & Leaderboard Accordions
+    this.panelStorms = document.getElementById('panel-storms');
+    this.headerStorms = document.getElementById('header-storms');
+    this.stormsCountBadge = document.getElementById('storms-count-badge');
+    this.panelLeaderboard = document.getElementById('panel-leaderboard');
+    this.headerLeaderboard = document.getElementById('header-leaderboard');
+
+    // SFX Console Elements
+    this.sfxPopupCard = document.getElementById('sfx-popup-card');
+    this.btnCloseSfx = document.getElementById('btn-close-sfx') as HTMLButtonElement | null;
+    this.sfxVolumeSlider = document.getElementById('sfx-volume-slider') as HTMLInputElement | null;
+    this.sfxVolumeVal = document.getElementById('sfx-volume-val');
+    this.sfxActiveProfileName = document.getElementById('sfx-active-profile-name');
+    if (this.sfxPopupCard) {
+      this.sfxProfileButtons = Array.from(this.sfxPopupCard.querySelectorAll<HTMLButtonElement>('.sfx-profile-btn'));
+    }
+    this.btnSfxTestStrike = document.getElementById('btn-sfx-test-strike') as HTMLButtonElement | null;
+
+    // Background Music Player & Viewer Flight HUD Elements
+    this.btnMusicToggle = document.getElementById('btn-music-toggle') as HTMLButtonElement | null;
+    this.musicPopupCard = document.getElementById('music-popup-card');
+    this.btnCloseMusic = document.getElementById('btn-close-music') as HTMLButtonElement | null;
+    this.btnMusicPlay = document.getElementById('btn-music-play') as HTMLButtonElement | null;
+    this.btnMusicPrev = document.getElementById('btn-music-prev') as HTMLButtonElement | null;
+    this.btnMusicNext = document.getElementById('btn-music-next') as HTMLButtonElement | null;
+    this.btnMusicMute = document.getElementById('btn-music-mute') as HTMLButtonElement | null;
+    this.musicProgressBar = document.getElementById('music-progress-bar') as HTMLInputElement | null;
+    this.musicVolumeSlider = document.getElementById('music-volume-slider') as HTMLInputElement | null;
+    this.musicCurrentTitle = document.getElementById('music-current-title');
+    this.musicCurrentArtist = document.getElementById('music-current-artist');
+    this.musicTimeDisplay = document.getElementById('music-time-display');
+    this.musicPlaylistItems = document.getElementById('music-playlist-items');
+    this.musicWidgetPulse = document.getElementById('music-widget-pulse');
+
+    this.viewerFlightCard = document.getElementById('viewer-flight-card');
+    this.vfcBadge = document.getElementById('vfc-badge');
+    this.vfcUser = document.getElementById('vfc-user');
+    this.vfcTargetName = document.getElementById('vfc-target-name');
+    this.vfcCountdown = document.getElementById('vfc-countdown');
+    this.vfcStatusBanner = document.getElementById('vfc-status-banner');
 
     // Drone View & Live Angle Controls
     this.btnDroneView = document.getElementById('btn-drone-view') as HTMLButtonElement | null;
@@ -453,16 +544,7 @@ export class UIController {
       });
     }
 
-    // Live Feed & Analytics Accordion Toggles
-    this.headerLiveFeed?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.panelLiveFeed?.classList.toggle('collapsed');
-    });
 
-    this.headerAnalytics?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.panelAnalytics?.classList.toggle('collapsed');
-    });
 
     // Clear Archive Button
     if (this.btnClearArchive) {
@@ -536,11 +618,66 @@ export class UIController {
       this.inputCountrySearch.addEventListener('click', (e) => e.stopPropagation());
     }
 
+    this.headerLiveFeed?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.panelLiveFeed?.classList.toggle('collapsed');
+    });
+
+    this.headerCameraQueue?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.panelCameraQueue?.classList.toggle('collapsed');
+    });
+
+    this.headerStorms?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.panelStorms?.classList.toggle('collapsed');
+    });
+
+    this.headerLeaderboard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.panelLeaderboard?.classList.toggle('collapsed');
+    });
+
+    this.headerAnalytics?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.panelAnalytics?.classList.toggle('collapsed');
+    });
+
+    this.btnMusicToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.musicPopupCard?.classList.toggle('hidden');
+      this.sfxPopupCard?.classList.add('hidden');
+    });
+
+    this.btnCloseMusic?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.musicPopupCard?.classList.add('hidden');
+    });
+
+    this.musicPopupCard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    this.btnCloseSfx?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.sfxPopupCard?.classList.add('hidden');
+    });
+
+    this.sfxPopupCard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
     document.addEventListener('click', () => {
       closeMegaDropdown();
       closePeteksDropdown();
       closeCameraDropdown();
       closeDroneDropdown();
+      if (this.musicPopupCard && !this.musicPopupCard.classList.contains('hidden')) {
+        this.musicPopupCard.classList.add('hidden');
+      }
+      if (this.sfxPopupCard && !this.sfxPopupCard.classList.contains('hidden')) {
+        this.sfxPopupCard.classList.add('hidden');
+      }
     });
 
     // View Mode Toggle
@@ -560,7 +697,7 @@ export class UIController {
       });
     }
 
-    // Drawer Toggle Button
+    // Drawer / Panel Storms Toggle Button
     if (this.btnToggleDrawer) {
       this.btnToggleDrawer.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -577,11 +714,18 @@ export class UIController {
       });
     }
 
-    // Audio Toggle Button (Phase 14)
+    // Audio Toggle Button & SFX Console Popup (Phase 14 & Procedural Sound Console)
     if (this.btnAudio) {
       this.btnAudio.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.setAudioMuted(!this.state.isAudioMuted);
+        if (this.state.isAudioMuted) {
+          this.setAudioMuted(false);
+          this.sfxPopupCard?.classList.remove('hidden');
+          this.musicPopupCard?.classList.add('hidden');
+        } else {
+          this.sfxPopupCard?.classList.toggle('hidden');
+          this.musicPopupCard?.classList.add('hidden');
+        }
       });
     }
 
@@ -742,18 +886,29 @@ export class UIController {
   }
 
   public toggleStormDrawer(): void {
-    this.setStormDrawerOpen(!this.state.isStormListOpen);
+    if (this.panelStorms) {
+      const isCollapsed = this.panelStorms.classList.contains('collapsed');
+      this.setStormDrawerOpen(isCollapsed);
+    } else {
+      this.setStormDrawerOpen(!this.state.isStormListOpen);
+    }
   }
 
   public setStormDrawerOpen(open: boolean): void {
     this.state.isStormListOpen = open;
-    if (open) {
-      this.setLeaderboardOpen(false); // Mutual exclusivity with leaderboard
+    if (this.panelStorms) {
+      if (open) {
+        this.panelStorms.classList.remove('collapsed');
+        this.panelStorms.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        this.renderStormCards(true); // Force card refresh upon opening
+      } else {
+        this.panelStorms.classList.add('collapsed');
+      }
     }
     if (this.stormDrawer) {
       if (open) {
         this.stormDrawer.classList.add('open');
-        this.renderStormCards(true); // Force card refresh upon opening
+        this.renderStormCards(true);
       } else {
         this.stormDrawer.classList.remove('open');
       }
@@ -764,13 +919,24 @@ export class UIController {
   }
 
   public toggleLeaderboard(): void {
-    this.setLeaderboardOpen(!this.state.isLeaderboardOpen);
+    if (this.panelLeaderboard) {
+      const isCollapsed = this.panelLeaderboard.classList.contains('collapsed');
+      this.setLeaderboardOpen(isCollapsed);
+    } else {
+      this.setLeaderboardOpen(!this.state.isLeaderboardOpen);
+    }
   }
 
   public setLeaderboardOpen(open: boolean): void {
     this.state.isLeaderboardOpen = open;
-    if (open) {
-      this.setStormDrawerOpen(false); // Mutual exclusivity with storm drawer
+    if (this.panelLeaderboard) {
+      if (open) {
+        this.panelLeaderboard.classList.remove('collapsed');
+        this.panelLeaderboard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        this.renderLeaderboardRows(true);
+      } else {
+        this.panelLeaderboard.classList.add('collapsed');
+      }
     }
     if (this.leaderboardDrawer) {
       if (open) {
@@ -815,7 +981,7 @@ export class UIController {
     }
     this.lastLeaderboardSignature = signature;
 
-    if (this.state.isLeaderboardOpen) {
+    if (this.state.isLeaderboardOpen || (this.panelLeaderboard && !this.panelLeaderboard.classList.contains('collapsed'))) {
       this.renderLeaderboardRows(false);
     }
   }
@@ -864,12 +1030,15 @@ export class UIController {
   public updateStormList(clusters: ScoredCluster[]): void {
     this.currentClusters = clusters;
 
-    // Update count on drawer toggle button
+    // Update count on drawer toggle button and accordion badge
     if (this.btnToggleDrawer) {
       const badge = this.btnToggleDrawer.querySelector('.drawer-badge');
       if (badge) {
         badge.textContent = clusters.length.toString();
       }
+    }
+    if (this.stormsCountBadge) {
+      this.stormsCountBadge.textContent = clusters.length.toString();
     }
 
     // Compute shallow state signature for diffing
@@ -881,8 +1050,8 @@ export class UIController {
 
     this.lastRenderedSignature = signature;
 
-    // Only render cards if the drawer is currently open
-    if (this.state.isStormListOpen) {
+    // Render cards if drawer or right-sidebar storm panel is open
+    if (this.state.isStormListOpen || (this.panelStorms && !this.panelStorms.classList.contains('collapsed'))) {
       this.renderStormCards(false);
     }
   }
@@ -1486,77 +1655,48 @@ export class UIController {
    * and multi-dimensional filter matrix.
    */
   private setupCameraAccordionBar(): void {
-    const bar = document.getElementById('camera-modes-bar');
-    const btnToggle = document.getElementById('btn-cam-bar-toggle');
-    if (!bar || !btnToggle) return;
+    const megaToggleBtn = document.getElementById('btn-camera-main-toggle');
+    const megaDropdown = document.getElementById('dropdown-camera-mega');
 
-    // 0. Accordion Toggle
-    btnToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      bar.classList.toggle('collapsed');
-    });
-
-    // Dropdown management
-    const dropdownIds = [
-      'dropdown-cam-mode',
-      'dropdown-cam-pitch',
-      'dropdown-cam-scale',
-      'dropdown-cam-continents',
-      'dropdown-cam-regions',
-      'dropdown-cam-countries',
-      'dropdown-cam-peteks'
-    ];
-
-    const closeAllCamDropdowns = () => {
-      dropdownIds.forEach((id) => {
-        document.getElementById(id)?.classList.add('hidden');
-      });
-      document.querySelectorAll('.cam-btn.is-open').forEach((b) => b.classList.remove('is-open'));
+    const closeCameraMegaDropdown = () => {
+      megaDropdown?.classList.add('hidden');
+      megaToggleBtn?.classList.remove('active');
     };
 
-    // Close all open dropdowns when clicking anywhere outside
-    window.addEventListener(
-      'pointerdown',
-      (e) => {
-        const target = e.target as HTMLElement | null;
-        if (!target?.closest('.cam-item.dropdown-wrapper') && !target?.closest('.cam-dropdown')) {
-          closeAllCamDropdowns();
-        }
-      },
-      { capture: true }
-    );
-
-    const bindDropdownToggle = (btnId: string, dropdownId: string) => {
-      const btn = document.getElementById(btnId);
-      const dd = document.getElementById(dropdownId);
-      if (!btn || !dd) return;
-
-      btn.addEventListener('click', (e) => {
+    if (megaToggleBtn && megaDropdown) {
+      megaToggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const willOpen = dd.classList.contains('hidden');
-        closeAllCamDropdowns();
+        const willOpen = megaDropdown.classList.contains('hidden');
         if (willOpen) {
-          dd.classList.remove('hidden');
-          btn.classList.add('is-open');
+          // Close other popups
+          this.dropdownPeteks?.classList.add('hidden');
+          this.btnActivePeteks?.classList.remove('active');
+          if (this.musicPopupCard) this.musicPopupCard.classList.add('hidden');
+          megaDropdown.classList.remove('hidden');
+          megaToggleBtn.classList.add('active');
+        } else {
+          closeCameraMegaDropdown();
         }
       });
 
-      // Stop propagation inside dropdown so interacting with options doesn't close it or rotate globe
-      dd.addEventListener('pointerdown', (e) => e.stopPropagation());
-      dd.addEventListener('mousedown', (e) => e.stopPropagation());
-      dd.addEventListener('click', (e) => e.stopPropagation());
-    };
+      megaDropdown.addEventListener('pointerdown', (e) => e.stopPropagation());
+      megaDropdown.addEventListener('mousedown', (e) => e.stopPropagation());
+      megaDropdown.addEventListener('click', (e) => e.stopPropagation());
 
-    bindDropdownToggle('btn-cam-mode-dropdown', 'dropdown-cam-mode');
-    bindDropdownToggle('btn-cam-pitch-dropdown', 'dropdown-cam-pitch');
-    bindDropdownToggle('btn-cam-scale-dropdown', 'dropdown-cam-scale');
-    bindDropdownToggle('btn-cam-continents-dropdown', 'dropdown-cam-continents');
-    bindDropdownToggle('btn-cam-regions-dropdown', 'dropdown-cam-regions');
-    bindDropdownToggle('btn-cam-countries-dropdown', 'dropdown-cam-countries');
-    bindDropdownToggle('btn-cam-peteks-dropdown', 'dropdown-cam-peteks');
+      window.addEventListener(
+        'pointerdown',
+        (e) => {
+          const target = e.target as HTMLElement | null;
+          if (!target?.closest('#dropdown-camera-mega') && !target?.closest('#btn-camera-main-toggle')) {
+            closeCameraMegaDropdown();
+          }
+        },
+        { capture: true }
+      );
+    }
 
-    // 1. Camera Mode Dropdown Items
-    const modeOpts = document.querySelectorAll<HTMLElement>('#dropdown-cam-mode .cam-dropdown-option');
+    // 1. Camera Mode Options
+    const modeOpts = document.querySelectorAll<HTMLElement>('#dropdown-camera-mega .cam-dropdown-option');
     const labelMode = document.getElementById('label-cam-mode');
     modeOpts.forEach((opt) => {
       opt.addEventListener('click', () => {
@@ -1570,13 +1710,12 @@ export class UIController {
           labelMode.textContent = mode === 'AUTO' ? 'Mod: Oto' : (mode === 'MANUAL' ? 'Mod: Manuel' : 'Mod: Yörünge');
         }
         this.syncQuickModeButtonVisual();
-        closeAllCamDropdowns();
         this.emitFilterMatrixChange();
       });
     });
 
     // 2. Pitch Presets & Range Sliders
-    const pitchPresets = document.querySelectorAll<HTMLButtonElement>('.pitch-preset-btn');
+    const pitchPresets = document.querySelectorAll<HTMLButtonElement>('#dropdown-camera-mega .pitch-preset-btn');
     const sliderPitch = document.getElementById('slider-cam-pitch') as HTMLInputElement | null;
     const valPitchSlider = document.getElementById('val-pitch-slider');
     const labelPitch = document.getElementById('label-cam-pitch');
@@ -1656,14 +1795,14 @@ export class UIController {
     }
 
     // 3. Shot Scale Options
-    const scaleOpts = document.querySelectorAll<HTMLElement>('#dropdown-cam-scale .cam-dropdown-option');
+    const scaleBtns = document.querySelectorAll<HTMLButtonElement>('#dropdown-camera-mega .cam-scale-btn');
     const labelScale = document.getElementById('label-cam-scale');
-    scaleOpts.forEach((opt) => {
-      opt.addEventListener('click', () => {
-        const scale = opt.getAttribute('data-scale') as ShotScale;
+    scaleBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const scale = btn.getAttribute('data-scale') as ShotScale;
         if (!scale) return;
-        scaleOpts.forEach((o) => o.classList.remove('active'));
-        opt.classList.add('active');
+        scaleBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
         this.camFilterMatrix.shotScale = scale;
         this.camFilterMatrix.manualDistance = SHOT_SCALE_DISTANCES[scale];
         if (sliderDist) sliderDist.value = SHOT_SCALE_DISTANCES[scale].toString();
@@ -1680,185 +1819,92 @@ export class UIController {
           };
           labelScale.textContent = names[scale];
         }
-        closeAllCamDropdowns();
         this.emitFilterMatrixChange();
       });
     });
 
-    // 4. Continents Multi-Select List
-    const listContinents = document.getElementById('list-continents');
-    if (listContinents) {
-      listContinents.innerHTML = '';
-      CONTINENTS.forEach((c) => {
-        const item = document.createElement('label');
-        item.className = 'cam-check-item';
-        item.innerHTML = `<input type="checkbox" value="${c.code}" /> <span>${c.name}</span>`;
-        const chk = item.querySelector('input')!;
-        chk.addEventListener('change', () => {
-          if (chk.checked) {
-            if (!this.camFilterMatrix.continents.includes(c.code)) this.camFilterMatrix.continents.push(c.code);
-            item.classList.add('selected');
-          } else {
-            this.camFilterMatrix.continents = this.camFilterMatrix.continents.filter((x) => x !== c.code);
-            item.classList.remove('selected');
-          }
-          this.updateFilterStatusBadge();
-          this.emitFilterMatrixChange();
+    // 4. Continents / Corridors / Search Tabs in Mega Dropdown
+    const tabBtns = document.querySelectorAll<HTMLButtonElement>('#dropdown-camera-mega .dropdown-tab-btn');
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetTab = btn.getAttribute('data-tab');
+        tabBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const paneContinents = document.getElementById('tab-pane-continents');
+        const paneCorridors = document.getElementById('tab-pane-corridors');
+        const paneSearch = document.getElementById('tab-pane-search');
+
+        paneContinents?.classList.toggle('hidden', targetTab !== 'continents');
+        paneCorridors?.classList.toggle('hidden', targetTab !== 'corridors');
+        paneSearch?.classList.toggle('hidden', targetTab !== 'search');
+
+        if (targetTab === 'search') {
+          const searchInput = document.getElementById('country-search-input') as HTMLInputElement | null;
+          searchInput?.focus();
+        }
+      });
+    });
+
+    // 5. Geo Location Items (Continents and Corridors)
+    const geoItems = document.querySelectorAll<HTMLElement>('#dropdown-camera-mega .dropdown-item');
+    geoItems.forEach((item) => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lat = parseFloat(item.getAttribute('data-lat') || '0');
+        const lon = parseFloat(item.getAttribute('data-lon') || '0');
+        const dist = parseFloat(item.getAttribute('data-dist') || '270');
+        const name = item.textContent?.trim() || 'Bölge';
+        closeCameraMegaDropdown();
+        if (dist >= 320) {
+          this.callbacks.onClassFilterChange?.('ALL');
+        }
+        this.callbacks.onLocationSelect?.(lat, lon, dist, name);
+      });
+    });
+
+    // 6. Country Search within Camera Dropdown
+    const searchInput = document.getElementById('country-search-input') as HTMLInputElement | null;
+    const searchList = document.getElementById('country-search-list');
+    if (searchInput && searchList) {
+      const renderSearch = (query: string) => {
+        searchList.innerHTML = '';
+        const q = query.trim().toLowerCase();
+        const list = GeoIndex.getCountryList().filter((c) => !q || c.name.toLowerCase().includes(q) || (c.iso && c.iso.toLowerCase().includes(q)));
+        list.slice(0, 40).forEach((c) => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.innerHTML = `<span>🌍</span> <span>${c.name}</span>`;
+          div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeCameraMegaDropdown();
+            this.callbacks.onLocationSelect?.(c.lat, c.lon, 200, c.name);
+          });
+          searchList.appendChild(div);
         });
-        listContinents.appendChild(item);
-      });
+      };
+      searchInput.addEventListener('input', () => renderSearch(searchInput.value));
+      renderSearch('');
     }
 
-    document.getElementById('btn-clear-continents')?.addEventListener('click', () => {
-      this.camFilterMatrix.continents = [];
-      listContinents?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((chk) => {
-        chk.checked = false;
-        chk.closest('.cam-check-item')?.classList.remove('selected');
-      });
-      this.updateFilterStatusBadge();
-      this.emitFilterMatrixChange();
-    });
-
-    // 5. Regions Multi-Select List
-    const listRegions = document.getElementById('list-regions');
-    if (listRegions) {
-      listRegions.innerHTML = '';
-      REGIONS.forEach((r) => {
-        const item = document.createElement('label');
-        item.className = 'cam-check-item';
-        item.innerHTML = `<input type="checkbox" value="${r.id}" /> <span>${r.name}</span>`;
-        const chk = item.querySelector('input')!;
-        chk.addEventListener('change', () => {
-          if (chk.checked) {
-            if (!this.camFilterMatrix.regions.includes(r.id)) this.camFilterMatrix.regions.push(r.id);
-            item.classList.add('selected');
-          } else {
-            this.camFilterMatrix.regions = this.camFilterMatrix.regions.filter((x) => x !== r.id);
-            item.classList.remove('selected');
-          }
-          this.updateFilterStatusBadge();
-          this.emitFilterMatrixChange();
-        });
-        listRegions.appendChild(item);
-      });
-    }
-
-    document.getElementById('btn-clear-regions')?.addEventListener('click', () => {
-      this.camFilterMatrix.regions = [];
-      listRegions?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((chk) => {
-        chk.checked = false;
-        chk.closest('.cam-check-item')?.classList.remove('selected');
-      });
-      this.updateFilterStatusBadge();
-      this.emitFilterMatrixChange();
-    });
-
-    // 6. Countries Multi-Select List & Live Search
-    this.renderCountryCheckboxes();
-    const inputCountry = document.getElementById('input-cam-country-search') as HTMLInputElement | null;
-    if (inputCountry) {
-      inputCountry.addEventListener('input', () => {
-        this.renderCountryCheckboxes(inputCountry.value);
-      });
-    }
-
-    document.getElementById('btn-clear-countries')?.addEventListener('click', () => {
-      this.camFilterMatrix.countries = [];
-      document.getElementById('list-countries')?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((chk) => {
-        chk.checked = false;
-        chk.closest('.cam-check-item')?.classList.remove('selected');
-      });
-      this.updateFilterStatusBadge();
-      this.emitFilterMatrixChange();
-    });
-
-    // 7. Peteks Multi-Select List
-    const listPeteks = document.getElementById('list-peteks');
-    if (listPeteks) {
-      listPeteks.innerHTML = '';
-      const petekDefs = [
-        { id: 'ISOLATED', label: 'İzole Çakma (<5 km)' },
-        { id: 'SINGLE_CELL', label: 'Tek Hücre (15 km)' },
-        { id: 'MULTICELL', label: 'Çok Hücre (40 km)' },
-        { id: 'SUPERCELL', label: 'Süper Hücre (60 km)' },
-        { id: 'MCS', label: 'Büyük Fırtına Kümesi (120 km)' },
-        { id: 'SQUALL_LINE', label: 'Fırtına Hattı (380-600 km)' },
-        { id: 'EXTREME_OUTBREAK', label: 'Salgın (500+ km)' }
-      ];
-
-      petekDefs.forEach((p) => {
-        const item = document.createElement('label');
-        item.className = 'cam-check-item';
-        item.innerHTML = `<input type="checkbox" value="${p.id}" /> <span>${p.label}</span>`;
-        const chk = item.querySelector('input')!;
-        chk.addEventListener('change', () => {
-          if (chk.checked) {
-            if (!this.camFilterMatrix.peteks.includes(p.id)) this.camFilterMatrix.peteks.push(p.id);
-            item.classList.add('selected');
-          } else {
-            this.camFilterMatrix.peteks = this.camFilterMatrix.peteks.filter((x) => x !== p.id);
-            item.classList.remove('selected');
-          }
-          this.updateFilterStatusBadge();
-          this.emitFilterMatrixChange();
-        });
-        listPeteks.appendChild(item);
-      });
-    }
-
-    document.getElementById('btn-clear-peteks')?.addEventListener('click', () => {
-      this.camFilterMatrix.peteks = [];
-      listPeteks?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((chk) => {
-        chk.checked = false;
-        chk.closest('.cam-check-item')?.classList.remove('selected');
-      });
-      this.updateFilterStatusBadge();
-      this.emitFilterMatrixChange();
-    });
-
-    // 8. Quick Manuel / Oto Toggle Switch
+    // 7. Quick Manuel / Oto Toggle Switch
     const btnQuickToggle = document.getElementById('btn-cam-quick-toggle');
     if (btnQuickToggle) {
-      btnQuickToggle.addEventListener('click', () => {
+      btnQuickToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         const willBeAuto = !this.camFilterMatrix.autoFollow;
         this.camFilterMatrix.autoFollow = willBeAuto;
         this.camFilterMatrix.cameraMode = willBeAuto ? 'AUTO' : 'MANUAL';
         this.syncQuickModeButtonVisual();
+        modeOpts.forEach((o) => {
+          o.classList.toggle('active', o.getAttribute('data-cam-mode') === (willBeAuto ? 'AUTO' : 'MANUAL'));
+        });
         this.emitFilterMatrixChange();
       });
     }
 
     this.updateFilterStatusBadge();
-  }
-
-  private renderCountryCheckboxes(searchQuery?: string): void {
-    const list = document.getElementById('list-countries');
-    if (!list) return;
-
-    list.innerHTML = '';
-    const query = searchQuery ? searchQuery.trim().toLowerCase() : '';
-    const all = GeoIndex.getCountryList();
-    const filtered = query ? all.filter((c) => c.name.toLowerCase().includes(query) || (c.iso && c.iso.toLowerCase().includes(query))) : all;
-
-    filtered.forEach((c) => {
-      const isSelected = this.camFilterMatrix.countries.includes(c.name);
-      const item = document.createElement('label');
-      item.className = `cam-check-item ${isSelected ? 'selected' : ''}`;
-      item.innerHTML = `<input type="checkbox" value="${c.name}" ${isSelected ? 'checked' : ''} /> <span>${c.name}</span>`;
-      const chk = item.querySelector('input')!;
-      chk.addEventListener('change', () => {
-        if (chk.checked) {
-          if (!this.camFilterMatrix.countries.includes(c.name)) this.camFilterMatrix.countries.push(c.name);
-          item.classList.add('selected');
-        } else {
-          this.camFilterMatrix.countries = this.camFilterMatrix.countries.filter((x) => x !== c.name);
-          item.classList.remove('selected');
-        }
-        this.updateFilterStatusBadge();
-        this.emitFilterMatrixChange();
-      });
-      list.appendChild(item);
-    });
   }
 
   private updateFilterStatusBadge(): void {
@@ -1928,6 +1974,363 @@ export class UIController {
     if (this.callbacks.onCameraFilterMatrixChange) {
       this.callbacks.onCameraFilterMatrixChange(this.camFilterMatrix);
     }
+  }
+
+  /**
+   * Setup Background Instrumental Music Player UI controls and subscriptions.
+   */
+  public setupMusicPlayer(player: BackgroundMusicPlayer): void {
+    if (!player) return;
+
+    // Tracklist rendering helper
+    const renderTracklist = () => {
+      if (!this.musicPlaylistItems) return;
+      const tracks = player.getPlaylist();
+      this.musicPlaylistItems.innerHTML = '';
+      tracks.forEach((track, index) => {
+        const item = document.createElement('div');
+        item.className = 'music-track-item';
+        item.dataset.index = index.toString();
+        item.innerHTML = `
+          <div class="mti-index">${index + 1}</div>
+          <div class="mti-info">
+            <div class="mti-title">${track.title}</div>
+            <div class="mti-artist">${track.artist}</div>
+          </div>
+          <div class="mti-play-icon">▶</div>
+        `;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          player.playTrack(index);
+        });
+        this.musicPlaylistItems?.appendChild(item);
+      });
+    };
+
+    renderTracklist();
+
+    // Unlock on widget button click: start playing if not playing
+    this.btnMusicToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!player.getState().isPlaying) {
+        player.play();
+      }
+    });
+
+    // Button actions
+    this.btnMusicPlay?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.togglePlay();
+    });
+
+    this.btnMusicPrev?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.prevTrack();
+    });
+
+    this.btnMusicNext?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.nextTrack();
+    });
+
+    this.btnMusicMute?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.toggleMute();
+    });
+
+    this.musicVolumeSlider?.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const val = parseFloat((e.target as HTMLInputElement).value) / 100;
+      player.setVolume(val);
+    });
+
+    this.musicProgressBar?.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const val = parseFloat((e.target as HTMLInputElement).value);
+      player.seekToPercent(val);
+    });
+
+    const formatTime = (secs: number) => {
+      if (isNaN(secs) || secs < 0) return '00:00';
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    // Global first-interaction unlock
+    const unlockAudio = () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+
+    // Subscribe to reactive state updates
+    player.subscribe((state) => {
+      // Re-render tracklist if playlist length changes after async init
+      if (this.musicPlaylistItems && this.musicPlaylistItems.children.length !== player.getPlaylist().length) {
+        renderTracklist();
+      }
+
+      const trackTitle = state.currentTrack?.title || 'Eternity';
+      const trackArtist = state.currentTrack?.artist || 'Stellardrone';
+
+      if (this.musicCurrentTitle) {
+        this.musicCurrentTitle.textContent = trackTitle;
+      }
+      if (this.musicCurrentArtist) {
+        this.musicCurrentArtist.textContent = trackArtist;
+      }
+
+      const tickerLabel = document.getElementById('music-widget-label');
+      if (tickerLabel) {
+        tickerLabel.textContent = `${trackArtist} — ${trackTitle}   •   ${trackArtist} — ${trackTitle}   •   `;
+      }
+
+      if (this.btnMusicPlay) {
+        this.btnMusicPlay.innerHTML = state.isPlaying ? '⏸' : '▶';
+        this.btnMusicPlay.title = state.isPlaying ? 'Duraklat' : 'Oynat';
+      }
+      if (this.btnMusicMute) {
+        this.btnMusicMute.innerHTML = state.isMuted ? '🔇' : '🔊';
+        this.btnMusicMute.title = state.isMuted ? 'Sesi Aç' : 'Sesi Kapat';
+      }
+      if (this.musicVolumeSlider) {
+        this.musicVolumeSlider.value = state.isMuted ? '0' : Math.round(state.volume * 100).toString();
+      }
+      if (this.musicProgressBar && state.duration > 0) {
+        this.musicProgressBar.value = (state.progressPercent || 0).toString();
+      }
+      if (this.musicTimeDisplay) {
+        this.musicTimeDisplay.textContent = `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
+      }
+
+      // Tracklist active class
+      if (this.musicPlaylistItems) {
+        const items = this.musicPlaylistItems.querySelectorAll('.music-track-item');
+        items.forEach((it, idx) => {
+          if (idx === state.currentIndex) {
+            it.classList.add('active');
+            (it.querySelector('.mti-play-icon') as HTMLElement).textContent = state.isPlaying ? '⏸' : '▶';
+          } else {
+            it.classList.remove('active');
+            (it.querySelector('.mti-play-icon') as HTMLElement).textContent = '▶';
+          }
+        });
+      }
+
+      // Visual pulse
+      if (this.musicWidgetPulse) {
+        this.musicWidgetPulse.classList.toggle('playing', state.isPlaying);
+      }
+      if (this.btnMusicToggle) {
+        this.btnMusicToggle.classList.toggle('playing', state.isPlaying);
+      }
+    });
+  }
+
+  public getSoundDirector(): SoundDirector | null {
+    return this.soundDirector;
+  }
+
+  /**
+   * Setup Procedural Lightning Sound Director UI controls, profiles, and volume slider.
+   */
+  public setupSoundDirector(director: SoundDirector): void {
+    if (!director) return;
+    this.soundDirector = director;
+
+    // Set initial volume & profile in UI
+    const currentVol = Math.round(director.getVolume() * 100);
+    if (this.sfxVolumeSlider) {
+      this.sfxVolumeSlider.value = currentVol.toString();
+    }
+    if (this.sfxVolumeVal) {
+      this.sfxVolumeVal.textContent = `${currentVol}%`;
+    }
+
+    const currentProfile = director.getProfile();
+    this.updateProfileUI(currentProfile);
+
+    // Volume slider listener
+    this.sfxVolumeSlider?.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const val = parseInt((e.target as HTMLInputElement).value, 10);
+      director.setVolume(val / 100);
+      if (this.sfxVolumeVal) {
+        this.sfxVolumeVal.textContent = `${val}%`;
+      }
+    });
+
+    // Profile selector buttons
+    this.sfxProfileButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const profile = btn.dataset.profile as LightningSoundProfile;
+        if (profile) {
+          director.setProfile(profile);
+          this.updateProfileUI(profile);
+        }
+      });
+    });
+
+    // Test strike trigger button
+    this.btnSfxTestStrike?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.state.isAudioMuted) {
+        this.setAudioMuted(false);
+      }
+      director.playTestStrike();
+    });
+  }
+
+  private updateProfileUI(profile: LightningSoundProfile): void {
+    const profileLabels: Record<string, string> = {
+      DYNAMIC: '⚡ DİNAMİK',
+      v1: 'v1 DOĞAL',
+      v2: 'v2 SİSMİK',
+      v3: 'v3 PLAZMA',
+      v4: 'v4 TAKTİK'
+    };
+
+    if (this.sfxActiveProfileName) {
+      this.sfxActiveProfileName.textContent = profileLabels[profile] || profile;
+    }
+
+    this.sfxProfileButtons.forEach((btn) => {
+      const p = btn.dataset.profile;
+      btn.classList.toggle('active', p === profile);
+    });
+  }
+
+  /**
+   * Update the 20-target Interleaved Camera Queue list inside the right accordion panel.
+   */
+  public updateCameraQueue(targets: InterleavedQueueTarget[]): void {
+    if (!this.cameraQueueList) return;
+
+    if (this.queueCountBadge) {
+      this.queueCountBadge.textContent = targets.length.toString();
+    }
+
+    if (!targets || targets.length === 0) {
+      this.cameraQueueList.innerHTML = '<div class="queue-empty-note">Aktif kamera kuyruğu boş</div>';
+      return;
+    }
+
+    let html = '';
+    targets.forEach((item, idx) => {
+      const isFirst = idx === 0;
+      const isViewer = item.type === 'VIEWER';
+      const flag = item.countryFlag || '🌍';
+      const country = item.countryName || 'Bölgesel Odak';
+
+      let typeBadge = '';
+      let detailText = '';
+
+      if (isViewer && item.viewerRequest) {
+        typeBadge = `<span class="queue-badge-viewer">👤 @${item.viewerRequest.username}</span>`;
+        if (item.viewerRequest.hasStorm) {
+          detailText = `<span class="queue-status-storm">⚡ Aktif Fırtına</span>`;
+        } else {
+          detailText = `<span class="queue-status-calm">🛰️ Sakin Semalar (0 Vuruş)</span>`;
+        }
+      } else {
+        typeBadge = `<span class="queue-badge-natural">⚡ DOĞAL ODAK</span>`;
+        const score = item.cluster ? (item.cluster.activityScore * 100).toFixed(0) : '85';
+        const strikes = item.cluster ? item.cluster.eventCount : 12;
+        detailText = `<span class="queue-status-score">Aktivite: %${score} • ${strikes} Vuruş</span>`;
+      }
+
+      html += `
+        <div class="queue-item ${isFirst ? 'queue-item-first' : ''} ${isViewer ? 'queue-item-viewer' : ''}">
+          <div class="queue-col-rank">
+            <span class="queue-rank-num">#${idx + 1}</span>
+            ${isFirst ? '<span class="queue-tag-next">SIRADAKİ</span>' : ''}
+          </div>
+          <div class="queue-col-info">
+            <div class="queue-title-row">
+              <span class="queue-flag">${flag}</span>
+              <span class="queue-country">${country}</span>
+              ${typeBadge}
+            </div>
+            <div class="queue-sub-row">
+              ${detailText}
+              <span class="queue-cadence-scale">${item.scale || 'BÖLGESEL'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    this.cameraQueueList.innerHTML = html;
+  }
+
+  /**
+   * Update bottom-left Viewer Flight HUD Card.
+   */
+  public updateViewerFlightHUD(
+    currentReq: ViewerRequest | null,
+    nextReq: ViewerRequest | null,
+    remainingSec: number
+  ): void {
+    if (!this.viewerFlightCard) return;
+
+    if (currentReq) {
+      // Currently actively focusing on a viewer request
+      this.viewerFlightCard.classList.remove('hidden');
+      if (this.vfcBadge) {
+        this.vfcBadge.textContent = '🎬 CANLI ODAK';
+        this.vfcBadge.className = 'vfc-badge vfc-badge-live';
+      }
+      if (this.vfcUser) {
+        this.vfcUser.textContent = `@${currentReq.username}`;
+      }
+      if (this.vfcTargetName) {
+        this.vfcTargetName.textContent = `${currentReq.countryFlag || '🌍'} ${currentReq.countryName}`;
+      }
+      if (this.vfcCountdown) {
+        this.vfcCountdown.textContent = `${Math.max(0, Math.ceil(remainingSec))}s`;
+      }
+      if (this.vfcStatusBanner) {
+        if (currentReq.hasStorm) {
+          this.vfcStatusBanner.textContent = '⚡ Fırtına hücresi inceleniyor';
+          this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-storm';
+        } else {
+          this.vfcStatusBanner.textContent = `🛰️ @${currentReq.username}: ${currentReq.countryName} semaları şu an sakin (0 Vuruş)`;
+          this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-calm';
+        }
+      }
+      return;
+    }
+
+    if (nextReq) {
+      // Natural storm active, but next in line is a viewer request
+      this.viewerFlightCard.classList.remove('hidden');
+      if (this.vfcBadge) {
+        this.vfcBadge.textContent = '🎯 SIRADAKİ İSTEK';
+        this.vfcBadge.className = 'vfc-badge vfc-badge-upcoming';
+      }
+      if (this.vfcUser) {
+        this.vfcUser.textContent = `@${nextReq.username}`;
+      }
+      if (this.vfcTargetName) {
+        this.vfcTargetName.textContent = `Hedef: ${nextReq.countryFlag || '🌍'} ${nextReq.countryName}`;
+      }
+      if (this.vfcCountdown) {
+        this.vfcCountdown.textContent = `${Math.max(0, Math.ceil(remainingSec))}s`;
+      }
+      if (this.vfcStatusBanner) {
+        this.vfcStatusBanner.textContent = `Fırtına geçişi sonrası kalkış yapılacak (${nextReq.hasStorm ? 'Aktif Fırtına' : 'Sakin Alan'})`;
+        this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-upcoming';
+      }
+      return;
+    }
+
+    // Neither active nor upcoming viewer request
+    this.viewerFlightCard.classList.add('hidden');
   }
 }
 
