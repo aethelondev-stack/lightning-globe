@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type LightningSoundProfile = 'v1' | 'v2' | 'v3' | 'v4' | 'DYNAMIC';
+export type LightningSoundProfile = 'v1' | 'v3' | 'v4' | 'DYNAMIC';
 
 /**
  * SoundDirector: Pure procedural Web Audio sound synthesizer for cinematic meteorology.
@@ -9,14 +9,14 @@ export type LightningSoundProfile = 'v1' | 'v2' | 'v3' | 'v4' | 'DYNAMIC';
  * - 100% procedural real-time synthesis via Web Audio API (zero external audio files).
  * - DynamicsCompressorNode master brickwall limiter preventing any clipping or distortion during multi-strike bursts.
  * - Volume control (0% to 100%) scaling master output cleanly.
- * - 4 Creative Procedural Sound Profiles (v1: Doğal, v2: Sismik Sub-Bass, v3: İyonize Plazma, v4: Taktik Kırılma).
+ * - 3 Creative Procedural Sound Profiles (v1: Doğal Gök Gürültüsü, v3: İyonize Plazma, v4: Taktik Kırılma).
  * - ⚡ DİNAMİK (Şiddete Duyarlı Adaptif Mod): Automatically switches sound profile based on strike current (kA).
- * - Distance-based acoustic speed propagation delay (spreads arrival times of 10 simultaneous strikes).
+ * - Inverse distance perceptual volume rolloff (close strikes hit punchy & loud, distant strikes roll quietly).
  * - Atmospheric high-frequency absorption filtering (close strikes snap crisp, distant strikes roll with low-pass boom).
  * - Brownian noise-based realistic thunder acoustics with sub-bass infrasound.
  * - 3D Spatial Audio: Web Audio PannerNode oriented via Earth matrixWorld rotation.
  * - Earth Acoustic Occlusion: Strikes on the far side of the planet are filtered through 320 Hz deep-core muffled filter.
- * - Polyphony guard limiting simultaneous voices cleanly.
+ * - Polyphony guard with zero-drop guarantee for visible strikes.
  */
 export class SoundDirector {
   private isMutedState: boolean = true;
@@ -44,9 +44,12 @@ export class SoundDirector {
             this.volumeLevel = parsed;
           }
         }
-        const savedProf = localStorage.getItem('lightning_sfx_profile') as LightningSoundProfile | null;
-        if (savedProf && ['v1', 'v2', 'v3', 'v4', 'DYNAMIC'].includes(savedProf)) {
-          this.soundProfile = savedProf;
+        const savedProf = localStorage.getItem('lightning_sfx_profile') as string | null;
+        if (savedProf && ['v1', 'v3', 'v4', 'DYNAMIC'].includes(savedProf)) {
+          this.soundProfile = savedProf as LightningSoundProfile;
+        } else {
+          // Auto-migrate legacy v2 to DYNAMIC
+          this.soundProfile = 'DYNAMIC';
         }
       } catch {
         // Ignore localStorage restrictions
@@ -230,7 +233,7 @@ export class SoundDirector {
 
   /**
    * Procedural lightning discharge sound with acoustic distance delay, air absorption filtering,
-   * procedural sound profile synthesis (v1, v2, v3, v4, DYNAMIC), and master limiter protection.
+   * procedural sound profile synthesis (v1, v3, v4, DYNAMIC), and master limiter protection.
    */
   public playStrikeSound(
     peakCurrentKa: number = 30,
@@ -243,11 +246,6 @@ export class SoundDirector {
     this.ensureAudioContext();
     if (!this.audioCtx || !this.masterGain) return;
 
-    // Polyphony voice limiter: allow up to 64 concurrent voices so visible strikes are never choked
-    if (!isForcedArrival && this.activeVoices >= 64 && Math.abs(peakCurrentKa) < 30) {
-      return;
-    }
-
     try {
       const ctx = this.audioCtx;
       const now = ctx.currentTime;
@@ -255,23 +253,21 @@ export class SoundDirector {
       const isSuperbolt = absCurrent >= 150;
       const normalizedCurrent = Math.min(1.0, Math.max(0.1, absCurrent / 90.0));
 
-      // Resolve Sound Profile
+      // Resolve Sound Profile (Safe, punchy & speaker-friendly)
       const requestedProfile = overrideProfile || this.soundProfile;
-      let effectiveProfile: 'v1' | 'v2' | 'v3' | 'v4' = 'v1';
+      let effectiveProfile: 'v1' | 'v3' | 'v4' = 'v1';
 
       if (requestedProfile === 'DYNAMIC') {
         // Adaptive mode based on real strike current (kA)
         if (absCurrent < 25) {
           effectiveProfile = 'v4'; // Tactical Crisp Crack (short, clean, prevents ear fatigue)
-        } else if (absCurrent <= 60) {
+        } else if (absCurrent <= 75) {
           effectiveProfile = 'v1'; // Natural Thunder (rich acoustic atmospheric thunder)
-        } else if (absCurrent <= 120) {
-          effectiveProfile = 'v3'; // Ionized Plasma (high-energy plasma arc discharge)
         } else {
-          effectiveProfile = 'v2'; // Seismic Sub-Bass (earth-shaking seismic sub-bass / superbolt)
+          effectiveProfile = 'v3'; // Ionized Plasma (high-energy plasma arc discharge)
         }
       } else {
-        effectiveProfile = requestedProfile;
+        effectiveProfile = (requestedProfile === 'v1' || requestedProfile === 'v3' || requestedProfile === 'v4') ? requestedProfile : 'v1';
       }
 
       // 1. Calculate World Space Position, Distance & Earth Occlusion
@@ -302,13 +298,13 @@ export class SoundDirector {
       const clampedDist = Math.max(25, Math.min(380, distanceToCamera));
       const distFactor = (clampedDist - 25) / (380 - 25); // 0.0 (closest) -> 1.0 (furthest)
 
-      // Dynamic Gain: close strikes are punchy & loud (1.50), distant strikes roll softly (0.52)
+      // Perceptual inverse distance gain: close strikes are punchy & loud (1.55), distant strikes roll softly (0.18)
       const distGain = isForcedArrival
         ? 1.50
-        : (1.50 - distFactor * 0.98);
+        : Math.max(0.18, 1.55 * Math.pow(Math.max(0.05, 1.0 - distFactor * 0.85), 2.2));
 
       // Atmospheric Air Absorption Filter:
-      // Close strikes: 8800 Hz (bright, razor-sharp crack). Distant strikes: 550 Hz (deep muffled thunder rumble)
+      // Close strikes: 8800 Hz (bright, razor-sharp crack). Distant strikes: 520 Hz (deep muffled thunder rumble)
       const airAbsorptionCutoff = isForcedArrival
         ? 7500
         : Math.max(500, 8800 * Math.pow(0.060, distFactor));
@@ -365,74 +361,7 @@ export class SoundDirector {
       let totalDuration = 1.8;
 
       // 6. Profile-Specific Procedural Synthesis
-      if (effectiveProfile === 'v2') {
-        // ==========================================
-        // PROFILE v2: SİSMİK SUB-BASS (Derin Sarsıntı)
-        // ==========================================
-        totalDuration = isSuperbolt ? 3.0 : 2.5;
-
-        // Sub-Bass Brownian Rumble
-        const rumbleSource = ctx.createBufferSource();
-        rumbleSource.buffer = this.getRumbleNoiseBuffer(ctx);
-        const rumbleFilter = ctx.createBiquadFilter();
-        rumbleFilter.type = 'bandpass';
-        rumbleFilter.frequency.setValueAtTime(isSuperbolt ? 72 : 88, startTime);
-        rumbleFilter.frequency.exponentialRampToValueAtTime(28, startTime + totalDuration);
-        rumbleFilter.Q.setValueAtTime(1.8, startTime);
-
-        const rumbleGain = ctx.createGain();
-        rumbleGain.gain.setValueAtTime(0.001, startTime);
-        rumbleGain.gain.linearRampToValueAtTime(0.68 * rumbleDistMultiplier, startTime + 0.05);
-        rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + totalDuration);
-
-        rumbleSource.connect(rumbleFilter);
-        rumbleFilter.connect(rumbleGain);
-        rumbleGain.connect(strikeMasterGain);
-        rumbleSource.start(startTime);
-        rumbleSource.stop(startTime + totalDuration);
-
-        // Dual detuned infrasound oscillators (creating physical acoustic sub-bass beating)
-        const sub1 = ctx.createOscillator();
-        sub1.type = 'sine';
-        sub1.frequency.setValueAtTime(38, startTime);
-        sub1.frequency.exponentialRampToValueAtTime(16, startTime + totalDuration);
-
-        const sub2 = ctx.createOscillator();
-        sub2.type = 'sine';
-        sub2.frequency.setValueAtTime(54, startTime);
-        sub2.frequency.exponentialRampToValueAtTime(20, startTime + totalDuration);
-
-        const subGain = ctx.createGain();
-        subGain.gain.setValueAtTime(0.001, startTime);
-        subGain.gain.linearRampToValueAtTime(0.60 * rumbleDistMultiplier, startTime + 0.03);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.min(2.0, totalDuration));
-
-        sub1.connect(subGain);
-        sub2.connect(subGain);
-        subGain.connect(strikeMasterGain);
-
-        sub1.start(startTime);
-        sub2.start(startTime);
-        sub1.stop(startTime + totalDuration);
-        sub2.stop(startTime + totalDuration);
-
-        // Low-End Acoustic Impulse
-        const crackOsc = ctx.createOscillator();
-        const crackGain = ctx.createGain();
-        crackOsc.type = 'triangle';
-        crackOsc.frequency.setValueAtTime(65, startTime);
-        crackOsc.frequency.exponentialRampToValueAtTime(18, startTime + 0.12);
-
-        crackGain.gain.setValueAtTime(0.001, startTime);
-        crackGain.gain.linearRampToValueAtTime(0.35 * snapDistMultiplier, startTime + 0.005);
-        crackGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.12);
-
-        crackOsc.connect(crackGain);
-        crackGain.connect(strikeMasterGain);
-        crackOsc.start(startTime);
-        crackOsc.stop(startTime + 0.13);
-
-      } else if (effectiveProfile === 'v3') {
+      if (effectiveProfile === 'v3') {
         // ==========================================
         // PROFILE v3: İYONİZE PLAZMA (Yüksek Enerji Arkı)
         // ==========================================

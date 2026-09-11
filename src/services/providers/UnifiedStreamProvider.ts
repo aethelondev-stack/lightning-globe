@@ -152,9 +152,27 @@ export class UnifiedStreamProvider implements ILightningProvider {
   public async fetch24hHistory(since = 0): Promise<LightningEvent[]> {
     try {
       const url = since > 0 ? `${this.historyUrl}?since=${since}` : this.historyUrl;
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) {
-        console.warn(`[UnifiedStreamProvider] History fetch returned HTTP ${res.status}`);
+      let res: Response | null = null;
+      try {
+        res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      } catch {
+        res = null;
+      }
+
+      // If local endpoint returned 404 or failed (e.g. running outside VPS), fallback to Oracle VPS central hub
+      if (!res || !res.ok) {
+        try {
+          const vpsUrl = since > 0
+            ? `http://130.61.53.100/api/lightning/history-24h?since=${since}`
+            : 'http://130.61.53.100/api/lightning/history-24h';
+          res = await fetch(vpsUrl, { signal: AbortSignal.timeout(6000) });
+        } catch {
+          res = null;
+        }
+      }
+
+      if (!res || !res.ok) {
+        console.warn(`[UnifiedStreamProvider] History fetch returned HTTP ${res?.status ?? 'FAILED'}`);
         return [];
       }
 

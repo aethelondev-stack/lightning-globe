@@ -192,7 +192,18 @@ function init(): void {
           const geo = geoEnricher.lookup(s.latitude, s.longitude);
           uiController.addLiveStrikeFeedItem(s, geo?.country, geo?.flag);
         }
-        console.log(`⚡ [Hydrate24H] Hydrated ${visualStrikes.length} real 24h strikes into storm cells, radar, and fulgurite traces.`);
+        // Hydrate country leaderboard with all 24-hour historical strikes
+        for (let i = 0; i < strikesToRender.length; i++) {
+          const s = strikesToRender[i];
+          const geo = geoEnricher.lookup(s.latitude, s.longitude);
+          countryLeaderboard.recordStrike(s.latitude, s.longitude, s.timestamp, geo);
+        }
+        uiController.updateLeaderboard(
+          countryLeaderboard.getRankings('day', 100),
+          countryLeaderboard.getTotal('day')
+        );
+
+        console.log(`⚡ [Hydrate24H] Hydrated ${visualStrikes.length} real 24h strikes into storm cells, radar, fulgurite traces, and country leaderboard.`);
       }
     } catch (err) {
       console.warn('Note on 24h real strike archive hydration:', err);
