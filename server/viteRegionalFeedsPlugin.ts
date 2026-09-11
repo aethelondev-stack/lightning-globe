@@ -252,64 +252,71 @@ export function viteRegionalFeedsPlugin(): Plugin {
     }
   }
 
+  const setupServer = (server: any) => {
+    // Immediate initial poll on startup
+    pollAllRegional().catch(console.error);
+
+    // Poll regional feeds every 60 seconds
+    setInterval(() => {
+      pollAllRegional().catch(console.error);
+    }, 60000);
+
+    server.middlewares.use('/api/regional/latest', (req: any, res: any) => {
+      const url = new URL(req.url || '', 'http://localhost');
+      const sourceFilter = url.searchParams.get('source');
+      const sinceStr = url.searchParams.get('since');
+      const since = sinceStr ? parseInt(sinceStr, 10) : 0;
+
+      let allStrikes: RegionalStrike[] = [];
+      if (sourceFilter === 'singapore_nea') {
+        allStrikes = cachedSingapore;
+      } else if (sourceFilter === 'japan_jma') {
+        allStrikes = cachedJapan;
+      } else if (sourceFilter === 'finland_fmi') {
+        allStrikes = cachedFinland;
+      } else {
+        // Combined regional feeds
+        allStrikes = [...cachedSingapore, ...cachedJapan, ...cachedFinland];
+      }
+
+      allStrikes.sort((a, b) => a.time - b.time);
+
+      let resultStrikes = allStrikes;
+      if (since > 0) {
+        resultStrikes = allStrikes.filter((s) => s.time > since);
+      } else {
+        // Cold-Start Smoothing: cap initial slice to 30 most recent strikes
+        resultStrikes = allStrikes.slice(-30);
+      }
+
+      const payload = {
+        provider: 'Regional Ground Networks (Singapore NEA, Japan JMA, Finland FMI)',
+        timestamp: Date.now(),
+        sources: {
+          singapore: { count: cachedSingapore.length, status: singaporeStatus },
+          japan: { count: cachedJapan.length, status: japanStatus },
+          finland: { count: cachedFinland.length, status: finlandStatus }
+        },
+        count: resultStrikes.length,
+        strikes: resultStrikes
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(payload));
+    });
+
+    console.log('🌏 [REGIONAL FEEDS] Open Regional Feeds API mounted at /api/regional/latest');
+  };
+
   return {
     name: 'vite-plugin-regional-feeds',
     configureServer(server: ViteDevServer) {
-      // Run first poll on startup
-      pollAllRegional().catch(console.error);
-
-      // Poll regional feeds every 60 seconds
-      setInterval(() => {
-        pollAllRegional().catch(console.error);
-      }, 60000);
-
-      server.middlewares.use('/api/regional/latest', (req, res) => {
-        const url = new URL(req.url || '', 'http://localhost');
-        const sourceFilter = url.searchParams.get('source');
-        const sinceStr = url.searchParams.get('since');
-        const since = sinceStr ? parseInt(sinceStr, 10) : 0;
-
-        let allStrikes: RegionalStrike[] = [];
-        if (sourceFilter === 'singapore_nea') {
-          allStrikes = cachedSingapore;
-        } else if (sourceFilter === 'japan_jma') {
-          allStrikes = cachedJapan;
-        } else if (sourceFilter === 'finland_fmi') {
-          allStrikes = cachedFinland;
-        } else {
-          // Combined regional feeds
-          allStrikes = [...cachedSingapore, ...cachedJapan, ...cachedFinland];
-        }
-
-        allStrikes.sort((a, b) => a.time - b.time);
-
-        let resultStrikes = allStrikes;
-        if (since > 0) {
-          resultStrikes = allStrikes.filter((s) => s.time > since);
-        } else {
-          // Cold-Start Smoothing: cap initial slice to 30 most recent strikes
-          resultStrikes = allStrikes.slice(-30);
-        }
-
-        const payload = {
-          provider: 'Regional Ground Networks (Singapore NEA, Japan JMA, Finland FMI)',
-          timestamp: Date.now(),
-          sources: {
-            singapore: { count: cachedSingapore.length, status: singaporeStatus },
-            japan: { count: cachedJapan.length, status: japanStatus },
-            finland: { count: cachedFinland.length, status: finlandStatus }
-          },
-          count: resultStrikes.length,
-          strikes: resultStrikes
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.end(JSON.stringify(payload));
-      });
-
-      console.log('🌏 [REGIONAL FEEDS] Open Regional Feeds API mounted at /api/regional/latest');
+      setupServer(server);
+    },
+    configurePreviewServer(server: any) {
+      setupServer(server);
     }
   };
 }

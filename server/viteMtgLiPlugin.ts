@@ -276,47 +276,54 @@ export function viteMtgLiPlugin(): Plugin {
     }
   }
 
+  const setupServer = async (server: any) => {
+    await initH5Wasm();
+    pollLatestMtgLi().catch(console.error);
+
+    // EUMETSAT MTG-I1 LI produces files in repeating cycles; poll every 30 seconds
+    setInterval(() => {
+      pollLatestMtgLi().catch(console.error);
+    }, 30000);
+
+    server.middlewares.use('/api/mtg-li/latest', (req: any, res: any) => {
+      const url = new URL(req.url || '', 'http://localhost');
+      const sinceStr = url.searchParams.get('since');
+      const since = sinceStr ? parseInt(sinceStr, 10) : 0;
+
+      let resultFlashes = cachedFlashes;
+      if (since > 0) {
+        resultFlashes = cachedFlashes.filter((f) => f.time > since);
+      } else {
+        // Cold-Start Smoothing: take only the most recent ~30 flashes
+        resultFlashes = cachedFlashes.slice(-30);
+      }
+
+      const payload = {
+        provider: 'EUMETSAT MTG-I1 LI (Lightning Imager)',
+        status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
+        timestamp: Date.now(),
+        lastSuccessfulPoll: lastPollSuccessTime,
+        latestFile: lastProcessedFile ? lastProcessedFile.split('entry?name=').pop() : null,
+        count: resultFlashes.length,
+        flashes: resultFlashes
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(payload));
+    });
+
+    console.log('🛰️ [EUMETSAT MTG-LI] Real-time Satellite API mounted at /api/mtg-li/latest');
+  };
+
   return {
     name: 'vite-plugin-mtg-li',
     async configureServer(server: ViteDevServer) {
-      await initH5Wasm();
-      pollLatestMtgLi().catch(console.error);
-
-      // EUMETSAT MTG-I1 LI produces files in repeating cycles; poll every 30 seconds
-      setInterval(() => {
-        pollLatestMtgLi().catch(console.error);
-      }, 30000);
-
-      server.middlewares.use('/api/mtg-li/latest', (req, res) => {
-        const url = new URL(req.url || '', 'http://localhost');
-        const sinceStr = url.searchParams.get('since');
-        const since = sinceStr ? parseInt(sinceStr, 10) : 0;
-
-        let resultFlashes = cachedFlashes;
-        if (since > 0) {
-          resultFlashes = cachedFlashes.filter((f) => f.time > since);
-        } else {
-          // Cold-Start Smoothing: take only the most recent ~30 flashes
-          resultFlashes = cachedFlashes.slice(-30);
-        }
-
-        const payload = {
-          provider: 'EUMETSAT MTG-I1 LI (Lightning Imager)',
-          status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
-          timestamp: Date.now(),
-          lastSuccessfulPoll: lastPollSuccessTime,
-          latestFile: lastProcessedFile ? lastProcessedFile.split('entry?name=').pop() : null,
-          count: resultFlashes.length,
-          flashes: resultFlashes
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.end(JSON.stringify(payload));
-      });
-
-      console.log('🛰️ [EUMETSAT MTG-LI] Real-time Satellite API mounted at /api/mtg-li/latest');
+      await setupServer(server);
+    },
+    async configurePreviewServer(server: any) {
+      await setupServer(server);
     }
   };
 }

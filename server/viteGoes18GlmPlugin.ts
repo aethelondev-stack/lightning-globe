@@ -251,46 +251,53 @@ export function viteGoes18GlmPlugin(): Plugin {
     }
   }
 
+  const setupServer = async (server: any) => {
+    await initH5Wasm();
+    pollLatestGlm().catch(console.error);
+
+    setInterval(() => {
+      pollLatestGlm().catch(console.error);
+    }, 20000);
+
+    server.middlewares.use('/api/goes18-glm/latest', (req: any, res: any) => {
+      const url = new URL(req.url || '', 'http://localhost');
+      const sinceStr = url.searchParams.get('since');
+      const since = sinceStr ? parseInt(sinceStr, 10) : 0;
+
+      let resultFlashes = cachedFlashes;
+      if (since > 0) {
+        resultFlashes = cachedFlashes.filter(f => f.time > since);
+      } else {
+        // Cold-Start Smoothing: take only the most recent ~30 flashes
+        resultFlashes = cachedFlashes.slice(-30);
+      }
+
+      const payload = {
+        provider: 'NOAA GOES-18 GLM (GOES-West)',
+        status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
+        timestamp: Date.now(),
+        lastSuccessfulPoll: lastPollSuccessTime,
+        latestFile: lastProcessedFile ? lastProcessedFile.split('/').pop() : null,
+        count: resultFlashes.length,
+        flashes: resultFlashes
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(payload));
+    });
+
+    console.log('🛰️ [GOES-18 GLM] Real-time Satellite API mounted at /api/goes18-glm/latest');
+  };
+
   return {
     name: 'vite-plugin-goes18-glm',
     async configureServer(server: ViteDevServer) {
-      await initH5Wasm();
-      pollLatestGlm().catch(console.error);
-
-      setInterval(() => {
-        pollLatestGlm().catch(console.error);
-      }, 20000);
-
-      server.middlewares.use('/api/goes18-glm/latest', (req, res) => {
-        const url = new URL(req.url || '', 'http://localhost');
-        const sinceStr = url.searchParams.get('since');
-        const since = sinceStr ? parseInt(sinceStr, 10) : 0;
-
-        let resultFlashes = cachedFlashes;
-        if (since > 0) {
-          resultFlashes = cachedFlashes.filter(f => f.time > since);
-        } else {
-          // Cold-Start Smoothing: take only the most recent ~30 flashes
-          resultFlashes = cachedFlashes.slice(-30);
-        }
-
-        const payload = {
-          provider: 'NOAA GOES-18 GLM (GOES-West)',
-          status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
-          timestamp: Date.now(),
-          lastSuccessfulPoll: lastPollSuccessTime,
-          latestFile: lastProcessedFile ? lastProcessedFile.split('/').pop() : null,
-          count: resultFlashes.length,
-          flashes: resultFlashes
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.end(JSON.stringify(payload));
-      });
-
-      console.log('🛰️ [GOES-18 GLM] Real-time Satellite API mounted at /api/goes18-glm/latest');
+      await setupServer(server);
+    },
+    async configurePreviewServer(server: any) {
+      await setupServer(server);
     }
   };
 }

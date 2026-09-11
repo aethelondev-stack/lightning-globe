@@ -262,51 +262,58 @@ export function viteGoesGlmPlugin(): Plugin {
     }
   }
 
+  const setupServer = async (server: any) => {
+    // Initialize h5wasm and trigger immediate first fetch
+    await initH5Wasm();
+    pollLatestGlm().catch(console.error);
+
+    // Schedule periodic polling every 20 seconds
+    setInterval(() => {
+      pollLatestGlm().catch(console.error);
+    }, 20000);
+
+    // Register HTTP JSON API endpoint (Mounted on both /api/goes19-glm/latest and /api/goes16-glm/latest for compatibility)
+    const handleGlmRequest = (req: any, res: any) => {
+      const url = new URL(req.url || '', 'http://localhost');
+      const sinceStr = url.searchParams.get('since');
+      const since = sinceStr ? parseInt(sinceStr, 10) : 0;
+
+      let resultFlashes = cachedFlashes;
+      if (since > 0) {
+        resultFlashes = cachedFlashes.filter(f => f.time > since);
+      } else {
+        resultFlashes = cachedFlashes.slice(-30);
+      }
+
+      const payload = {
+        provider: 'NOAA GOES-19 GLM',
+        status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
+        timestamp: Date.now(),
+        lastSuccessfulPoll: lastPollSuccessTime,
+        latestFile: lastProcessedFile ? lastProcessedFile.split('/').pop() : null,
+        count: resultFlashes.length,
+        flashes: resultFlashes
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(payload));
+    };
+
+    server.middlewares.use('/api/goes19-glm/latest', handleGlmRequest);
+    server.middlewares.use('/api/goes16-glm/latest', handleGlmRequest);
+
+    console.log('🛰️ [GOES-19 GLM] Real-time Satellite API mounted at /api/goes19-glm/latest (and /api/goes16-glm/latest alias)');
+  };
+
   return {
     name: 'vite-plugin-goes-glm',
     async configureServer(server: ViteDevServer) {
-      // Initialize h5wasm and trigger immediate first fetch
-      await initH5Wasm();
-      pollLatestGlm().catch(console.error);
-
-      // Schedule periodic polling every 20 seconds
-      setInterval(() => {
-        pollLatestGlm().catch(console.error);
-      }, 20000);
-
-      // Register HTTP JSON API endpoint (Mounted on both /api/goes19-glm/latest and /api/goes16-glm/latest for compatibility)
-      const handleGlmRequest = (req: any, res: any) => {
-        const url = new URL(req.url || '', 'http://localhost');
-        const sinceStr = url.searchParams.get('since');
-        const since = sinceStr ? parseInt(sinceStr, 10) : 0;
-
-        let resultFlashes = cachedFlashes;
-        if (since > 0) {
-          resultFlashes = cachedFlashes.filter(f => f.time > since);
-        } else {
-          resultFlashes = cachedFlashes.slice(-30);
-        }
-
-        const payload = {
-          provider: 'NOAA GOES-19 GLM',
-          status: cachedFlashes.length > 0 ? 'LIVE' : 'OFFLINE',
-          timestamp: Date.now(),
-          lastSuccessfulPoll: lastPollSuccessTime,
-          latestFile: lastProcessedFile ? lastProcessedFile.split('/').pop() : null,
-          count: resultFlashes.length,
-          flashes: resultFlashes
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.end(JSON.stringify(payload));
-      };
-
-      server.middlewares.use('/api/goes19-glm/latest', handleGlmRequest);
-      server.middlewares.use('/api/goes16-glm/latest', handleGlmRequest);
-
-      console.log('🛰️ [GOES-19 GLM] Real-time Satellite API mounted at /api/goes19-glm/latest (and /api/goes16-glm/latest alias)');
+      await setupServer(server);
+    },
+    async configurePreviewServer(server: any) {
+      await setupServer(server);
     }
   };
 }
