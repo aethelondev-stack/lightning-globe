@@ -10,16 +10,24 @@ let lastCommandTimestamp = 0;
 
 // Valid commands set
 const VALID_COMMANDS = new Set([
-  '!turkiye', '!turk', '!tr',
+  '!turkiye', '!turk', '!tr', '!türkiye',
   '!firtina', '!storm',
   '!dunya', '!world',
   '!oto', '!auto',
   '!zoom',
   '!uzaklas', '!out',
   '!avrupa', '!europe',
-  '!amerika', '!usa',
+  '!amerika', '!usa', '!us',
   '!asya', '!asia',
-  '!japonya', '!japan'
+  '!japonya', '!japan', '!jp',
+  '!brezilya', '!brazil', '!br',
+  '!almanya', '!germany', '!de',
+  '!fransa', '!france', '!fr',
+  '!ingiltere', '!uk', '!gb',
+  '!italya', '!italy', '!it',
+  '!ispanya', '!spain', '!es',
+  '!kanada', '!canada', '!ca',
+  '!avustralya', '!australia', '!au'
 ]);
 
 // 1. Start Internal WebSocket Server for the Globe Browser Client
@@ -106,16 +114,17 @@ function connectKickPusher() {
 
         // Check if message is a command
         const firstWord = content.split(/\s+/)[0].toLowerCase();
-        if (VALID_COMMANDS.has(firstWord)) {
+        const isCountryCommand = firstWord === '!ulke' || firstWord === '!ülke' || firstWord === '!country';
+        if (VALID_COMMANDS.has(firstWord) || isCountryCommand) {
           const now = Date.now();
           if (now - lastCommandTimestamp < GLOBAL_COOLDOWN_MS) {
-            console.log(`[KickChatBridge] Cooldown active, skipped: ${firstWord} from ${username}`);
+            console.log(`[KickChatBridge] Cooldown active, skipped: ${content} from ${username}`);
             return;
           }
 
           lastCommandTimestamp = now;
-          console.log(`⚡ [KickChatBridge] DISPATCHING COMMAND: ${firstWord} by @${username}`);
-          broadcastCommand(firstWord, username);
+          console.log(`⚡ [KickChatBridge] DISPATCHING COMMAND: ${content} by @${username}`);
+          broadcastCommand(content, username);
         }
       }
 

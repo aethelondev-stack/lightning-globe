@@ -514,7 +514,7 @@ function init(): void {
     // 1. Front hemisphere test (ensures strike is on the visible front face of Earth)
     scratchAudioNormal.copy(pos).normalize();
     scratchAudioToCam.copy(engine.camera.position).sub(pos).normalize();
-    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.02) {
+    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.01) {
       return false;
     }
 
@@ -523,8 +523,8 @@ function init(): void {
     if (
       scratchAudioProjected.z < -1 ||
       scratchAudioProjected.z > 1 ||
-      Math.abs(scratchAudioProjected.x) > 1.25 ||
-      Math.abs(scratchAudioProjected.y) > 1.25
+      Math.abs(scratchAudioProjected.x) > 1.35 ||
+      Math.abs(scratchAudioProjected.y) > 1.35
     ) {
       return false;
     }
@@ -554,7 +554,10 @@ function init(): void {
       type: lastEvent?.type ?? 'CG',
       source: lastEvent?.source ?? 'goes16_glm'
     };
-    triggerStrikeVfxAndAudio(arrivalEvent);
+    lightningRenderer.addEvent(arrivalEvent);
+    const strikePos = latLngToVector3(lat, lon, 0, EngineConfig.globe.radius);
+    // Forced arrival sound: 0ms latency, guaranteed synchronous playback with visual touchdown flash
+    soundDirector.playStrikeSound(arrivalEvent.peakCurrent ?? 45, strikePos, engine.camera.position, undefined, true);
     globeManager.fulguriteTraceLayer.addStrike(lat, lon, arrivalEvent.timestamp, arrivalEvent.peakCurrent ?? 25);
     globeManager.stormCellRadar.triggerStrikeImpact(cluster.id, lat, lon, arrivalEvent.peakCurrent ?? 25);
   };

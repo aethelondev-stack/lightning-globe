@@ -236,14 +236,15 @@ export class SoundDirector {
     peakCurrentKa: number = 30,
     strikeLocalPos?: THREE.Vector3,
     cameraPos?: THREE.Vector3,
-    overrideProfile?: LightningSoundProfile
+    overrideProfile?: LightningSoundProfile,
+    isForcedArrival: boolean = false
   ): void {
     if (this.isMutedState || this.volumeLevel <= 0.001) return;
     this.ensureAudioContext();
     if (!this.audioCtx || !this.masterGain) return;
 
-    // Polyphony voice limiter: allow up to 24 concurrent voices with organic cascading
-    if (this.activeVoices >= 24 && Math.abs(peakCurrentKa) < 70) {
+    // Polyphony voice limiter: allow up to 32 concurrent voices with rapid release
+    if (!isForcedArrival && this.activeVoices >= 32 && Math.abs(peakCurrentKa) < 70) {
       return;
     }
 
@@ -287,7 +288,7 @@ export class SoundDirector {
           SoundDirector.TEMP_NORMAL.copy(worldPos).normalize();
           const toCamera = cameraPos.clone().sub(worldPos).normalize();
           // Far side of planet check: cull strikes that are completely behind the planetary horizon
-          if (SoundDirector.TEMP_NORMAL.dot(toCamera) < 0.02) {
+          if (!isForcedArrival && SoundDirector.TEMP_NORMAL.dot(toCamera) < 0.01) {
             return;
           }
         }
@@ -299,10 +300,14 @@ export class SoundDirector {
       // 3. Distance Attenuation & Atmospheric Air Absorption Filter
       const distNorm = Math.max(0, Math.min(1.0, (distanceToCamera - 80) / 320));
       const airAbsorptionCutoff = isOccluded ? 380 : Math.max(480, 5200 * Math.pow(0.20, distNorm));
-      const distGain = Math.max(0.68, Math.min(1.15, 280 / Math.max(100, distanceToCamera)));
+      const distGain = isForcedArrival
+        ? 1.35
+        : Math.max(0.80, Math.min(1.30, 320 / Math.max(120, distanceToCamera)));
 
       const strikeMasterGain = ctx.createGain();
-      const baseVolume = (isSuperbolt ? 1.0 : 0.62 + normalizedCurrent * 0.38) * distGain * (isOccluded ? 0.50 : 1.0);
+      const baseVolume = isForcedArrival
+        ? 1.45
+        : (isSuperbolt ? 1.20 : 0.72 + normalizedCurrent * 0.40) * distGain * (isOccluded ? 0.60 : 1.0);
       strikeMasterGain.gain.setValueAtTime(baseVolume, startTime);
 
       // 4. Low-Pass Filter Chain
@@ -544,24 +549,41 @@ export class SoundDirector {
         // ==========================================
         totalDuration = isSuperbolt ? 2.2 : (0.95 + normalizedCurrent * 0.85);
 
-        // High-Frequency Electro-Acoustic Crack / Snap
+        // High-Frequency Electro-Acoustic Crack / Snap (Punchy attack transient)
         const snapSource = ctx.createBufferSource();
         snapSource.buffer = this.getSnapNoiseBuffer(ctx);
         const snapFilter = ctx.createBiquadFilter();
         snapFilter.type = 'highpass';
-        snapFilter.frequency.setValueAtTime(isOccluded ? 400 : 850, startTime);
+        snapFilter.frequency.setValueAtTime(isOccluded ? 400 : 750, startTime);
 
         const snapGain = ctx.createGain();
-        const snapVol = isSuperbolt ? 0.70 : 0.50;
+        const snapVol = isSuperbolt ? 0.95 : 0.82;
         snapGain.gain.setValueAtTime(0.001, startTime);
-        snapGain.gain.linearRampToValueAtTime(snapVol, startTime + 0.004);
-        snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + (isSuperbolt ? 0.045 : 0.030));
+        snapGain.gain.linearRampToValueAtTime(snapVol, startTime + 0.003);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + (isSuperbolt ? 0.050 : 0.038));
 
         snapSource.connect(snapFilter);
         snapFilter.connect(snapGain);
         snapGain.connect(strikeMasterGain);
         snapSource.start(startTime);
-        snapSource.stop(startTime + 0.045);
+        snapSource.stop(startTime + 0.055);
+
+        // Tactile Mid-Range Punch Oscillator (180 Hz -> 55 Hz) for audible presence on headphones & speakers
+        const punchOsc = ctx.createOscillator();
+        const punchGain = ctx.createGain();
+        punchOsc.type = 'triangle';
+        punchOsc.frequency.setValueAtTime(isSuperbolt ? 240 : 180, startTime);
+        punchOsc.frequency.exponentialRampToValueAtTime(55, startTime + 0.08);
+
+        const punchVol = isSuperbolt ? 0.65 : 0.48;
+        punchGain.gain.setValueAtTime(0.001, startTime);
+        punchGain.gain.linearRampToValueAtTime(punchVol, startTime + 0.003);
+        punchGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.09);
+
+        punchOsc.connect(punchGain);
+        punchGain.connect(strikeMasterGain);
+        punchOsc.start(startTime);
+        punchOsc.stop(startTime + 0.10);
 
         // Authentic Rolling Thunder (Brownian turbulent pressure waves)
         const rumbleSource = ctx.createBufferSource();
@@ -624,10 +646,10 @@ export class SoundDirector {
         crackOsc.stop(startTime + 0.09);
       }
 
-      // Fast release of voice slot (350ms attack phase) so continuous lightning cascades trigger organically
+      // Fast release of voice slot (150ms attack phase) so continuous lightning cascades trigger organically
       setTimeout(() => {
         this.activeVoices = Math.max(0, this.activeVoices - 1);
-      }, 350);
+      }, 150);
 
       // Node cleanup after sound fully decays
       setTimeout(() => {
