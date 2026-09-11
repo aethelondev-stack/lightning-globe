@@ -127,7 +127,10 @@ function init(): void {
    * Ingests verified real strikes from Unified Hub S3/FMI archive and local persistent storage.
    * Strictly 0% synthetic, seed, or simulated strikes.
    */
+  let isHydrating = false;
   const hydrate24HTrails = async (): Promise<void> => {
+    if (isHydrating) return;
+    isHydrating = true;
     const now = Date.now();
     try {
       // 1. Fetch real 24h strikes from Unified Hub (if backend is available)
@@ -192,12 +195,29 @@ function init(): void {
           const geo = geoEnricher.lookup(s.latitude, s.longitude);
           uiController.addLiveStrikeFeedItem(s, geo?.country, geo?.flag);
         }
-        // Hydrate country leaderboard with all 24-hour historical strikes
+
+        // High-performance spatial-grid cached geo lookups (eliminates 60,000 raycasts freezing main thread)
+        const geoGridCache = new Map<string, any>();
+        const getCachedGeo = (lat: number, lon: number) => {
+          const key = `${Math.round(lat * 5)},${Math.round(lon * 5)}`;
+          let res = geoGridCache.get(key);
+          if (!res) {
+            res = geoEnricher.lookup(lat, lon);
+            geoGridCache.set(key, res);
+          }
+          return res;
+        };
+
+        // Hydrate country leaderboard with 24-hour historical strikes in non-blocking async micro-batches
         for (let i = 0; i < strikesToRender.length; i++) {
           const s = strikesToRender[i];
-          const geo = geoEnricher.lookup(s.latitude, s.longitude);
+          const geo = getCachedGeo(s.latitude, s.longitude);
           countryLeaderboard.recordStrike(s.latitude, s.longitude, s.timestamp, geo);
+          if (i > 0 && i % 15000 === 0) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
         }
+
         uiController.updateLeaderboard(
           countryLeaderboard.getRankings('day', 100),
           countryLeaderboard.getTotal('day')
@@ -209,6 +229,8 @@ function init(): void {
       console.warn('Note on 24h real strike archive hydration:', err);
       globeManager.fulguriteTraceLayer.clear();
       stormCellBatcher.clear();
+    } finally {
+      isHydrating = false;
     }
   };
 
@@ -218,9 +240,6 @@ function init(): void {
   // Initialize StrikeArchiveDB; persist real strikes across page refreshes
   strikeArchive.init().then(async () => {
     console.log('📦 StrikeArchiveDB persistent storage initialized.');
-    if (currentSourceMode === 'LIVE' && globeManager.fulguriteTraceLayer.getMode() === '24H') {
-      hydrate24HTrails();
-    }
   }).catch(console.error);
 
   // Track active data source mode ('SIMULATION' vs 'LIVE')
