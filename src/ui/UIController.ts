@@ -49,6 +49,8 @@ export class UIController {
   private periodButtons: Map<LeaderboardPeriod, HTMLButtonElement> = new Map();
   private currentLeaderboardItems: CountryRankItem[] = [];
   private lastLeaderboardSignature: string = '';
+  private leaderboardAutoCycleInterval: any = null;
+  private leaderboardAutoCycleTimeouts: any[] = [];
 
   // Strike Detail Card Elements (Phase 17)
   private strikeCard: HTMLElement | null = null;
@@ -202,6 +204,7 @@ export class UIController {
     this.attachEventListeners();
     this.setupCameraAccordionBar();
     this.renderState();
+    this.startLeaderboardAutoCycle();
   }
 
   private bindDomElements(): void {
@@ -951,13 +954,71 @@ export class UIController {
     }
   }
 
-  public setLeaderboardPeriod(period: LeaderboardPeriod): void {
+  public setLeaderboardPeriod(period: LeaderboardPeriod, smooth: boolean = false): void {
     if (this.state.leaderboardPeriod === period) return;
+
+    if (smooth && this.leaderboardListContainer) {
+      this.leaderboardListContainer.classList.add('transitioning');
+      setTimeout(() => {
+        this.state.leaderboardPeriod = period;
+        for (const [p, btn] of this.periodButtons.entries()) {
+          btn.classList.toggle('active', p === period);
+        }
+        this.renderLeaderboardRows(true);
+        setTimeout(() => {
+          this.leaderboardListContainer?.classList.remove('transitioning');
+        }, 40);
+      }, 180);
+      return;
+    }
+
     this.state.leaderboardPeriod = period;
     for (const [p, btn] of this.periodButtons.entries()) {
       btn.classList.toggle('active', p === period);
     }
     this.renderLeaderboardRows(true);
+  }
+
+  /**
+   * Starts the 5-minute Leaderboard Auto-Cycle:
+   * - Every 5 minutes (300s): Panel opens as accordion and shows "GÜN"
+   * - At 61st second: Smoothly transitions to "HAFTA" tab
+   * - At 130th second: Panel smoothly closes (accordion collapse)
+   */
+  public startLeaderboardAutoCycle(): void {
+    const triggerCycle = () => {
+      // Clear any pending sub-timers
+      this.leaderboardAutoCycleTimeouts.forEach((t) => clearTimeout(t));
+      this.leaderboardAutoCycleTimeouts = [];
+
+      // t = 0: Open panel, display "GÜN"
+      this.setLeaderboardOpen(true);
+      this.setLeaderboardPeriod('day');
+
+      // t = 61s: Smooth transition to "HAFTA"
+      const tWeek = setTimeout(() => {
+        this.setLeaderboardPeriod('week', true);
+      }, 61000);
+      this.leaderboardAutoCycleTimeouts.push(tWeek);
+
+      // t = 130s: Accordion collapse / close
+      const tClose = setTimeout(() => {
+        this.setLeaderboardOpen(false);
+      }, 130000);
+      this.leaderboardAutoCycleTimeouts.push(tClose);
+    };
+
+    // Run every 5 minutes (300,000 ms)
+    this.leaderboardAutoCycleInterval = setInterval(triggerCycle, 300000);
+  }
+
+  public stopLeaderboardAutoCycle(): void {
+    if (this.leaderboardAutoCycleInterval) {
+      clearInterval(this.leaderboardAutoCycleInterval);
+      this.leaderboardAutoCycleInterval = null;
+    }
+    this.leaderboardAutoCycleTimeouts.forEach((t) => clearTimeout(t));
+    this.leaderboardAutoCycleTimeouts = [];
   }
 
   public getLeaderboardPeriod(): LeaderboardPeriod {

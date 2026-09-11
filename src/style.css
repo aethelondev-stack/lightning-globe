@@ -198,6 +198,98 @@ html, body {
   transition: all 0.25s ease;
 }
 
+/* ==========================================================================
+   Realtime Planetary Broadcast Strip (Continuous Border Beam Animation)
+   ========================================================================== */
+.realtime-broadcast-strip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5px;
+  border-radius: 30px;
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(0, 240, 255, 0.15);
+  margin-top: 2px;
+}
+
+.realtime-broadcast-strip::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 65deg,
+    rgba(0, 240, 255, 0.95) 85deg,
+    rgba(168, 85, 247, 0.95) 105deg,
+    rgba(0, 240, 255, 0.95) 125deg,
+    transparent 150deg,
+    transparent 360deg
+  );
+  animation: beamLoop 4.5s linear infinite;
+  z-index: 0;
+}
+
+@keyframes beamLoop {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.rbs-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 22px;
+  background: rgba(8, 13, 26, 0.92);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-radius: 29px;
+  z-index: 1;
+}
+
+.rbs-live-dot {
+  width: 7px;
+  height: 7px;
+  background: #00f0ff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00f0ff, 0 0 16px rgba(0, 240, 255, 0.8);
+  animation: rbsDotPulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes rbsDotPulse {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+    box-shadow: 0 0 12px #00f0ff, 0 0 22px #00f0ff;
+  }
+}
+
+.rbs-text {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  color: #f8fafc;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.45);
+  white-space: nowrap;
+  user-select: none;
+}
+
 .controls-bar,
 .camera-modes-bar {
   pointer-events: auto;
@@ -1143,25 +1235,33 @@ html, body {
 
 .leaderboard-periods {
   display: flex;
-  padding: 10px 18px;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .btn-period {
   flex: 1;
-  font-size: 10.5px;
+  height: 28px;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  padding: 6px 4px;
+  line-height: 1;
   border-radius: 6px;
-  text-align: center;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .btn-period:hover {
@@ -1201,6 +1301,14 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.leaderboard-list.transitioning {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .leaderboard-list::-webkit-scrollbar {

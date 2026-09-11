@@ -276,6 +276,61 @@ export class GeoIndex {
     return false;
   }
 
+  public static getSubregionName(lat: number, lon: number, countryName: string): string {
+    if (countryName === 'Amerika Birleşik Devletleri') {
+      if (lat < 31.5 && lon > -87.5) return 'ABD (Florida / Güneydoğu)';
+      if (lat < 36 && lon >= -106 && lon <= -88) return 'ABD (Teksas / Körfez)';
+      if (lat >= 36 && lat <= 44 && lon >= -104 && lon <= -90) return 'ABD (Büyük Ovalar)';
+      if (lat >= 38 && lon >= -90 && lon <= -79) return 'ABD (Orta Batı / Midwest)';
+      if (lat >= 32 && lon > -79) return 'ABD (Doğu Sahili / Atlantik)';
+      if (lat >= 32 && lat <= 45 && lon >= -114 && lon <= -104) return 'ABD (Kayalık Dağlar)';
+      if (lat < 36 && lon >= -118 && lon < -106) return 'ABD (Güneybatı)';
+      if (lat >= 42 && lon < -116) return 'ABD (Kuzeybatı Pasifik)';
+      if (lat < 42 && lon < -116) return 'ABD (Kaliforniya)';
+      return 'ABD (Kuzey Amerika)';
+    }
+
+    if (countryName === 'Türkiye') {
+      if (lat < 38 && lon < 33) return 'Türkiye (Akdeniz)';
+      if (lat > 40 && lon < 30) return 'Türkiye (Marmara)';
+      if (lat > 40 && lon >= 30) return 'Türkiye (Karadeniz)';
+      if (lat >= 38 && lat <= 40 && lon >= 30 && lon <= 36) return 'Türkiye (İç Anadolu)';
+      if (lat < 38 && lon >= 36) return 'Türkiye (Güneydoğu Anadolu)';
+      if (lat >= 38 && lon >= 38) return 'Türkiye (Doğu Anadolu)';
+      if (lon < 30) return 'Türkiye (Ege)';
+      return 'Türkiye';
+    }
+
+    if (countryName === 'Brezilya') {
+      if (lat > -10 && lon < -52) return 'Brezilya (Amazon / Kuzey)';
+      if (lat <= -18) return 'Brezilya (Güneydoğu / Sao Paulo)';
+      if (lon >= -45) return 'Brezilya (Doğu Kıyısı)';
+      return 'Brezilya (Orta Havza)';
+    }
+
+    if (countryName === 'Avustralya') {
+      if (lon < 125) return 'Avustralya (Batı)';
+      if (lat > -22) return 'Avustralya (Kuzey / Tropikal)';
+      if (lon >= 140 && lat <= -28) return 'Avustralya (Güneydoğu)';
+      if (lon >= 140 && lat > -28) return 'Avustralya (Queensland)';
+      return 'Avustralya (İç Havza)';
+    }
+
+    if (countryName === 'Kanada') {
+      if (lon < -115) return 'Kanada (Pasifik / Batı)';
+      if (lon > -80) return 'Kanada (Doğu Kıyısı)';
+      return 'Kanada (Büyük Ovalar)';
+    }
+
+    if (countryName === 'Rusya') {
+      if (lon > 100) return 'Rusya (Uzak Doğu / Sibirya)';
+      if (lon > 60) return 'Rusya (Sibirya)';
+      return 'Rusya (Avrupa Kesimi)';
+    }
+
+    return `${countryName} Semaları`;
+  }
+
   public static getThematicLocation(lat: number, lon: number): { name: string; flag: string } {
     // 1. Check known countries
     for (const country of POPULAR_COUNTRIES) {
@@ -284,7 +339,8 @@ export class GeoIndex {
           EU: '🌍', AF: '🌍', NA: '🌎', SA: '🌎', AS: '🌏', OC: '🌏'
         };
         const flag = (country.continent && continentIcons[country.continent]) ? continentIcons[country.continent] : '⚡';
-        return { name: `${country.name} Semaları`, flag };
+        const subName = this.getSubregionName(lat, lon, country.name);
+        return { name: subName, flag };
       }
     }
 

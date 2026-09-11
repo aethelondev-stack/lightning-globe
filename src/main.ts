@@ -478,6 +478,13 @@ function init(): void {
     }
   });
 
+  // Autoplay music and enable sound in broadcast mode
+  const isBroadcastMode = new URLSearchParams(window.location.search).has('broadcast') || new URLSearchParams(window.location.search).has('stream');
+  if (isBroadcastMode) {
+    soundDirector.setMuted(false);
+    bgMusicPlayer.play();
+  }
+
   // Connect Camera Director target provider from Event Director (only active if autoFollow is explicitly enabled)
   cameraDirector.setTargetProvider(() => {
     if (!cameraDirector.isAutoFollow()) return null;

@@ -487,10 +487,65 @@ export class EventDirector {
   }
 
   /**
+   * Generates a geographically diverse subset of natural queue candidates,
+   * avoiding spatial clumping and giving visibility to distinct weather systems.
+   */
+  public getDiverseNaturalQueue(maxCount: number = 10): QueueItem[] {
+    if (this.queue.length <= 1) return this.queue.slice(0, maxCount);
+
+    const selected: QueueItem[] = [];
+    const usedContinents = new Set<string>();
+    const usedCentroids: Array<{ lat: number; lon: number }> = [];
+
+    // Pass 1: Select top candidate per distinct continent, requiring at least 300km separation
+    for (const item of this.queue) {
+      if (selected.length >= maxCount) break;
+      const c = item.cluster;
+      const cont = getContinent(c.centroid.latitude, c.centroid.longitude);
+
+      const isTooClose = usedCentroids.some((pt) =>
+        haversineDistanceKm(pt.lat, pt.lon, c.centroid.latitude, c.centroid.longitude) < 300
+      );
+
+      if (!isTooClose && !usedContinents.has(cont)) {
+        selected.push(item);
+        usedContinents.add(cont);
+        usedCentroids.push({ lat: c.centroid.latitude, lon: c.centroid.longitude });
+      }
+    }
+
+    // Pass 2: Select other high-priority candidates ensuring at least 200km spatial separation
+    for (const item of this.queue) {
+      if (selected.length >= maxCount) break;
+      if (selected.includes(item)) continue;
+
+      const c = item.cluster;
+      const isTooClose = usedCentroids.some((pt) =>
+        haversineDistanceKm(pt.lat, pt.lon, c.centroid.latitude, c.centroid.longitude) < 200
+      );
+
+      if (!isTooClose) {
+        selected.push(item);
+        usedCentroids.push({ lat: c.centroid.latitude, lon: c.centroid.longitude });
+      }
+    }
+
+    // Pass 3: Fill any remaining capacity from the sorted queue
+    for (const item of this.queue) {
+      if (selected.length >= maxCount) break;
+      if (!selected.includes(item)) {
+        selected.push(item);
+      }
+    }
+
+    return selected;
+  }
+
+  /**
    * Generates a 20-target interleaved queue list for the UI accordion panel.
    */
   public getInterleavedQueue(maxItems: number = 20): InterleavedQueueTarget[] {
-    const naturalItems = this.queue.slice(0, 10);
+    const naturalItems = this.getDiverseNaturalQueue(10);
     const viewerItems = this.viewerQueue.slice(0, 10);
     const result: InterleavedQueueTarget[] = [];
 

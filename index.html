@@ -17,7 +17,7 @@
         <div class="hud-header">
           <div class="hud-header-title-wrap">
             <span class="live-pulse"></span>
-            <span class="hud-title">YILDIRIM GÖZLEMEVİ</span>
+            <span class="hud-title">AETHELON YILDIRIM GÖZLEMEVİ</span>
           </div>
           <span id="hud-status" class="hud-status-chip hidden">CANLI</span>
           <button id="btn-hud-toggle" class="hud-toggle-btn" title="Paneli Katla / Genişlet" aria-label="Toggle HUD">▾</button>
@@ -284,6 +284,14 @@
             🏆 Sıralama
           </button>
         </nav>
+
+        <!-- Canlı Yayın Bilgi Şeridi: Işık Hüzmeli Çerçeve -->
+        <div id="realtime-broadcast-strip" class="realtime-broadcast-strip">
+          <div class="rbs-content">
+            <span class="rbs-live-dot"></span>
+            <span class="rbs-text">YERKÜREDEKİ TÜM ŞİMŞEKLERİ ANLIK OLARAK İZLE</span>
+          </div>
+        </div>
       </header>
 
       <!-- Sol Alt: Seyirci Uçuş Takip HUD Kartı -->
@@ -486,7 +494,7 @@
       <!-- Sağ Bölme (Right Sidebar): Akordiyon Paneller -->
       <aside id="right-sidebar" class="right-sidebar" aria-label="Canlı Günlük, Fırtına ve Analiz">
         <!-- Panel 1: Canlı Şimşek Günlüğü (Live Strike Feed) -->
-        <div class="accordion-panel" id="panel-live-feed">
+        <div class="accordion-panel collapsed" id="panel-live-feed">
           <div class="accordion-header" id="header-live-feed">
             <div class="accordion-title">
               <span class="accordion-icon">⚡</span>
@@ -595,33 +603,6 @@
           </div>
         </div>
       </aside>
-
-      <!-- Ekran Altı: Seyirci Chat Komut & Yönlendirme Barı (Tek Satır) -->
-      <footer id="bottom-command-bar" class="bottom-command-bar" role="complementary" aria-label="Seyirci Chat Komutları">
-        <div class="bcb-item bcb-title">
-          <span class="bcb-icon">🎮</span>
-          <span>Kamerayı Yönetmek İçin Chat'i Kullan</span>
-        </div>
-        <div class="bcb-divider"></div>
-        <div class="bcb-item bcb-syntax">
-          <span class="bcb-label">Kullanım:</span>
-          <span class="bcb-token">"!ulke [ülke ismi]"</span>
-          <span class="bcb-or">veya</span>
-          <span class="bcb-token">"![ülke]"</span>
-        </div>
-        <div class="bcb-divider"></div>
-        <div class="bcb-item bcb-example">
-          <span class="bcb-label">Örnek:</span>
-          <span class="bcb-pill">!ulke turkiye</span>
-          <span class="bcb-or">veya</span>
-          <span class="bcb-pill">!turkiye</span>
-        </div>
-        <div class="bcb-divider"></div>
-        <div class="bcb-item bcb-note">
-          <span class="bcb-warn-icon">⚠️</span>
-          <span>Türkçe karakter kullanmayın</span>
-        </div>
-      </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
