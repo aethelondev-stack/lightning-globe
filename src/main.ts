@@ -177,12 +177,76 @@ function init(): void {
         }
       }
 
-      const strikesToRender = Array.from(strikeMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+      const rawStrikes = Array.from(strikeMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+      // High-performance O(N) Cross-Sensor Spatial-Temporal Deduplication
+      // Fuses co-observations (e.g. Blitzortung RF ground strike + GOES/MTG optical flash)
+      // Criterion: dt <= 1200ms and dr <= 18km (0.20° spatial grid hash)
+      const dedupGrid = new Map<string, LightningEvent[]>();
+      const strikesToRender: LightningEvent[] = [];
+      const binDeg = 0.20;
+
+      for (let i = 0; i < rawStrikes.length; i++) {
+        const s = rawStrikes[i];
+        const latBin = Math.floor(s.latitude / binDeg);
+        const lonBin = Math.floor(s.longitude / binDeg);
+        const key = `${latBin}_${lonBin}`;
+        let isDup = false;
+
+        for (let dLat = -1; dLat <= 1 && !isDup; dLat++) {
+          for (let dLon = -1; dLon <= 1 && !isDup; dLon++) {
+            const nKey = `${latBin + dLat}_${lonBin + dLon}`;
+            const binList = dedupGrid.get(nKey);
+            if (binList) {
+              for (let j = binList.length - 1; j >= 0; j--) {
+                const existing = binList[j];
+                if (s.timestamp - existing.timestamp > 2000) break;
+                if (existing.source !== s.source) {
+                  const timeDiff = Math.abs(s.timestamp - existing.timestamp);
+                  if (timeDiff <= 1200) {
+                    const dLatKm = Math.abs(s.latitude - existing.latitude) * 111.0;
+                    const dLonKm = Math.abs(s.longitude - existing.longitude) * 111.0 * Math.cos(s.latitude * (Math.PI / 180));
+                    if ((dLatKm * dLatKm + dLonKm * dLonKm) <= 324) { // 18 km threshold
+                      isDup = true;
+                      if (existing.source.startsWith('goes') && s.source === 'blitzortung' && s.peakCurrent) {
+                        existing.peakCurrent = s.peakCurrent;
+                        existing.source = 'hybrid' as any;
+                      }
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (!isDup) {
+          strikesToRender.push(s);
+          let cell = dedupGrid.get(key);
+          if (!cell) {
+            cell = [];
+            dedupGrid.set(key, cell);
+          }
+          cell.push(s);
+        }
+      }
 
       if (strikesToRender.length > 0) {
-        const visualStrikes = strikesToRender.length > 4000 ? strikesToRender.slice(-4000) : strikesToRender;
+        // Hydrate up to FulguriteTraceLayer's 120,000 strike capacity (eliminates artificial 4000 strike cutoff)
+        const maxCapacity = globeManager.fulguriteTraceLayer.maxStrikes ?? 120000;
+        const visualStrikes = strikesToRender.length > maxCapacity
+          ? strikesToRender.slice(-maxCapacity)
+          : strikesToRender;
+
         globeManager.fulguriteTraceLayer.hydrateHistoricalStrikes(visualStrikes);
         stormCellBatcher.addHistoricalStrikes(visualStrikes);
+
+        // Immediately update stormCellRadar and UI with 24H pre-clustered storm cells
+        const initial24hCells = stormCellBatcher.getActiveStormCells(now);
+        globeManager.stormCellRadar.updateCells(initial24hCells);
+        uiController.updatePetekCategoryCounts(initial24hCells);
+
         // Seed store SILENTLY so recent events are queryable without triggering live VFX/audio explosions
         const recentForStore = visualStrikes.slice(-2000);
         for (let i = 0; i < recentForStore.length; i++) {
@@ -223,7 +287,7 @@ function init(): void {
           countryLeaderboard.getTotal('day')
         );
 
-        console.log(`⚡ [Hydrate24H] Hydrated ${visualStrikes.length} real 24h strikes into storm cells, radar, fulgurite traces, and country leaderboard.`);
+        console.log(`⚡ [Hydrate24H] Hydrated ${visualStrikes.length} real 24h strikes into storm cells, radar, fulgurite traces, and country leaderboard (deduped ${rawStrikes.length - strikesToRender.length} duplicates).`);
       }
     } catch (err) {
       console.warn('Note on 24h real strike archive hydration:', err);

@@ -154,7 +154,7 @@ export class UnifiedStreamProvider implements ILightningProvider {
       const url = since > 0 ? `${this.historyUrl}?since=${since}` : this.historyUrl;
       let res: Response | null = null;
       try {
-        res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        res = await fetch(url, { signal: AbortSignal.timeout(20000) });
       } catch {
         res = null;
       }
@@ -177,7 +177,23 @@ export class UnifiedStreamProvider implements ILightningProvider {
       }
 
       const json = await res.json();
-      const strikes = json?.strikes || [];
+      let strikes = json?.strikes || [];
+
+      // If running on local machine and local archive is empty/stale (< 5000 strikes), trigger on-demand VPS sync
+      if (strikes.length < 5000 && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        try {
+          const syncRes = await fetch('/api/lightning/sync-vps');
+          if (syncRes.ok) {
+            const retryRes = await fetch(url, { signal: AbortSignal.timeout(6000) });
+            if (retryRes.ok) {
+              const retryJson = await retryRes.json();
+              if (retryJson?.strikes && retryJson.strikes.length > strikes.length) {
+                strikes = retryJson.strikes;
+              }
+            }
+          }
+        } catch {}
+      }
 
       const normalized: LightningEvent[] = [];
       for (let i = 0; i < strikes.length; i++) {

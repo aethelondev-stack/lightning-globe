@@ -478,9 +478,9 @@ export class StormCellBatcher {
       const candidatesOfClass = aggregatedCells
         .filter((c) => c.stormClass === cls && !selectedIds.has(c.id))
         .sort((a, b) => b.strikeCount - a.strikeCount);
-      const toTake = candidatesOfClass.slice(0, 8);
+      const toTake = candidatesOfClass.slice(0, 10);
       for (const c of toTake) {
-        if (selected.length < 48) {
+        if (selected.length < 64) {
           selected.push(c);
           selectedIds.add(c.id);
         }
@@ -492,13 +492,13 @@ export class StormCellBatcher {
       .filter((c) => !selectedIds.has(c.id))
       .sort((a, b) => b.strikeCount - a.strikeCount);
     for (const c of remaining) {
-      if (selected.length < 48) {
+      if (selected.length < 64) {
         selected.push(c);
         selectedIds.add(c.id);
       }
     }
 
-    this.cached24hCells = selected.length > 0 ? selected : aggregatedCells.slice(0, 48);
+    this.cached24hCells = selected.length > 0 ? selected : aggregatedCells.slice(0, 64);
   }
 
   /**
@@ -610,7 +610,7 @@ export class StormCellBatcher {
         fadeProgress: 0
       };
 
-        if (this.cached24hCells.length < 56) {
+        if (this.cached24hCells.length < 72) {
           this.cached24hCells.push(newCell);
         } else {
           // Replace the coldest/least active 24h cell that has had NO strikes recently

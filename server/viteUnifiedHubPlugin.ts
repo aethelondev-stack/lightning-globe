@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
 import type { Plugin, ViteDevServer } from 'vite';
 import { UnifiedLightningHub } from './UnifiedLightningHub';
 
@@ -69,6 +72,26 @@ export function viteUnifiedHubPlugin(): Plugin {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'no-cache');
       res.end(JSON.stringify(stats));
+    });
+
+    // 4. On-demand VPS Cache Sync endpoint (for local machine when PC was powered off)
+    middlewares.use('/api/lightning/sync-vps', (_req: any, res: any) => {
+      let synced = false;
+      const keyPath = path.resolve(process.cwd(), 'ssh-key-2026-09-10.key');
+      if (fs.existsSync(keyPath)) {
+        try {
+          execSync('scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json .cache/lightning_24h.json', { timeout: 10000, stdio: 'ignore' });
+          hub.loadFromDiskCache();
+          synced = true;
+          console.log('⚡ [UNIFIED HUB] On-demand sync from Oracle VPS succeeded.');
+        } catch (e: any) {
+          console.warn('⚠️ [UNIFIED HUB] On-demand sync from VPS failed:', e?.message);
+        }
+      }
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify({ status: synced ? 'SYNCED' : 'SKIPPED', cachedCount: hub.getStats().cached24hCount }));
     });
 
     console.log('⚡ [UNIFIED HUB] SSE stream mounted at /api/lightning/stream');

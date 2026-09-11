@@ -23,7 +23,7 @@ export interface FulguriteTraceConfig {
  */
 export class FulguriteTraceLayer implements IUpdatable {
   public readonly lineMesh: THREE.LineSegments;
-  private readonly maxStrikes: number;
+  public readonly maxStrikes: number;
   private readonly globeRadius: number;
 
   // Each strike is 2 micro-lines (horizontal and vertical hairline ticks) = 4 vertices = 12 floats

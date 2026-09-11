@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import type { ServerResponse } from 'http';
 import type { LightningEvent, LightningSource } from '../src/types/lightning';
 
@@ -98,6 +99,77 @@ export class UnifiedLightningHub {
   private h5wasmModule: any = null;
   private isH5Ready = false;
   private readonly processedNetCdfKeys: Set<string> = new Set();
+
+  // Cross-sensor spatial-temporal deduplication ring buffer (0.20° grid, 2s window)
+  private dedupRecentGrid: Map<string, Array<{ id: string; lat: number; lon: number; timestamp: number; source: string }>> = new Map();
+  private lastDedupPruneTime: number = 0;
+
+  /**
+   * Fast O(1) Cross-Sensor Spatial-Temporal Deduplicator:
+   * Detects and fuses co-observations across satellites (GOES/MTG) and ground RF stations (Blitzortung).
+   * Criterion: dt <= 1200ms and dr <= 18km.
+   */
+  private isSpatialTemporalDuplicate(strike: LightningEvent): boolean {
+    const now = strike.timestamp || Date.now();
+    if (now - this.lastDedupPruneTime > 2000) {
+      this.pruneDedupGrid(now);
+      this.lastDedupPruneTime = now;
+    }
+
+    const binDeg = 0.20;
+    const latBin = Math.floor(strike.latitude / binDeg);
+    const lonBin = Math.floor(strike.longitude / binDeg);
+    const key = `${latBin}_${lonBin}`;
+
+    for (let dLat = -1; dLat <= 1; dLat++) {
+      for (let dLon = -1; dLon <= 1; dLon++) {
+        const nKey = `${latBin + dLat}_${lonBin + dLon}`;
+        const list = this.dedupRecentGrid.get(nKey);
+        if (list) {
+          for (let i = list.length - 1; i >= 0; i--) {
+            const cached = list[i];
+            if (now - cached.timestamp > 2000) break;
+            if (cached.source !== strike.source) {
+              const dt = Math.abs(now - cached.timestamp);
+              if (dt <= 1200) {
+                const dLatKm = Math.abs(strike.latitude - cached.lat) * 111.0;
+                const dLonKm = Math.abs(strike.longitude - cached.lon) * 111.0 * Math.cos(strike.latitude * (Math.PI / 180));
+                if ((dLatKm * dLatKm + dLonKm * dLonKm) <= 324) { // <= 18 km
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    let cell = this.dedupRecentGrid.get(key);
+    if (!cell) {
+      cell = [];
+      this.dedupRecentGrid.set(key, cell);
+    }
+    cell.push({
+      id: strike.id,
+      lat: strike.latitude,
+      lon: strike.longitude,
+      timestamp: now,
+      source: strike.source
+    });
+    return false;
+  }
+
+  private pruneDedupGrid(now: number): void {
+    const cutoff = now - 3000;
+    for (const [key, list] of this.dedupRecentGrid.entries()) {
+      const filtered = list.filter(item => item.timestamp >= cutoff);
+      if (filtered.length === 0) {
+        this.dedupRecentGrid.delete(key);
+      } else {
+        this.dedupRecentGrid.set(key, filtered);
+      }
+    }
+  }
 
   constructor(options?: HubOptions) {
     this.cacheFilePath = options?.cacheFilePath ?? path.resolve(process.cwd(), '.cache', 'lightning_24h.json');
@@ -209,6 +281,7 @@ export class UnifiedLightningHub {
   public ingestRfStrike(strike: LightningEvent): void {
     if (!this.isValidStrike(strike)) return;
     if (this.historyMap.has(strike.id)) return;
+    if (this.isSpatialTemporalDuplicate(strike)) return;
 
     this.rfInstantCount++;
     this.totalEventsProcessed++;
@@ -245,7 +318,7 @@ export class UnifiedLightningHub {
     const validFlashes: LightningEvent[] = [];
     for (let i = 0; i < flashes.length; i++) {
       const f = flashes[i];
-      if (this.isValidStrike(f) && !this.historyMap.has(f.id)) {
+      if (this.isValidStrike(f) && !this.historyMap.has(f.id) && !this.isSpatialTemporalDuplicate(f)) {
         validFlashes.push(f);
         this.recordHistoricalStrike(f);
       }
@@ -332,6 +405,7 @@ export class UnifiedLightningHub {
   public ingestRegionalStrike(strike: LightningEvent): void {
     if (!this.isValidStrike(strike)) return;
     if (this.historyMap.has(strike.id)) return;
+    if (this.isSpatialTemporalDuplicate(strike)) return;
 
     this.regionalCount++;
     this.totalEventsProcessed++;
@@ -489,8 +563,8 @@ export class UnifiedLightningHub {
         await fs.promises.mkdir(dir, { recursive: true });
       }
 
-      // Prune strikes older than 24 hours and keep memory footprint bounded (max 60,000 strikes)
-      this.pruneStaleHistory(60000);
+      // Prune strikes older than 24 hours and keep memory footprint bounded (max 120,000 strikes)
+      this.pruneStaleHistory(120000);
 
       const strikes = Array.from(this.historyMap.values());
       const payload = {
@@ -513,9 +587,26 @@ export class UnifiedLightningHub {
 
   /**
    * Loads cached strikes from disk (.cache/lightning_24h.json).
+   * Automatically synchronizes from 7/24 Oracle VPS if local PC was off and cache is stale.
    */
   public loadFromDiskCache(): void {
     try {
+      const defaultCachePath = path.resolve(process.cwd(), '.cache', 'lightning_24h.json');
+      const keyPath = path.resolve(process.cwd(), 'ssh-key-2026-09-10.key');
+      if (this.enableNetwork && this.cacheFilePath === defaultCachePath && fs.existsSync(keyPath)) {
+        const isStaleOrMissing = !fs.existsSync(this.cacheFilePath) ||
+          (Date.now() - fs.statSync(this.cacheFilePath).mtimeMs > 300000);
+        if (isStaleOrMissing) {
+          try {
+            console.log('🔄 [UnifiedLightningHub] Local 24h cache stale or missing. Auto-syncing from Oracle VPS 7/24 archive...');
+            execSync('scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json .cache/lightning_24h.json', { timeout: 8000, stdio: 'ignore' });
+            console.log('✅ [UnifiedLightningHub] Synced 24h archive from Oracle VPS.');
+          } catch (e: any) {
+            console.warn('⚠️ [UnifiedLightningHub] Note on VPS auto-sync:', e?.message);
+          }
+        }
+      }
+
       if (!fs.existsSync(this.cacheFilePath)) return;
 
       const content = fs.readFileSync(this.cacheFilePath, 'utf8');
@@ -525,7 +616,7 @@ export class UnifiedLightningHub {
 
       let loadedCount = 0;
       for (let i = 0; i < strikes.length; i++) {
-        if (loadedCount >= 60000) break;
+        if (loadedCount >= 120000) break;
         const s = strikes[i];
         if (s && s.id && s.timestamp >= cutoff && this.isValidStrike(s)) {
           // NOAA Sector Partitioning: GOES-18 covers West (< -105°), GOES-19 covers East (>= -105°)
@@ -604,7 +695,7 @@ export class UnifiedLightningHub {
     this.isCacheDirty = true;
   }
 
-  private pruneStaleHistory(maxRetention: number = 60000): void {
+  private pruneStaleHistory(maxRetention: number = 120000): void {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     for (const [id, strike] of this.historyMap.entries()) {
       if (strike.timestamp < cutoff) {

@@ -298,3 +298,54 @@ test('UnifiedStreamProvider: fetch24hHistory retrieves and normalizes 24h archiv
     globalThis.fetch = origFetch;
   }
 });
+
+test('UnifiedLightningHub: Cross-Sensor Deduplication (Blitzortung RF vs Satellite Optical within 1200ms and 18km)', async () => {
+  const TEST_DEDUP_CACHE = path.resolve(process.cwd(), '.cache', 'test_dedup_cache.json');
+  try { if (fs.existsSync(TEST_DEDUP_CACHE)) fs.unlinkSync(TEST_DEDUP_CACHE); } catch {}
+
+  const hub = new UnifiedLightningHub({
+    cacheFilePath: TEST_DEDUP_CACHE,
+    enableAutoStart: false,
+    enableNetwork: false,
+    backfillOnStart: false
+  });
+
+  const emitted: LightningEvent[] = [];
+  hub.onStrike((s) => emitted.push(s));
+
+  const now = Date.now();
+  // 1. Blitzortung ground RF strike
+  const rfStrike: LightningEvent = {
+    id: `bo_strike_1_${now}`,
+    latitude: 28.52,
+    longitude: -81.38,
+    timestamp: now,
+    peakCurrent: -45,
+    type: 'CG',
+    source: 'blitzortung'
+  };
+
+  // 2. GOES-19 GLM optical flash for the exact same physical discharge (12 km away, 65 ms later)
+  const satFlash: LightningEvent = {
+    id: `goes19_glm_flash_1_${now}`,
+    latitude: 28.55,
+    longitude: -81.42,
+    timestamp: now + 65,
+    peakCurrent: 25,
+    type: 'IC',
+    source: 'goes19_glm'
+  };
+
+  hub.ingestRfStrike(rfStrike);
+  assert.equal(emitted.length, 1, 'Blitzortung RF strike must be emitted immediately');
+
+  // Ingest duplicate satellite flash
+  hub.ingestSatelliteBatch([satFlash], 100);
+  await new Promise((r) => setTimeout(r, 200));
+
+  // The duplicate satellite flash must be rejected by spatial-temporal deduplication
+  assert.equal(hub.getStats().cached24hCount, 1, 'Only 1 unique strike must be stored in 24h history');
+
+  hub.stop();
+  try { if (fs.existsSync(TEST_DEDUP_CACHE)) fs.unlinkSync(TEST_DEDUP_CACHE); } catch {}
+});
