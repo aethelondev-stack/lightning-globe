@@ -242,8 +242,8 @@ export class SoundDirector {
     this.ensureAudioContext();
     if (!this.audioCtx || !this.masterGain) return;
 
-    // Polyphony voice limiter: max 12 simultaneous active sound events
-    if (this.activeVoices >= 12 && Math.abs(peakCurrentKa) < 60) {
+    // Polyphony voice limiter: allow up to 24 concurrent voices with organic cascading
+    if (this.activeVoices >= 24 && Math.abs(peakCurrentKa) < 70) {
       return;
     }
 
@@ -286,8 +286,8 @@ export class SoundDirector {
           distanceToCamera = worldPos.distanceTo(cameraPos);
           SoundDirector.TEMP_NORMAL.copy(worldPos).normalize();
           const toCamera = cameraPos.clone().sub(worldPos).normalize();
-          // Far side of planet check: cull occluded strikes completely so users only hear visible strikes
-          if (SoundDirector.TEMP_NORMAL.dot(toCamera) < 0.08) {
+          // Far side of planet check: cull strikes that are completely behind the planetary horizon
+          if (SoundDirector.TEMP_NORMAL.dot(toCamera) < 0.02) {
             return;
           }
         }
@@ -624,9 +624,13 @@ export class SoundDirector {
         crackOsc.stop(startTime + 0.09);
       }
 
-      // Decrement active voices and cleanup on completion
+      // Fast release of voice slot (350ms attack phase) so continuous lightning cascades trigger organically
       setTimeout(() => {
         this.activeVoices = Math.max(0, this.activeVoices - 1);
+      }, 350);
+
+      // Node cleanup after sound fully decays
+      setTimeout(() => {
         try {
           strikeMasterGain.disconnect();
           airFilter.disconnect();

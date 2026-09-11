@@ -511,20 +511,20 @@ function init(): void {
   const scratchAudioProjected = new THREE.Vector3();
 
   const isStrikeVisibleToCamera = (pos: THREE.Vector3): boolean => {
-    // 1. Front hemisphere test
+    // 1. Front hemisphere test (ensures strike is on the visible front face of Earth)
     scratchAudioNormal.copy(pos).normalize();
     scratchAudioToCam.copy(engine.camera.position).sub(pos).normalize();
-    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.08) {
+    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.02) {
       return false;
     }
 
-    // 2. Camera frustum projection test (NDC bounds)
+    // 2. Camera frustum projection test (comfortably includes peripheral and horizon flashes)
     scratchAudioProjected.copy(pos).project(engine.camera);
     if (
       scratchAudioProjected.z < -1 ||
       scratchAudioProjected.z > 1 ||
-      Math.abs(scratchAudioProjected.x) > 1.08 ||
-      Math.abs(scratchAudioProjected.y) > 1.08
+      Math.abs(scratchAudioProjected.x) > 1.25 ||
+      Math.abs(scratchAudioProjected.y) > 1.25
     ) {
       return false;
     }
