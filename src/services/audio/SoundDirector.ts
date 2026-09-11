@@ -243,8 +243,8 @@ export class SoundDirector {
     this.ensureAudioContext();
     if (!this.audioCtx || !this.masterGain) return;
 
-    // Polyphony voice limiter: allow up to 32 concurrent voices with rapid release
-    if (!isForcedArrival && this.activeVoices >= 32 && Math.abs(peakCurrentKa) < 70) {
+    // Polyphony voice limiter: allow up to 64 concurrent voices so visible strikes are never choked
+    if (!isForcedArrival && this.activeVoices >= 64 && Math.abs(peakCurrentKa) < 30) {
       return;
     }
 
@@ -288,7 +288,7 @@ export class SoundDirector {
           SoundDirector.TEMP_NORMAL.copy(worldPos).normalize();
           const toCamera = cameraPos.clone().sub(worldPos).normalize();
           // Far side of planet check: cull strikes that are completely behind the planetary horizon
-          if (!isForcedArrival && SoundDirector.TEMP_NORMAL.dot(toCamera) < 0.01) {
+          if (!isForcedArrival && SoundDirector.TEMP_NORMAL.dot(toCamera) < -0.05) {
             return;
           }
         }
@@ -297,17 +297,32 @@ export class SoundDirector {
       // Direct synchronous playback: eliminate acoustic lag so sound matches on-screen visual flash instantly
       const startTime = now;
 
-      // 3. Distance Attenuation & Atmospheric Air Absorption Filter
-      const distNorm = Math.max(0, Math.min(1.0, (distanceToCamera - 80) / 320));
-      const airAbsorptionCutoff = isOccluded ? 380 : Math.max(480, 5200 * Math.pow(0.20, distNorm));
+      // 3. Dynamic Distance Attenuation & Atmospheric Air Absorption Acoustics
+      // Distance range: ~25u (zoomed in close to storm) to ~380u (orbital view)
+      const clampedDist = Math.max(25, Math.min(380, distanceToCamera));
+      const distFactor = (clampedDist - 25) / (380 - 25); // 0.0 (closest) -> 1.0 (furthest)
+
+      // Dynamic Gain: close strikes are punchy & loud (1.50), distant strikes roll softly (0.52)
       const distGain = isForcedArrival
-        ? 1.35
-        : Math.max(0.80, Math.min(1.30, 320 / Math.max(120, distanceToCamera)));
+        ? 1.50
+        : (1.50 - distFactor * 0.98);
+
+      // Atmospheric Air Absorption Filter:
+      // Close strikes: 8800 Hz (bright, razor-sharp crack). Distant strikes: 550 Hz (deep muffled thunder rumble)
+      const airAbsorptionCutoff = isForcedArrival
+        ? 7500
+        : Math.max(500, 8800 * Math.pow(0.060, distFactor));
+
+      // Snap (crack) presence: strong and immediate close by, absorbed over distance
+      const snapDistMultiplier = isForcedArrival ? 1.0 : Math.max(0.20, 1.0 - distFactor * 0.78);
+
+      // Rumble dominance: low-end rolls deeper and louder relative to snap at long distances
+      const rumbleDistMultiplier = isForcedArrival ? 1.0 : (0.75 + distFactor * 0.45);
 
       const strikeMasterGain = ctx.createGain();
       const baseVolume = isForcedArrival
-        ? 1.45
-        : (isSuperbolt ? 1.20 : 0.72 + normalizedCurrent * 0.40) * distGain * (isOccluded ? 0.60 : 1.0);
+        ? 1.50
+        : (isSuperbolt ? 1.25 : 0.75 + normalizedCurrent * 0.35) * distGain * (isOccluded ? 0.60 : 1.0);
       strikeMasterGain.gain.setValueAtTime(baseVolume, startTime);
 
       // 4. Low-Pass Filter Chain
@@ -367,7 +382,7 @@ export class SoundDirector {
 
         const rumbleGain = ctx.createGain();
         rumbleGain.gain.setValueAtTime(0.001, startTime);
-        rumbleGain.gain.linearRampToValueAtTime(0.68, startTime + 0.05);
+        rumbleGain.gain.linearRampToValueAtTime(0.68 * rumbleDistMultiplier, startTime + 0.05);
         rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + totalDuration);
 
         rumbleSource.connect(rumbleFilter);
@@ -389,7 +404,7 @@ export class SoundDirector {
 
         const subGain = ctx.createGain();
         subGain.gain.setValueAtTime(0.001, startTime);
-        subGain.gain.linearRampToValueAtTime(0.60, startTime + 0.03);
+        subGain.gain.linearRampToValueAtTime(0.60 * rumbleDistMultiplier, startTime + 0.03);
         subGain.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.min(2.0, totalDuration));
 
         sub1.connect(subGain);
@@ -409,7 +424,7 @@ export class SoundDirector {
         crackOsc.frequency.exponentialRampToValueAtTime(18, startTime + 0.12);
 
         crackGain.gain.setValueAtTime(0.001, startTime);
-        crackGain.gain.linearRampToValueAtTime(0.35, startTime + 0.005);
+        crackGain.gain.linearRampToValueAtTime(0.35 * snapDistMultiplier, startTime + 0.005);
         crackGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.12);
 
         crackOsc.connect(crackGain);
@@ -437,7 +452,7 @@ export class SoundDirector {
 
         const arcGain = ctx.createGain();
         arcGain.gain.setValueAtTime(0.001, startTime);
-        arcGain.gain.linearRampToValueAtTime(0.55, startTime + 0.003);
+        arcGain.gain.linearRampToValueAtTime(0.55 * snapDistMultiplier, startTime + 0.003);
         arcGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
 
         arcOsc.connect(arcFilter);
@@ -455,7 +470,7 @@ export class SoundDirector {
         snapFilter.frequency.setValueAtTime(1400, startTime);
         const snapGain = ctx.createGain();
         snapGain.gain.setValueAtTime(0.001, startTime);
-        snapGain.gain.linearRampToValueAtTime(0.58, startTime + 0.002);
+        snapGain.gain.linearRampToValueAtTime(0.58 * snapDistMultiplier, startTime + 0.002);
         snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
 
         snapSource.connect(snapFilter);
@@ -475,7 +490,7 @@ export class SoundDirector {
 
         const rumbleGain = ctx.createGain();
         rumbleGain.gain.setValueAtTime(0.001, startTime);
-        rumbleGain.gain.linearRampToValueAtTime(0.42, startTime + 0.02);
+        rumbleGain.gain.linearRampToValueAtTime(0.42 * rumbleDistMultiplier, startTime + 0.02);
         rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + totalDuration);
 
         rumbleSource.connect(rumbleFilter);
@@ -498,7 +513,7 @@ export class SoundDirector {
         snapFilter.frequency.setValueAtTime(1100, startTime);
         const snapGain = ctx.createGain();
         snapGain.gain.setValueAtTime(0.001, startTime);
-        snapGain.gain.linearRampToValueAtTime(0.60, startTime + 0.002);
+        snapGain.gain.linearRampToValueAtTime(0.65 * snapDistMultiplier, startTime + 0.002);
         snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.035);
 
         snapSource.connect(snapFilter);
@@ -518,7 +533,7 @@ export class SoundDirector {
 
         const rumbleGain = ctx.createGain();
         rumbleGain.gain.setValueAtTime(0.001, startTime);
-        rumbleGain.gain.linearRampToValueAtTime(0.48, startTime + 0.015);
+        rumbleGain.gain.linearRampToValueAtTime(0.48 * rumbleDistMultiplier, startTime + 0.015);
         rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + totalDuration);
 
         rumbleSource.connect(rumbleFilter);
@@ -535,7 +550,7 @@ export class SoundDirector {
         crackOsc.frequency.exponentialRampToValueAtTime(42, startTime + 0.05);
 
         crackGain.gain.setValueAtTime(0.001, startTime);
-        crackGain.gain.linearRampToValueAtTime(0.28, startTime + 0.003);
+        crackGain.gain.linearRampToValueAtTime(0.30 * snapDistMultiplier, startTime + 0.003);
         crackGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.05);
 
         crackOsc.connect(crackGain);
@@ -557,7 +572,7 @@ export class SoundDirector {
         snapFilter.frequency.setValueAtTime(isOccluded ? 400 : 750, startTime);
 
         const snapGain = ctx.createGain();
-        const snapVol = isSuperbolt ? 0.95 : 0.82;
+        const snapVol = (isSuperbolt ? 0.95 : 0.82) * snapDistMultiplier;
         snapGain.gain.setValueAtTime(0.001, startTime);
         snapGain.gain.linearRampToValueAtTime(snapVol, startTime + 0.003);
         snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + (isSuperbolt ? 0.050 : 0.038));
@@ -575,7 +590,7 @@ export class SoundDirector {
         punchOsc.frequency.setValueAtTime(isSuperbolt ? 240 : 180, startTime);
         punchOsc.frequency.exponentialRampToValueAtTime(55, startTime + 0.08);
 
-        const punchVol = isSuperbolt ? 0.65 : 0.48;
+        const punchVol = (isSuperbolt ? 0.65 : 0.48) * snapDistMultiplier;
         punchGain.gain.setValueAtTime(0.001, startTime);
         punchGain.gain.linearRampToValueAtTime(punchVol, startTime + 0.003);
         punchGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.09);
@@ -595,7 +610,7 @@ export class SoundDirector {
         rumbleFilter.Q.setValueAtTime(2.2, startTime);
 
         const rumbleGain = ctx.createGain();
-        const rumblePeak = isSuperbolt ? 0.65 : (0.38 + normalizedCurrent * 0.22);
+        const rumblePeak = (isSuperbolt ? 0.65 : (0.38 + normalizedCurrent * 0.22)) * rumbleDistMultiplier;
         rumbleGain.gain.setValueAtTime(0.001, startTime);
         rumbleGain.gain.linearRampToValueAtTime(rumblePeak, startTime + 0.03);
         rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + totalDuration);
@@ -613,7 +628,7 @@ export class SoundDirector {
         subOsc.frequency.exponentialRampToValueAtTime(24, startTime + totalDuration);
 
         const subGain = ctx.createGain();
-        const subVol = isSuperbolt ? 0.55 : 0.35;
+        const subVol = (isSuperbolt ? 0.55 : 0.35) * rumbleDistMultiplier;
         subGain.gain.setValueAtTime(0.001, startTime);
         subGain.gain.linearRampToValueAtTime(subVol, startTime + 0.02);
         subGain.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.min(1.2, totalDuration));
@@ -634,7 +649,7 @@ export class SoundDirector {
         crackFilter.type = 'lowpass';
         crackFilter.frequency.setValueAtTime(650, startTime);
 
-        const crackVol = isSuperbolt ? 0.35 : 0.20;
+        const crackVol = (isSuperbolt ? 0.35 : 0.20) * snapDistMultiplier;
         crackGain.gain.setValueAtTime(0.001, startTime);
         crackGain.gain.linearRampToValueAtTime(crackVol, startTime + 0.004);
         crackGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.08);

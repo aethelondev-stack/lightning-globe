@@ -506,25 +506,30 @@ function init(): void {
     uiController.populateCountries(geoEnricher.getAllCountriesList());
   });
 
+  const scratchAudioWorldPos = new THREE.Vector3();
+  const scratchAudioWorldNormal = new THREE.Vector3();
   const scratchAudioToCam = new THREE.Vector3();
-  const scratchAudioNormal = new THREE.Vector3();
   const scratchAudioProjected = new THREE.Vector3();
 
-  const isStrikeVisibleToCamera = (pos: THREE.Vector3): boolean => {
-    // 1. Front hemisphere test (ensures strike is on the visible front face of Earth)
-    scratchAudioNormal.copy(pos).normalize();
-    scratchAudioToCam.copy(engine.camera.position).sub(pos).normalize();
-    if (scratchAudioNormal.dot(scratchAudioToCam) < 0.01) {
+  const isStrikeVisibleToCamera = (localPos: THREE.Vector3): boolean => {
+    // 1. Transform local strike coordinate into actual World Space based on Earth's matrixWorld
+    scratchAudioWorldPos.copy(localPos).applyMatrix4(globeManager.globe.matrixWorld);
+
+    // 2. Visible hemisphere test in World Space (strike must be on the visible face of Earth towards camera)
+    scratchAudioWorldNormal.copy(scratchAudioWorldPos).normalize();
+    scratchAudioToCam.copy(engine.camera.position).sub(scratchAudioWorldPos).normalize();
+    // Allow strikes along the atmospheric rim/horizon (-0.08)
+    if (scratchAudioWorldNormal.dot(scratchAudioToCam) < -0.08) {
       return false;
     }
 
-    // 2. Camera frustum projection test (comfortably includes peripheral and horizon flashes)
-    scratchAudioProjected.copy(pos).project(engine.camera);
+    // 3. Camera frustum projection test in World Space (comfortably includes peripheral and horizon flashes)
+    scratchAudioProjected.copy(scratchAudioWorldPos).project(engine.camera);
     if (
       scratchAudioProjected.z < -1 ||
       scratchAudioProjected.z > 1 ||
-      Math.abs(scratchAudioProjected.x) > 1.35 ||
-      Math.abs(scratchAudioProjected.y) > 1.35
+      Math.abs(scratchAudioProjected.x) > 1.45 ||
+      Math.abs(scratchAudioProjected.y) > 1.45
     ) {
       return false;
     }
