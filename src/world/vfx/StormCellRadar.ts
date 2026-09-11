@@ -74,7 +74,7 @@ export class StormCellRadar implements IUpdatable {
   private camera: THREE.Camera | null = null;
   private readonly globeRadius: number;
   private readonly hexPool: HexagonSlot[] = [];
-  private readonly maxCells: number = 64;
+  private readonly maxCells: number = 128;
 
   private isEnabled: boolean = true;
 
@@ -87,9 +87,9 @@ export class StormCellRadar implements IUpdatable {
 
   public readonly instancedHexMesh!: THREE.InstancedMesh;
   private readonly sharedScanlineMat!: THREE.ShaderMaterial;
-  private readonly cellColorsArray: Float32Array = new Float32Array(64 * 3);
-  private readonly cellParamsArray: Float32Array = new Float32Array(64 * 4);
-  private readonly cellHitUVArray: Float32Array = new Float32Array(64 * 2);
+  private readonly cellColorsArray: Float32Array = new Float32Array(128 * 3);
+  private readonly cellParamsArray: Float32Array = new Float32Array(128 * 4);
+  private readonly cellHitUVArray: Float32Array = new Float32Array(128 * 2);
 
   // 6 Meteorological Storm Classes (Foto 2 Specification Table):
   // 1. ISOLATED (İzole Çakma: < 5 km, 1-2/dk): Pure Diamond Ice White
@@ -543,6 +543,13 @@ export class StormCellRadar implements IUpdatable {
           visualRadius = 0.70; // < 45 km footprint (Excel)
           isDoubleStroke = false;
         }
+
+        // Dynamic Physical Radial Fit:
+        // Decouple visual size from static class tables so concentrated storms (e.g. 850 strikes in 25 km)
+        // do NOT form giant hollow hexagons. Bounded smoothly between 0.65u and the class ceiling.
+        const physicalSpreadU = Math.max(0.65, ((cell.boundingRadiusKm ?? 30) / 6371.0) * this.globeRadius * 1.55);
+        visualRadius = Math.max(0.65, Math.min(visualRadius, physicalSpreadU));
+
         slot.targetEdgeColor.copy(slot.targetColor); // Always the EXACT same color!
         slot.targetRadius = visualRadius;
         slot.isDoubleStroke = isDoubleStroke;

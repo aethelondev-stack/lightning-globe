@@ -163,12 +163,12 @@ test('VFX Draw Call Minimization: InstancedMesh consolidation for shockwave ring
 
   // 2. StormCellRadar: InstancedMesh validation
   assert.ok(radar.instancedHexMesh instanceof THREE.InstancedMesh, 'instancedHexMesh must be an InstancedMesh');
-  assert.equal(radar.instancedHexMesh.count, 64, 'instancedHexMesh must support 64 cells');
+  assert.equal(radar.instancedHexMesh.count, 128, 'instancedHexMesh must support 128 cells');
   assert.equal(radar.instancedHexMesh.renderOrder, 25, 'instancedHexMesh must render at renderOrder 25');
 
   // Verify radar.group has instancedHexMesh as its drawing node
   assert.ok(radar.group.children.includes(radar.instancedHexMesh), 'instancedHexMesh must be in radar group');
-  assert.equal(radar.group.children.filter(c => c === radar.instancedHexMesh).length, 1, 'Only 1 consolidated InstancedMesh for 64 cells');
+  assert.equal(radar.group.children.filter(c => c === radar.instancedHexMesh).length, 1, 'Only 1 consolidated InstancedMesh for 128 cells');
 
   boltPool.destroy();
   radar.destroy();

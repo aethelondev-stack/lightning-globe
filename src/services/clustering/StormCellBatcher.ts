@@ -314,21 +314,37 @@ export class StormCellBatcher {
     const groups: LightningEvent[][] = [];
     const visitedKeys = new Set<string>();
 
-    for (const [key, events] of grid) {
-      if (visitedKeys.has(key)) continue;
-      visitedKeys.add(key);
+    for (const [startKey] of grid) {
+      if (visitedKeys.has(startKey)) continue;
 
-      const [latB, lonB] = key.split('_').map(Number);
-      const clusterEvents = [...events];
+      const clusterEvents: LightningEvent[] = [];
+      const queue: string[] = [startKey];
+      visitedKeys.add(startKey);
 
-      for (let dLat = -1; dLat <= 1; dLat++) {
-        for (let dLon = -1; dLon <= 1; dLon++) {
-          if (dLat === 0 && dLon === 0) continue;
-          const nKey = `${latB + dLat}_${lonB + dLon}`;
-          const nEvents = grid.get(nKey);
-          if (nEvents && !visitedKeys.has(nKey)) {
-            visitedKeys.add(nKey);
-            clusterEvents.push(...nEvents);
+      const [startLatB, startLonB] = startKey.split('_').map(Number);
+      const startLat = (startLatB + 0.5) * binSize;
+      const startLon = (startLonB + 0.5) * binSize;
+
+      while (queue.length > 0) {
+        const currKey = queue.shift()!;
+        const evs = grid.get(currKey);
+        if (evs) {
+          clusterEvents.push(...evs);
+        }
+
+        const [currLatB, currLonB] = currKey.split('_').map(Number);
+        for (let dLat = -1; dLat <= 1; dLat++) {
+          for (let dLon = -1; dLon <= 1; dLon++) {
+            if (dLat === 0 && dLon === 0) continue;
+            const nKey = `${currLatB + dLat}_${currLonB + dLon}`;
+            if (!visitedKeys.has(nKey) && grid.has(nKey)) {
+              const nLat = (currLatB + dLat + 0.5) * binSize;
+              const nLon = (currLonB + dLon + 0.5) * binSize;
+              if (haversineDistanceKm(startLat, startLon, nLat, nLon) <= 180) {
+                visitedKeys.add(nKey);
+                queue.push(nKey);
+              }
+            }
           }
         }
       }
@@ -478,9 +494,9 @@ export class StormCellBatcher {
       const candidatesOfClass = aggregatedCells
         .filter((c) => c.stormClass === cls && !selectedIds.has(c.id))
         .sort((a, b) => b.strikeCount - a.strikeCount);
-      const toTake = candidatesOfClass.slice(0, 10);
+      const toTake = candidatesOfClass.slice(0, 18);
       for (const c of toTake) {
-        if (selected.length < 64) {
+        if (selected.length < 128) {
           selected.push(c);
           selectedIds.add(c.id);
         }
@@ -492,13 +508,13 @@ export class StormCellBatcher {
       .filter((c) => !selectedIds.has(c.id))
       .sort((a, b) => b.strikeCount - a.strikeCount);
     for (const c of remaining) {
-      if (selected.length < 64) {
+      if (selected.length < 128) {
         selected.push(c);
         selectedIds.add(c.id);
       }
     }
 
-    this.cached24hCells = selected.length > 0 ? selected : aggregatedCells.slice(0, 64);
+    this.cached24hCells = selected.length > 0 ? selected : aggregatedCells.slice(0, 128);
   }
 
   /**
@@ -610,7 +626,7 @@ export class StormCellBatcher {
         fadeProgress: 0
       };
 
-        if (this.cached24hCells.length < 72) {
+        if (this.cached24hCells.length < 144) {
           this.cached24hCells.push(newCell);
         } else {
           // Replace the coldest/least active 24h cell that has had NO strikes recently

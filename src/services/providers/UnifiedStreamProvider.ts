@@ -159,7 +159,21 @@ export class UnifiedStreamProvider implements ILightningProvider {
         res = null;
       }
 
-      // If local endpoint returned 404 or failed (e.g. running outside VPS), fallback to Oracle VPS central hub
+      const contentType = res?.headers?.get('content-type') || '';
+      // If local endpoint returned 404, failed, or returned non-JSON (e.g. Cloudflare SPA HTML fallback), try static CDN asset
+      if (!res || !res.ok || !contentType.includes('json')) {
+        try {
+          const staticRes = await fetch('/data/lightning_24h.json', { signal: AbortSignal.timeout(15000) });
+          const staticType = staticRes.headers?.get('content-type') || '';
+          if (staticRes.ok && (staticType.includes('json') || staticType.includes('text') || staticType === '')) {
+            res = staticRes;
+          }
+        } catch {
+          res = null;
+        }
+      }
+
+      // If still not ok, try Oracle VPS central hub
       if (!res || !res.ok) {
         try {
           const vpsUrl = since > 0
@@ -198,7 +212,16 @@ export class UnifiedStreamProvider implements ILightningProvider {
       const normalized: LightningEvent[] = [];
       for (let i = 0; i < strikes.length; i++) {
         const item = strikes[i];
-        const evt = LightningNormalizer.normalize(item, item.source || 'blitzortung');
+        const rawEvent = {
+          id: item.id || `hist-${i}`,
+          latitude: item.latitude ?? item.lat,
+          longitude: item.longitude ?? item.lon,
+          timestamp: item.timestamp ?? item.time,
+          peakCurrent: item.peakCurrent ?? item.ka,
+          type: item.type ?? 'CG',
+          source: item.source ?? item.src ?? 'blitzortung'
+        };
+        const evt = LightningNormalizer.normalize(rawEvent, rawEvent.source);
         if (evt) {
           normalized.push(evt);
         }
