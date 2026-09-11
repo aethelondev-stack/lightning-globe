@@ -231,10 +231,15 @@ export function viteMtgLiPlugin(): Plugin {
         return;
       }
 
-      // Locate the NetCDF product body
-      const ncEntry = sipEntries.find(
-        (e: any) => typeof e?.href === 'string' && (e.href.includes('CHK-BODY') || e.href.endsWith('.nc'))
+      // Locate the NetCDF product body containing actual lightning flashes (specifically CHK-BODY, not CHK-TRAIL summary)
+      let ncEntry = sipEntries.find(
+        (e: any) => typeof e?.href === 'string' && e.href.includes('CHK-BODY')
       );
+      if (!ncEntry) {
+        ncEntry = sipEntries.find(
+          (e: any) => typeof e?.href === 'string' && !e.href.includes('CHK-TRAIL') && e.href.endsWith('.nc')
+        );
+      }
 
       if (!ncEntry || !ncEntry.href) {
         isPolling = false;
