@@ -246,20 +246,23 @@ export class StormCellRadar implements IUpdatable {
             growthWave = gWaveFront * (1.0 - vGrowthProgress) * 1.2;
           }
 
-          // COLOR UNIFORMITY
-          vec3 paleBodyColor = mix(vColor, vec3(0.92, 0.95, 1.0), 0.28);
+          // COLOR UNIFORMITY & RICHNESS:
+          // Deep, saturated color with subtle pastel tint so colors remain deep and vibrant
+          vec3 paleBodyColor = mix(vColor, vec3(0.92, 0.95, 1.0), 0.12);
           vec3 baseColor = mix(paleBodyColor, vColor, strokeTotal);
 
           // Strike excitations flash bright white luminosity
           vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
           // ALPHA with Global & Per-Tier Opacity Multipliers
+          // Normalize vOpacity (base 0.38 -> 1.0) so at 100% opacity peteks have rich, solid presence
+          float normOpacity = clamp(vOpacity * 2.6316, 0.0, 2.0);
           float strokeAlpha = strokeTotal * 0.96;
           float breath = 0.92 + 0.08 * sin(uTime * 2.2);
-          float bodyAlpha = innerMask * (0.34 * breath);
+          float bodyAlpha = innerMask * (0.48 * breath);
 
           float totalAlpha = clamp(
-            (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * vOpacity,
+            (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * normOpacity,
             0.0,
             0.98
           );
@@ -383,22 +386,23 @@ export class StormCellRadar implements IUpdatable {
               growthWave = gWaveFront * (1.0 - uGrowthProgress) * 1.2;
             }
 
-            // COLOR UNIFORMITY:
+            // COLOR UNIFORMITY & RICHNESS:
             // - Dış stroke: Canlı, parlak, doygun uColor
-            // - İç gövde: Aynı rengin biraz daha soluk / yumuşak tonu (mix with pale white/pastel)
-            vec3 paleBodyColor = mix(uColor, vec3(0.92, 0.95, 1.0), 0.28);
+            // - İç gövde: Aynı rengin derin, zengin tonu
+            vec3 paleBodyColor = mix(uColor, vec3(0.92, 0.95, 1.0), 0.12);
             vec3 baseColor = mix(paleBodyColor, uColor, strokeTotal);
 
             // Strike excitations flash bright white luminosity
             vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
             // ALPHA with Global Opacity Scaling
+            float normOpacity = clamp(uOpacity * 2.6316, 0.0, 2.0);
             float strokeAlpha = strokeTotal * 0.96;
             float breath = 0.92 + 0.08 * sin(uTime * 2.2);
-            float bodyAlpha = innerMask * (0.34 * breath);
+            float bodyAlpha = innerMask * (0.48 * breath);
 
             float totalAlpha = clamp(
-              (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * uOpacity,
+              (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * normOpacity,
               0.0,
               0.98
             );
