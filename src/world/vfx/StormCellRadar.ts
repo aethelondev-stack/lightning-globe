@@ -79,7 +79,17 @@ export class StormCellRadar implements IUpdatable {
 
   private isEnabled: boolean = true;
   private globalOpacity: number = 1.0;
+  private globalBorderOpacity: number = 1.0;
   private tierOpacities: Record<string, number> = {
+    EXTREME_OUTBREAK: 1.0,
+    SQUALL_LINE: 1.0,
+    MCS: 1.0,
+    SUPERCELL: 1.0,
+    MULTICELL: 1.0,
+    SINGLE_CELL: 1.0,
+    ISOLATED: 1.0
+  };
+  private tierBorderOpacities: Record<string, number> = {
     EXTREME_OUTBREAK: 1.0,
     SQUALL_LINE: 1.0,
     MCS: 1.0,
@@ -128,11 +138,12 @@ export class StormCellRadar implements IUpdatable {
   public static readonly COLOR_SQUALL_LINE_EDGE = StormCellRadar.COLOR_SQUALL_LINE;
 
   // 7. EXTREME_OUTBREAK (Süper Fırtına Patlaması: 650 km, 2000+ vuruş): Cosmic Pulsar Violet (Double Stroke)
-  private static readonly COLOR_EXTREME = new THREE.Color(0x9d4edd);
+  private static readonly COLOR_EXTREME = new THREE.Color(0xd500f9);
   public static readonly COLOR_EXTREME_EDGE = StormCellRadar.COLOR_EXTREME;
 
-  constructor(globeRadius: number = EngineConfig.globe.radius) {
+  constructor(globeRadius: number = EngineConfig.globe.radius, camera?: THREE.Camera) {
     this.globeRadius = globeRadius;
+    this.camera = camera ?? null;
     this.group = new THREE.Group();
     this.group.name = 'StormCellRadarGroup';
     this.group.visible = true;
@@ -145,8 +156,10 @@ export class StormCellRadar implements IUpdatable {
   }
 
   private initPool(): void {
-    // Exact Regular Hexagon bounding quad (PlaneGeometry)
-    // The analytical Inigo Quilez regular hexagon SDF uses inradius r = 0.866 and corner radius R = 1.0,
+
+    // Analytical regular hexagon plane geometry centered at origin.
+    // Inradius r = sqrt(3)/2 = 0.866025404. Corners are exactly at radius 1.0.
+    // Using PlaneGeometry(2.0, 2.0) sets UV from 0 to 1,
     // which guarantees that all 6 corners and all 6 edges fit completely inside [-1, 1] without clipping.
     const hexGeo = new THREE.PlaneGeometry(2.0, 2.0);
     const outerGeo = new THREE.BufferGeometry();
@@ -159,7 +172,8 @@ export class StormCellRadar implements IUpdatable {
       side: THREE.DoubleSide,
       uniforms: {
         uTime: { value: 0.0 },
-        uGlobalOpacity: { value: 1.0 }
+        uGlobalOpacity: { value: 1.0 },
+        uGlobalBorderOpacity: { value: 1.0 }
       },
       vertexShader: `
         attribute vec3 aCellColor;
@@ -168,7 +182,7 @@ export class StormCellRadar implements IUpdatable {
 
         varying vec2 vUv;
         varying vec3 vColor;
-        varying float vIsDoubleStroke;
+        varying float vBorderOpacity;
         varying float vOpacity;
         varying float vGrowthProgress;
         varying float vStrikeHitTime;
@@ -177,7 +191,7 @@ export class StormCellRadar implements IUpdatable {
         void main() {
           vUv = uv;
           vColor = aCellColor;
-          vIsDoubleStroke = aCellParams.x;
+          vBorderOpacity = aCellParams.x;
           vOpacity = aCellParams.y;
           vGrowthProgress = aCellParams.z;
           vStrikeHitTime = aCellParams.w;
@@ -190,7 +204,7 @@ export class StormCellRadar implements IUpdatable {
       fragmentShader: `
         varying vec2 vUv;
         varying vec3 vColor;
-        varying float vIsDoubleStroke;
+        varying float vBorderOpacity;
         varying float vOpacity;
         varying float vGrowthProgress;
         varying float vStrikeHitTime;
@@ -198,6 +212,7 @@ export class StormCellRadar implements IUpdatable {
 
         uniform float uTime;
         uniform float uGlobalOpacity;
+        uniform float uGlobalBorderOpacity;
 
         // Inigo Quilez exact regular hexagon SDF
         // r is inradius = 0.866025404 (corners reach radius 1.0)
@@ -257,7 +272,7 @@ export class StormCellRadar implements IUpdatable {
           // ALPHA with Global & Per-Tier Opacity Multipliers
           // Normalize vOpacity (base 0.38 -> 1.0) so at 100% opacity peteks have rich, solid presence
           float normOpacity = clamp(vOpacity * 2.6316, 0.0, 2.0);
-          float strokeAlpha = strokeTotal * 0.96;
+          float strokeAlpha = strokeTotal * 0.96 * uGlobalBorderOpacity * vBorderOpacity;
           float breath = 0.92 + 0.08 * sin(uTime * 2.2);
           float bodyAlpha = innerMask * (0.48 * breath);
 
@@ -311,6 +326,8 @@ export class StormCellRadar implements IUpdatable {
           uIsDoubleStroke: { value: 0.0 },
           uOpacity: { value: 0.22 },
           uGlobalOpacity: { value: 1.0 },
+          uGlobalBorderOpacity: { value: 1.0 },
+          uBorderOpacity: { value: 1.0 },
           uTime: { value: 0.0 },
           uStrikeHitTime: { value: -100.0 },
           uStrikeHitUV: { value: new THREE.Vector2(0.0, 0.0) },
@@ -333,6 +350,8 @@ export class StormCellRadar implements IUpdatable {
           uniform float uIsDoubleStroke;
           uniform float uOpacity;
           uniform float uGlobalOpacity;
+          uniform float uGlobalBorderOpacity;
+          uniform float uBorderOpacity;
           uniform float uTime;
           uniform float uStrikeHitTime;
           uniform vec2 uStrikeHitUV;
@@ -397,7 +416,7 @@ export class StormCellRadar implements IUpdatable {
 
             // ALPHA with Global Opacity Scaling
             float normOpacity = clamp(uOpacity * 2.6316, 0.0, 2.0);
-            float strokeAlpha = strokeTotal * 0.96;
+            float strokeAlpha = strokeTotal * 0.96 * uGlobalBorderOpacity * uBorderOpacity;
             float breath = 0.92 + 0.08 * sin(uTime * 2.2);
             float bodyAlpha = innerMask * (0.48 * breath);
 
@@ -979,6 +998,7 @@ export class StormCellRadar implements IUpdatable {
         slot.scanlineMaterial.uniforms.uColor.value.copy(slot.currentColor);
 
         const tierMult = this.tierOpacities[slot.stormClass || 'ISOLATED'] ?? 1.0;
+        const tierBorderMult = this.tierBorderOpacities[slot.stormClass || 'ISOLATED'] ?? 1.0;
 
         // Passthrough glitch / internal electrical excitation surge
         const isImpactSurge = now < slot.passthroughGlitchUntil;
@@ -986,19 +1006,22 @@ export class StormCellRadar implements IUpdatable {
           const surgeFrac = Math.max(0, (slot.passthroughGlitchUntil - now) / 450);
           slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity * 0.45 * tierMult;
           slot.edgeMaterial.color.copy(slot.currentColor);
-          slot.edgeMaterial.opacity = Math.min(1.0, (slot.currentEdgeOpacity + surgeFrac * 0.45) * tierMult);
+          slot.edgeMaterial.opacity = Math.min(1.0, (slot.currentEdgeOpacity + surgeFrac * 0.45) * tierMult * tierBorderMult);
         } else {
           slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity * tierMult;
           slot.edgeMaterial.color.copy(slot.currentColor);
-          slot.edgeMaterial.opacity = slot.currentEdgeOpacity * tierMult;
+          slot.edgeMaterial.opacity = slot.currentEdgeOpacity * tierMult * tierBorderMult;
         }
+
+        slot.scanlineMaterial.uniforms.uBorderOpacity.value = tierBorderMult;
+        slot.scanlineMaterial.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
 
         // Update instanced attributes
         this.cellColorsArray[i * 3 + 0] = slot.currentColor.r;
         this.cellColorsArray[i * 3 + 1] = slot.currentColor.g;
         this.cellColorsArray[i * 3 + 2] = slot.currentColor.b;
 
-        this.cellParamsArray[i * 4 + 0] = slot.isDoubleStroke ? 1.0 : 0.0;
+        this.cellParamsArray[i * 4 + 0] = tierBorderMult;
         this.cellParamsArray[i * 4 + 1] = slot.scanlineMaterial.uniforms.uOpacity.value;
         this.cellParamsArray[i * 4 + 2] = prog;
         this.cellParamsArray[i * 4 + 3] = slot.scanlineMaterial.uniforms.uStrikeHitTime.value;
@@ -1009,6 +1032,8 @@ export class StormCellRadar implements IUpdatable {
     }
 
     this.sharedScanlineMat.uniforms.uTime.value = now / 1000.0;
+    this.sharedScanlineMat.uniforms.uGlobalOpacity.value = this.globalOpacity;
+    this.sharedScanlineMat.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
     this.instancedHexMesh.instanceMatrix.needsUpdate = true;
     (this.instancedHexMesh.geometry.getAttribute('aCellColor') as THREE.BufferAttribute).needsUpdate = true;
     (this.instancedHexMesh.geometry.getAttribute('aCellParams') as THREE.BufferAttribute).needsUpdate = true;
@@ -1027,6 +1052,18 @@ export class StormCellRadar implements IUpdatable {
     return this.globalOpacity;
   }
 
+  public setGlobalBorderOpacity(opacity: number): void {
+    this.globalBorderOpacity = Math.max(0.0, Math.min(1.0, opacity));
+    this.sharedScanlineMat.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
+    for (let i = 0; i < this.hexPool.length; i++) {
+      this.hexPool[i].scanlineMaterial.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
+    }
+  }
+
+  public getGlobalBorderOpacity(): number {
+    return this.globalBorderOpacity;
+  }
+
   public setTierOpacity(tier: string, opacity: number): void {
     const clamped = Math.max(0.0, Math.min(1.0, opacity));
     this.tierOpacities[tier] = clamped;
@@ -1038,6 +1075,19 @@ export class StormCellRadar implements IUpdatable {
 
   public getTierOpacities(): Record<string, number> {
     return { ...this.tierOpacities };
+  }
+
+  public setTierBorderOpacity(tier: string, opacity: number): void {
+    const clamped = Math.max(0.0, Math.min(1.0, opacity));
+    this.tierBorderOpacities[tier] = clamped;
+  }
+
+  public getTierBorderOpacity(tier: string): number {
+    return this.tierBorderOpacities[tier] ?? 1.0;
+  }
+
+  public getTierBorderOpacities(): Record<string, number> {
+    return { ...this.tierBorderOpacities };
   }
 
   public setEnabled(enabled: boolean): void {

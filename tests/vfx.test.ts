@@ -199,6 +199,24 @@ test('StormCellRadar: Master & Per-Tier Opacity Controls and Single Stroke Verif
   radar.setTierOpacity('ISOLATED', 0.0);
   assert.equal(radar.getTierOpacity('ISOLATED'), 0.0);
 
+  // Test global border opacity controls
+  assert.equal(radar.getGlobalBorderOpacity(), 1.0);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBorderOpacity.value, 1.0);
+  radar.setGlobalBorderOpacity(0.40);
+  assert.equal(radar.getGlobalBorderOpacity(), 0.40);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBorderOpacity.value, 0.40);
+  radar.setGlobalBorderOpacity(-0.5);
+  assert.equal(radar.getGlobalBorderOpacity(), 0.0);
+  radar.setGlobalBorderOpacity(1.5);
+  assert.equal(radar.getGlobalBorderOpacity(), 1.0);
+
+  // Test per-tier border opacity controls
+  assert.equal(radar.getTierBorderOpacity('MCS'), 1.0);
+  radar.setTierBorderOpacity('MCS', 0.75);
+  assert.equal(radar.getTierBorderOpacity('MCS'), 0.75);
+  radar.setTierBorderOpacity('ISOLATED', 0.0);
+  assert.equal(radar.getTierBorderOpacity('ISOLATED'), 0.0);
+
   // Verify all cells use single stroke (isDoubleStroke = false)
   const cell: StormCell = {
     id: 'cell-single-stroke',

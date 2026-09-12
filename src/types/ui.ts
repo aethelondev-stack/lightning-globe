@@ -65,4 +65,6 @@ export interface UIControllerCallbacks {
   onDroneAngleChange?: (angle: number, distance: number) => void;
   onPetekMasterOpacityChange?: (opacity: number) => void;
   onPetekTierOpacityChange?: (tier: string, opacity: number) => void;
+  onPetekBorderOpacityChange?: (opacity: number) => void;
+  onPetekTierBorderOpacityChange?: (tier: string, opacity: number) => void;
 }

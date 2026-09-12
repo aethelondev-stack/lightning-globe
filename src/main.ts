@@ -488,6 +488,12 @@ function init(): void {
     },
     onPetekTierOpacityChange: (tier, opacity) => {
       globeManager.stormCellRadar.setTierOpacity(tier, opacity);
+    },
+    onPetekBorderOpacityChange: (opacity) => {
+      globeManager.stormCellRadar.setGlobalBorderOpacity(opacity);
+    },
+    onPetekTierBorderOpacityChange: (tier, opacity) => {
+      globeManager.stormCellRadar.setTierBorderOpacity(tier, opacity);
     }
   });
 

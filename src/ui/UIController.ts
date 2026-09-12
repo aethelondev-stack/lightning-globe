@@ -98,8 +98,19 @@ export class UIController {
   private dropdownPeteks: HTMLElement | null = null;
   private sliderPetekMasterOpacity: HTMLInputElement | null = null;
   private valPetekMasterOpacity: HTMLElement | null = null;
+  private sliderPetekBorderOpacity: HTMLInputElement | null = null;
+  private valPetekBorderOpacity: HTMLElement | null = null;
   private btnToggleTierOpacity: HTMLButtonElement | null = null;
   private panelTierOpacity: HTMLElement | null = null;
+  private btnTierModeBody: HTMLButtonElement | null = null;
+  private btnTierModeBorder: HTMLButtonElement | null = null;
+  private activeTierOpacityMode: 'body' | 'border' = 'body';
+  private tierBodyValues: Record<string, number> = {
+    EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
+  };
+  private tierBorderValues: Record<string, number> = {
+    EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
+  };
   private currentCategoryFilter: string = 'ALL';
   private rightSidebar: HTMLElement | null = null;
   private panelLiveFeed: HTMLElement | null = null;
@@ -280,8 +291,12 @@ export class UIController {
     this.dropdownPeteks = document.getElementById('dropdown-peteks');
     this.sliderPetekMasterOpacity = document.getElementById('slider-petek-master-opacity') as HTMLInputElement | null;
     this.valPetekMasterOpacity = document.getElementById('val-petek-master-opacity');
+    this.sliderPetekBorderOpacity = document.getElementById('slider-petek-border-opacity') as HTMLInputElement | null;
+    this.valPetekBorderOpacity = document.getElementById('val-petek-border-opacity');
     this.btnToggleTierOpacity = document.getElementById('btn-toggle-tier-opacity') as HTMLButtonElement | null;
     this.panelTierOpacity = document.getElementById('panel-tier-opacity');
+    this.btnTierModeBody = document.getElementById('btn-tier-mode-body') as HTMLButtonElement | null;
+    this.btnTierModeBorder = document.getElementById('btn-tier-mode-border') as HTMLButtonElement | null;
 
     // Right Sidebar & Accordions
     this.rightSidebar = document.getElementById('right-sidebar');
@@ -569,6 +584,20 @@ export class UIController {
       });
     }
 
+    if (this.sliderPetekBorderOpacity) {
+      ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+        this.sliderPetekBorderOpacity?.addEventListener(evt, (e) => e.stopPropagation());
+      });
+      this.sliderPetekBorderOpacity.addEventListener('input', () => {
+        const val = this.sliderPetekBorderOpacity?.value || '100';
+        if (this.valPetekBorderOpacity) {
+          this.valPetekBorderOpacity.textContent = `${val}%`;
+        }
+        const pct = parseFloat(val) / 100;
+        this.callbacks.onPetekBorderOpacityChange?.(pct);
+      });
+    }
+
     if (this.btnToggleTierOpacity) {
       this.btnToggleTierOpacity.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -585,7 +614,44 @@ export class UIController {
       ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
         this.panelTierOpacity?.addEventListener(evt, (e) => e.stopPropagation());
       });
+
       const tierSliders = this.panelTierOpacity.querySelectorAll<HTMLInputElement>('.slider-tier-opacity');
+
+      const refreshTierSliders = () => {
+        tierSliders.forEach((slider) => {
+          const tier = slider.getAttribute('data-tier');
+          if (!tier) return;
+          const currentVal = this.activeTierOpacityMode === 'border'
+            ? (this.tierBorderValues[tier] ?? 100)
+            : (this.tierBodyValues[tier] ?? 100);
+          slider.value = currentVal.toString();
+          const valEl = document.getElementById(`val-tier-${tier}`);
+          if (valEl) {
+            valEl.textContent = `${currentVal}%`;
+          }
+        });
+      };
+
+      if (this.btnTierModeBody) {
+        this.btnTierModeBody.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.activeTierOpacityMode = 'body';
+          this.btnTierModeBody?.classList.add('active');
+          this.btnTierModeBorder?.classList.remove('active');
+          refreshTierSliders();
+        });
+      }
+
+      if (this.btnTierModeBorder) {
+        this.btnTierModeBorder.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.activeTierOpacityMode = 'border';
+          this.btnTierModeBorder?.classList.add('active');
+          this.btnTierModeBody?.classList.remove('active');
+          refreshTierSliders();
+        });
+      }
+
       tierSliders.forEach((slider) => {
         ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
           slider.addEventListener(evt, (e) => e.stopPropagation());
@@ -594,12 +660,19 @@ export class UIController {
           const tier = slider.getAttribute('data-tier');
           if (!tier) return;
           const val = slider.value;
+          const valNum = parseFloat(val);
           const valEl = document.getElementById(`val-tier-${tier}`);
           if (valEl) {
             valEl.textContent = `${val}%`;
           }
-          const pct = parseFloat(val) / 100;
-          this.callbacks.onPetekTierOpacityChange?.(tier, pct);
+          const pct = valNum / 100;
+          if (this.activeTierOpacityMode === 'border') {
+            this.tierBorderValues[tier] = valNum;
+            this.callbacks.onPetekTierBorderOpacityChange?.(tier, pct);
+          } else {
+            this.tierBodyValues[tier] = valNum;
+            this.callbacks.onPetekTierOpacityChange?.(tier, pct);
+          }
         });
       });
     }

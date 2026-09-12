@@ -248,10 +248,17 @@
               <!-- Petek Şeffaflık Kontrol Paneli (Topluca ve Kategori Düzeyinde) -->
               <div class="petek-opacity-panel">
                 <div class="petek-opacity-header">
-                  <span class="petek-opacity-title">🎚️ TOPLU PETEK ŞEFFAFLIĞI</span>
+                  <span class="petek-opacity-title">🎚️ TOPLU GÖVDE ŞEFFAFLIĞI</span>
                   <span id="val-petek-master-opacity" class="petek-opacity-badge">100%</span>
                 </div>
                 <input type="range" id="slider-petek-master-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" />
+
+                <!-- Toplu Çerçeve Şeffaflığı -->
+                <div class="petek-opacity-header" style="margin-top: 10px;">
+                  <span class="petek-opacity-title">📐 DIŞ ÇERÇEVE ŞEFFAFLIĞI</span>
+                  <span id="val-petek-border-opacity" class="petek-opacity-badge">100%</span>
+                </div>
+                <input type="range" id="slider-petek-border-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" />
 
                 <!-- Kategori Düzeyinde Şeffaflık Bölümü -->
                 <div class="petek-tier-toggle-row">
@@ -261,6 +268,10 @@
                   </button>
                 </div>
                 <div id="panel-tier-opacity" class="panel-tier-opacity hidden">
+                  <div class="tier-mode-nav">
+                    <button type="button" id="btn-tier-mode-body" class="btn-tier-mode active">🎚️ Gövde Dolgusu</button>
+                    <button type="button" id="btn-tier-mode-border" class="btn-tier-mode">📐 Dış Çerçeve</button>
+                  </div>
                   <div class="tier-slider-row">
                     <span class="tier-slider-label">🌌 Süper Patlama:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="EXTREME_OUTBREAK" min="0" max="100" step="5" value="100" />
