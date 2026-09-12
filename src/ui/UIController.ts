@@ -98,13 +98,19 @@ export class UIController {
   private dropdownPeteks: HTMLElement | null = null;
   private sliderPetekMasterOpacity: HTMLInputElement | null = null;
   private valPetekMasterOpacity: HTMLElement | null = null;
+  private sliderPetekBodyOpacity: HTMLInputElement | null = null;
+  private valPetekBodyOpacity: HTMLElement | null = null;
   private sliderPetekBorderOpacity: HTMLInputElement | null = null;
   private valPetekBorderOpacity: HTMLElement | null = null;
   private btnToggleTierOpacity: HTMLButtonElement | null = null;
   private panelTierOpacity: HTMLElement | null = null;
+  private btnTierModeAll: HTMLButtonElement | null = null;
   private btnTierModeBody: HTMLButtonElement | null = null;
   private btnTierModeBorder: HTMLButtonElement | null = null;
-  private activeTierOpacityMode: 'body' | 'border' = 'body';
+  private activeTierOpacityMode: 'all' | 'body' | 'border' = 'all';
+  private tierMasterValues: Record<string, number> = {
+    EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
+  };
   private tierBodyValues: Record<string, number> = {
     EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
   };
@@ -291,10 +297,13 @@ export class UIController {
     this.dropdownPeteks = document.getElementById('dropdown-peteks');
     this.sliderPetekMasterOpacity = document.getElementById('slider-petek-master-opacity') as HTMLInputElement | null;
     this.valPetekMasterOpacity = document.getElementById('val-petek-master-opacity');
+    this.sliderPetekBodyOpacity = document.getElementById('slider-petek-body-opacity') as HTMLInputElement | null;
+    this.valPetekBodyOpacity = document.getElementById('val-petek-body-opacity');
     this.sliderPetekBorderOpacity = document.getElementById('slider-petek-border-opacity') as HTMLInputElement | null;
     this.valPetekBorderOpacity = document.getElementById('val-petek-border-opacity');
     this.btnToggleTierOpacity = document.getElementById('btn-toggle-tier-opacity') as HTMLButtonElement | null;
     this.panelTierOpacity = document.getElementById('panel-tier-opacity');
+    this.btnTierModeAll = document.getElementById('btn-tier-mode-all') as HTMLButtonElement | null;
     this.btnTierModeBody = document.getElementById('btn-tier-mode-body') as HTMLButtonElement | null;
     this.btnTierModeBorder = document.getElementById('btn-tier-mode-border') as HTMLButtonElement | null;
 
@@ -584,6 +593,20 @@ export class UIController {
       });
     }
 
+    if (this.sliderPetekBodyOpacity) {
+      ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+        this.sliderPetekBodyOpacity?.addEventListener(evt, (e) => e.stopPropagation());
+      });
+      this.sliderPetekBodyOpacity.addEventListener('input', () => {
+        const val = this.sliderPetekBodyOpacity?.value || '100';
+        if (this.valPetekBodyOpacity) {
+          this.valPetekBodyOpacity.textContent = `${val}%`;
+        }
+        const pct = parseFloat(val) / 100;
+        this.callbacks.onPetekBodyOpacityChange?.(pct);
+      });
+    }
+
     if (this.sliderPetekBorderOpacity) {
       ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
         this.sliderPetekBorderOpacity?.addEventListener(evt, (e) => e.stopPropagation());
@@ -621,9 +644,11 @@ export class UIController {
         tierSliders.forEach((slider) => {
           const tier = slider.getAttribute('data-tier');
           if (!tier) return;
-          const currentVal = this.activeTierOpacityMode === 'border'
-            ? (this.tierBorderValues[tier] ?? 100)
-            : (this.tierBodyValues[tier] ?? 100);
+          const currentVal = this.activeTierOpacityMode === 'all'
+            ? (this.tierMasterValues[tier] ?? 100)
+            : this.activeTierOpacityMode === 'border'
+              ? (this.tierBorderValues[tier] ?? 100)
+              : (this.tierBodyValues[tier] ?? 100);
           slider.value = currentVal.toString();
           const valEl = document.getElementById(`val-tier-${tier}`);
           if (valEl) {
@@ -632,11 +657,23 @@ export class UIController {
         });
       };
 
+      if (this.btnTierModeAll) {
+        this.btnTierModeAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.activeTierOpacityMode = 'all';
+          this.btnTierModeAll?.classList.add('active');
+          this.btnTierModeBody?.classList.remove('active');
+          this.btnTierModeBorder?.classList.remove('active');
+          refreshTierSliders();
+        });
+      }
+
       if (this.btnTierModeBody) {
         this.btnTierModeBody.addEventListener('click', (e) => {
           e.stopPropagation();
           this.activeTierOpacityMode = 'body';
           this.btnTierModeBody?.classList.add('active');
+          this.btnTierModeAll?.classList.remove('active');
           this.btnTierModeBorder?.classList.remove('active');
           refreshTierSliders();
         });
@@ -647,6 +684,7 @@ export class UIController {
           e.stopPropagation();
           this.activeTierOpacityMode = 'border';
           this.btnTierModeBorder?.classList.add('active');
+          this.btnTierModeAll?.classList.remove('active');
           this.btnTierModeBody?.classList.remove('active');
           refreshTierSliders();
         });
@@ -666,7 +704,13 @@ export class UIController {
             valEl.textContent = `${val}%`;
           }
           const pct = valNum / 100;
-          if (this.activeTierOpacityMode === 'border') {
+          if (this.activeTierOpacityMode === 'all') {
+            this.tierMasterValues[tier] = valNum;
+            this.tierBodyValues[tier] = valNum;
+            this.tierBorderValues[tier] = valNum;
+            this.callbacks.onPetekTierOpacityChange?.(tier, pct);
+            this.callbacks.onPetekTierBorderOpacityChange?.(tier, pct);
+          } else if (this.activeTierOpacityMode === 'border') {
             this.tierBorderValues[tier] = valNum;
             this.callbacks.onPetekTierBorderOpacityChange?.(tier, pct);
           } else {

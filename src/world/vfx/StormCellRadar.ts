@@ -78,8 +78,9 @@ export class StormCellRadar implements IUpdatable {
   private readonly maxCells: number = 128;
 
   private isEnabled: boolean = true;
-  private globalOpacity: number = 1.0;
-  private globalBorderOpacity: number = 1.0;
+  private globalOpacity: number = 1.0; // Master overall multiplier (hem dış hem iç aynı anda)
+  private globalBodyOpacity: number = 1.0; // Yalnızca iç gövde dolgusu (ayrı)
+  private globalBorderOpacity: number = 1.0; // Yalnızca dış çerçeve konturu (ayrı)
   private tierOpacities: Record<string, number> = {
     EXTREME_OUTBREAK: 1.0,
     SQUALL_LINE: 1.0,
@@ -173,6 +174,7 @@ export class StormCellRadar implements IUpdatable {
       uniforms: {
         uTime: { value: 0.0 },
         uGlobalOpacity: { value: 1.0 },
+        uGlobalBodyOpacity: { value: 1.0 },
         uGlobalBorderOpacity: { value: 1.0 }
       },
       vertexShader: `
@@ -212,6 +214,7 @@ export class StormCellRadar implements IUpdatable {
 
         uniform float uTime;
         uniform float uGlobalOpacity;
+        uniform float uGlobalBodyOpacity;
         uniform float uGlobalBorderOpacity;
 
         // Inigo Quilez exact regular hexagon SDF
@@ -269,15 +272,21 @@ export class StormCellRadar implements IUpdatable {
           // Strike excitations flash bright white luminosity
           vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
-          // ALPHA with Global & Per-Tier Opacity Multipliers
-          // Normalize vOpacity (base 0.38 -> 1.0) so at 100% opacity peteks have rich, solid presence
-          float normOpacity = clamp(vOpacity * 2.6316, 0.0, 2.0);
+          // INDEPENDENT ALPHA CALCULATIONS (Birlikte veya Ayrı Ayrı):
+          // 1. Dış Çerçeve Konturu (Bağımsız: uGlobalBorderOpacity ve vBorderOpacity)
           float strokeAlpha = strokeTotal * 0.96 * uGlobalBorderOpacity * vBorderOpacity;
-          float breath = 0.92 + 0.08 * sin(uTime * 2.2);
-          float bodyAlpha = innerMask * (0.48 * breath);
 
+          // 2. İç Gövde Dolgusu (Bağımsız: uGlobalBodyOpacity ve vOpacity)
+          float normOpacity = clamp(vOpacity * 2.6316, 0.0, 2.0);
+          float breath = 0.92 + 0.08 * sin(uTime * 2.2);
+          float bodyAlpha = innerMask * (0.48 * breath) * uGlobalBodyOpacity * normOpacity;
+
+          // 3. Efekt dalgaları
+          float vfxAlpha = (strikeFlash * 0.35 + growthWave * 0.35) * (uGlobalBodyOpacity * 0.5 + uGlobalBorderOpacity * 0.5);
+
+          // 4. Genel Şeffaflık (Hem dışı hem içi aynı anda orantılı ölçekler)
           float totalAlpha = clamp(
-            (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * normOpacity,
+            (strokeAlpha + bodyAlpha + vfxAlpha) * hexMask * uGlobalOpacity,
             0.0,
             0.98
           );
@@ -326,6 +335,7 @@ export class StormCellRadar implements IUpdatable {
           uIsDoubleStroke: { value: 0.0 },
           uOpacity: { value: 0.22 },
           uGlobalOpacity: { value: 1.0 },
+          uGlobalBodyOpacity: { value: 1.0 },
           uGlobalBorderOpacity: { value: 1.0 },
           uBorderOpacity: { value: 1.0 },
           uTime: { value: 0.0 },
@@ -350,6 +360,7 @@ export class StormCellRadar implements IUpdatable {
           uniform float uIsDoubleStroke;
           uniform float uOpacity;
           uniform float uGlobalOpacity;
+          uniform float uGlobalBodyOpacity;
           uniform float uGlobalBorderOpacity;
           uniform float uBorderOpacity;
           uniform float uTime;
@@ -414,14 +425,21 @@ export class StormCellRadar implements IUpdatable {
             // Strike excitations flash bright white luminosity
             vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
-            // ALPHA with Global Opacity Scaling
-            float normOpacity = clamp(uOpacity * 2.6316, 0.0, 2.0);
+            // INDEPENDENT ALPHA CALCULATIONS (Birlikte veya Ayrı Ayrı):
+            // 1. Dış Çerçeve Konturu (Bağımsız: uGlobalBorderOpacity ve uBorderOpacity)
             float strokeAlpha = strokeTotal * 0.96 * uGlobalBorderOpacity * uBorderOpacity;
-            float breath = 0.92 + 0.08 * sin(uTime * 2.2);
-            float bodyAlpha = innerMask * (0.48 * breath);
 
+            // 2. İç Gövde Dolgusu (Bağımsız: uGlobalBodyOpacity ve uOpacity)
+            float normOpacity = clamp(uOpacity * 2.6316, 0.0, 2.0);
+            float breath = 0.92 + 0.08 * sin(uTime * 2.2);
+            float bodyAlpha = innerMask * (0.48 * breath) * uGlobalBodyOpacity;
+
+            // 3. Efekt dalgaları
+            float vfxAlpha = (strikeFlash * 0.35 + growthWave * 0.35) * (uGlobalBodyOpacity * 0.5 + uGlobalBorderOpacity * 0.5);
+
+            // 4. Genel Şeffaflık (Hem dışı hem içi aynı anda orantılı ölçekler)
             float totalAlpha = clamp(
-              (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * normOpacity,
+              (strokeAlpha + bodyAlpha + vfxAlpha) * hexMask * uGlobalOpacity,
               0.0,
               0.98
             );
@@ -1015,6 +1033,8 @@ export class StormCellRadar implements IUpdatable {
 
         slot.scanlineMaterial.uniforms.uBorderOpacity.value = tierBorderMult;
         slot.scanlineMaterial.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
+        slot.scanlineMaterial.uniforms.uGlobalBodyOpacity.value = this.globalBodyOpacity;
+        slot.scanlineMaterial.uniforms.uGlobalOpacity.value = this.globalOpacity;
 
         // Update instanced attributes
         this.cellColorsArray[i * 3 + 0] = slot.currentColor.r;
@@ -1033,6 +1053,7 @@ export class StormCellRadar implements IUpdatable {
 
     this.sharedScanlineMat.uniforms.uTime.value = now / 1000.0;
     this.sharedScanlineMat.uniforms.uGlobalOpacity.value = this.globalOpacity;
+    this.sharedScanlineMat.uniforms.uGlobalBodyOpacity.value = this.globalBodyOpacity;
     this.sharedScanlineMat.uniforms.uGlobalBorderOpacity.value = this.globalBorderOpacity;
     this.instancedHexMesh.instanceMatrix.needsUpdate = true;
     (this.instancedHexMesh.geometry.getAttribute('aCellColor') as THREE.BufferAttribute).needsUpdate = true;
@@ -1050,6 +1071,18 @@ export class StormCellRadar implements IUpdatable {
 
   public getGlobalOpacity(): number {
     return this.globalOpacity;
+  }
+
+  public setGlobalBodyOpacity(opacity: number): void {
+    this.globalBodyOpacity = Math.max(0.0, Math.min(1.0, opacity));
+    this.sharedScanlineMat.uniforms.uGlobalBodyOpacity.value = this.globalBodyOpacity;
+    for (let i = 0; i < this.hexPool.length; i++) {
+      this.hexPool[i].scanlineMaterial.uniforms.uGlobalBodyOpacity.value = this.globalBodyOpacity;
+    }
+  }
+
+  public getGlobalBodyOpacity(): number {
+    return this.globalBodyOpacity;
   }
 
   public setGlobalBorderOpacity(opacity: number): void {
@@ -1088,6 +1121,12 @@ export class StormCellRadar implements IUpdatable {
 
   public getTierBorderOpacities(): Record<string, number> {
     return { ...this.tierBorderOpacities };
+  }
+
+  public setTierAllOpacity(tier: string, opacity: number): void {
+    const clamped = Math.max(0.0, Math.min(1.0, opacity));
+    this.tierOpacities[tier] = clamped;
+    this.tierBorderOpacities[tier] = clamped;
   }
 
   public setEnabled(enabled: boolean): void {

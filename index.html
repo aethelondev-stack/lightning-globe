@@ -247,18 +247,27 @@
             <div id="dropdown-peteks" class="hierarchy-dropdown hidden peteks-dropdown">
               <!-- Petek Şeffaflık Kontrol Paneli (Topluca ve Kategori Düzeyinde) -->
               <div class="petek-opacity-panel">
+                <!-- 1. Birlikte / Genel Şeffaflık -->
                 <div class="petek-opacity-header">
-                  <span class="petek-opacity-title">🎚️ TOPLU GÖVDE ŞEFFAFLIĞI</span>
+                  <span class="petek-opacity-title">🔗 GENEL ŞEFFAFLIK (BİRLİKTE)</span>
                   <span id="val-petek-master-opacity" class="petek-opacity-badge">100%</span>
                 </div>
-                <input type="range" id="slider-petek-master-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" />
+                <input type="range" id="slider-petek-master-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" title="Dış çerçeve ve iç dolguyu aynı anda orantılı kontrol eder" />
 
-                <!-- Toplu Çerçeve Şeffaflığı -->
-                <div class="petek-opacity-header" style="margin-top: 10px;">
-                  <span class="petek-opacity-title">📐 DIŞ ÇERÇEVE ŞEFFAFLIĞI</span>
-                  <span id="val-petek-border-opacity" class="petek-opacity-badge">100%</span>
+                <!-- 2. Ayrı Ayrı Kontrol Bölümü (İç ve Dış) -->
+                <div class="petek-sub-sliders">
+                  <div class="petek-opacity-header sub-header">
+                    <span class="petek-opacity-sub-title">🎚️ İÇ GÖVDE (AYRI)</span>
+                    <span id="val-petek-body-opacity" class="petek-opacity-badge sub-badge">100%</span>
+                  </div>
+                  <input type="range" id="slider-petek-body-opacity" class="petek-range-slider sub-slider" min="0" max="100" step="5" value="100" title="Yalnızca peteklerin iç renk dolgusunu ayarlar" />
+
+                  <div class="petek-opacity-header sub-header" style="margin-top: 6px;">
+                    <span class="petek-opacity-sub-title">📐 DIŞ ÇERÇEVE (AYRI)</span>
+                    <span id="val-petek-border-opacity" class="petek-opacity-badge sub-badge">100%</span>
+                  </div>
+                  <input type="range" id="slider-petek-border-opacity" class="petek-range-slider sub-slider" min="0" max="100" step="5" value="100" title="Yalnızca peteklerin dış kontur çizgisini ayarlar" />
                 </div>
-                <input type="range" id="slider-petek-border-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" />
 
                 <!-- Kategori Düzeyinde Şeffaflık Bölümü -->
                 <div class="petek-tier-toggle-row">
@@ -269,7 +278,8 @@
                 </div>
                 <div id="panel-tier-opacity" class="panel-tier-opacity hidden">
                   <div class="tier-mode-nav">
-                    <button type="button" id="btn-tier-mode-body" class="btn-tier-mode active">🎚️ Gövde Dolgusu</button>
+                    <button type="button" id="btn-tier-mode-all" class="btn-tier-mode active">🔗 Birlikte</button>
+                    <button type="button" id="btn-tier-mode-body" class="btn-tier-mode">🎚️ İç Dolgu</button>
                     <button type="button" id="btn-tier-mode-border" class="btn-tier-mode">📐 Dış Çerçeve</button>
                   </div>
                   <div class="tier-slider-row">

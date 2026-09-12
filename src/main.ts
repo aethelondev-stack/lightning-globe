@@ -486,6 +486,9 @@ function init(): void {
     onPetekMasterOpacityChange: (opacity) => {
       globeManager.stormCellRadar.setGlobalOpacity(opacity);
     },
+    onPetekBodyOpacityChange: (opacity) => {
+      globeManager.stormCellRadar.setGlobalBodyOpacity(opacity);
+    },
     onPetekTierOpacityChange: (tier, opacity) => {
       globeManager.stormCellRadar.setTierOpacity(tier, opacity);
     },

@@ -3550,6 +3550,37 @@ html, body {
   border-radius: 4px;
 }
 
+.petek-sub-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 2px;
+}
+
+.petek-opacity-sub-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.sub-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sub-slider {
+  height: 5px;
+}
+
 .petek-range-slider {
   width: 100%;
   height: 6px;

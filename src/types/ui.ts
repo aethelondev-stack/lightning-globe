@@ -64,7 +64,8 @@ export interface UIControllerCallbacks {
   onCameraFramingModeChange?: (mode: CameraFramingMode) => void;
   onDroneAngleChange?: (angle: number, distance: number) => void;
   onPetekMasterOpacityChange?: (opacity: number) => void;
-  onPetekTierOpacityChange?: (tier: string, opacity: number) => void;
+  onPetekBodyOpacityChange?: (opacity: number) => void;
   onPetekBorderOpacityChange?: (opacity: number) => void;
+  onPetekTierOpacityChange?: (tier: string, opacity: number) => void;
   onPetekTierBorderOpacityChange?: (tier: string, opacity: number) => void;
 }
