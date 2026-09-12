@@ -63,7 +63,7 @@ function init(): void {
   const presentationQueue = new StochasticRingBufferQueue({
     capacity: 10000,
     maxSatellitePerFrame: 2,
-    maxRfPerFrame: 3
+    maxRfPerFrame: 1
   });
 
   // 6. Initialize real-time clustering engine (Phase 5)
@@ -482,6 +482,12 @@ function init(): void {
     onDroneAngleChange: (angle, distance) => {
       cameraDirector.setDroneAngle(angle);
       cameraDirector.setDroneDistance(distance);
+    },
+    onPetekMasterOpacityChange: (opacity) => {
+      globeManager.stormCellRadar.setGlobalOpacity(opacity);
+    },
+    onPetekTierOpacityChange: (tier, opacity) => {
+      globeManager.stormCellRadar.setTierOpacity(tier, opacity);
     }
   });
 
@@ -796,8 +802,12 @@ function init(): void {
     }
   });
 
-  const enqueueStrike = (event: LightningEvent) => {
+  const enqueueStrike = (event: LightningEvent, isFromFallback: boolean = false) => {
     if (currentSourceMode === 'LIVE') {
+      // Strict Single Ingest Guard: If unifiedStreamProvider is LIVE, ignore events from fallback harmonizer
+      if (isFromFallback && unifiedStreamProvider.status === 'LIVE') {
+        return;
+      }
       if (event.source === 'blitzortung') {
         // Instant RF: zero delay bypass directly to instant queue
         presentationQueue.enqueueInstantRf(event);
@@ -809,8 +819,8 @@ function init(): void {
     }
   };
 
-  unifiedStreamProvider.onEvent(enqueueStrike);
-  multiSourceHarmonizer.onEvent(enqueueStrike);
+  unifiedStreamProvider.onEvent((event) => enqueueStrike(event, false));
+  multiSourceHarmonizer.onEvent((event) => enqueueStrike(event, true));
 
 
 

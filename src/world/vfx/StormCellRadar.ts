@@ -53,6 +53,7 @@ interface HexagonSlot {
   growthStartTime?: number;
   growthDurationMs?: number;
   isDoubleStroke: boolean;
+  stormClass?: string;
 }
 
 /**
@@ -77,6 +78,16 @@ export class StormCellRadar implements IUpdatable {
   private readonly maxCells: number = 128;
 
   private isEnabled: boolean = true;
+  private globalOpacity: number = 1.0;
+  private tierOpacities: Record<string, number> = {
+    EXTREME_OUTBREAK: 1.0,
+    SQUALL_LINE: 1.0,
+    MCS: 1.0,
+    SUPERCELL: 1.0,
+    MULTICELL: 1.0,
+    SINGLE_CELL: 1.0,
+    ISOLATED: 1.0
+  };
 
   private static readonly Z_AXIS = new THREE.Vector3(0, 0, 1);
   private static readonly TEMP_NORMAL = new THREE.Vector3();
@@ -147,7 +158,8 @@ export class StormCellRadar implements IUpdatable {
       blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
       uniforms: {
-        uTime: { value: 0.0 }
+        uTime: { value: 0.0 },
+        uGlobalOpacity: { value: 1.0 }
       },
       vertexShader: `
         attribute vec3 aCellColor;
@@ -185,6 +197,7 @@ export class StormCellRadar implements IUpdatable {
         varying vec2 vStrikeHitUV;
 
         uniform float uTime;
+        uniform float uGlobalOpacity;
 
         // Inigo Quilez exact regular hexagon SDF
         // r is inradius = 0.866025404 (corners reach radius 1.0)
@@ -211,16 +224,9 @@ export class StormCellRadar implements IUpdatable {
           float px = max(fwidth(hexDist), 0.0035);
           float halfWidth = px * 1.35;
 
-          // 1. Primary outer stroke (Line 1): right at the outer perimeter (vivid class color)
+          // Razor-sharp single outer stroke perimeter (clean, no double line clutter)
           float stroke1 = 1.0 - smoothstep(halfWidth * 0.3, halfWidth * 1.25, abs(hexDist + halfWidth));
-          stroke1 = clamp(stroke1, 0.0, 1.0);
-
-          // 2. Tight secondary inner stroke (Line 2): only for top 3 largest classes (EXTREME, SQUALL_LINE, MCS)
-          // Centers are ~3.2 screen pixels apart: sleek, tight, parallel double border
-          float stroke2 = vIsDoubleStroke * (1.0 - smoothstep(halfWidth * 0.3, halfWidth * 1.25, abs(hexDist + halfWidth * 3.2)));
-          stroke2 = clamp(stroke2, 0.0, 1.0);
-
-          float strokeTotal = clamp(stroke1 + stroke2, 0.0, 1.0);
+          float strokeTotal = clamp(stroke1, 0.0, 1.0);
 
           // 3. Interior translucent body fill
           float innerMask = 1.0 - smoothstep(-halfWidth * 4.5, -halfWidth * 3.4, hexDist);
@@ -247,13 +253,13 @@ export class StormCellRadar implements IUpdatable {
           // Strike excitations flash bright white luminosity
           vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
-          // ALPHA
+          // ALPHA with Global & Per-Tier Opacity Multipliers
           float strokeAlpha = strokeTotal * 0.96;
           float breath = 0.92 + 0.08 * sin(uTime * 2.2);
           float bodyAlpha = innerMask * (0.34 * breath);
 
           float totalAlpha = clamp(
-            (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask,
+            (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * vOpacity,
             0.0,
             0.98
           );
@@ -301,6 +307,7 @@ export class StormCellRadar implements IUpdatable {
           uColor: { value: new THREE.Color(0x00f0ff) },
           uIsDoubleStroke: { value: 0.0 },
           uOpacity: { value: 0.22 },
+          uGlobalOpacity: { value: 1.0 },
           uTime: { value: 0.0 },
           uStrikeHitTime: { value: -100.0 },
           uStrikeHitUV: { value: new THREE.Vector2(0.0, 0.0) },
@@ -322,6 +329,7 @@ export class StormCellRadar implements IUpdatable {
           uniform vec3 uColor;
           uniform float uIsDoubleStroke;
           uniform float uOpacity;
+          uniform float uGlobalOpacity;
           uniform float uTime;
           uniform float uStrikeHitTime;
           uniform vec2 uStrikeHitUV;
@@ -352,19 +360,12 @@ export class StormCellRadar implements IUpdatable {
             float px = max(fwidth(hexDist), 0.0035);
             float halfWidth = px * 1.35;
 
-            // 1. Primary outer stroke (Line 1): right at the outer perimeter (vivid class color)
+            // Razor-sharp single outer stroke perimeter (clean, no double line clutter)
             float stroke1 = 1.0 - smoothstep(halfWidth * 0.3, halfWidth * 1.25, abs(hexDist + halfWidth));
-            stroke1 = clamp(stroke1, 0.0, 1.0);
-
-            // 2. Tight secondary inner stroke (Line 2): only for top 3 largest classes (EXTREME, SQUALL_LINE, MCS)
-            // Centers are ~3.2 screen pixels apart: sleek, tight, parallel double border
-            float stroke2 = uIsDoubleStroke * (1.0 - smoothstep(halfWidth * 0.3, halfWidth * 1.25, abs(hexDist + halfWidth * 3.2)));
-            stroke2 = clamp(stroke2, 0.0, 1.0);
-
-            float strokeTotal = clamp(stroke1 + stroke2, 0.0, 1.0);
+            float strokeTotal = clamp(stroke1, 0.0, 1.0);
 
             // 3. Interior translucent body fill
-            // Begins inside the double stroke
+            // Begins inside the stroke
             float innerMask = 1.0 - smoothstep(-halfWidth * 4.5, -halfWidth * 3.4, hexDist);
 
             // Strike excitation ripple: bright white flash of the SAME base color
@@ -391,15 +392,13 @@ export class StormCellRadar implements IUpdatable {
             // Strike excitations flash bright white luminosity
             vec3 finalColor = mix(baseColor, vec3(1.0), clamp(strikeFlash * 0.85 + growthWave * 0.5, 0.0, 1.0));
 
-            // ALPHA:
-            // - Dış stroke: Katı, net, canlı (~0.95 alpha)
-            // - İç gövde: Kendini belli eden, belirgin ve okunaklı yarı saydam kaplama (~0.34 alpha)
+            // ALPHA with Global Opacity Scaling
             float strokeAlpha = strokeTotal * 0.96;
             float breath = 0.92 + 0.08 * sin(uTime * 2.2);
             float bodyAlpha = innerMask * (0.34 * breath);
 
             float totalAlpha = clamp(
-              (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask,
+              (strokeAlpha + bodyAlpha + strikeFlash * 0.35 + growthWave * 0.35) * hexMask * uGlobalOpacity * uOpacity,
               0.0,
               0.98
             );
@@ -512,36 +511,28 @@ export class StormCellRadar implements IUpdatable {
         );
 
         let visualRadius = 0.55;
-        let isDoubleStroke = false;
 
         if (stormClass === 'EXTREME_OUTBREAK' || cell.tier === 'EXTREME') {
           slot.targetColor.copy(StormCellRadar.COLOR_EXTREME);
           visualRadius = 5.40; // 500+ km footprint (Excel)
-          isDoubleStroke = true;
         } else if (stormClass === 'SQUALL_LINE') {
           slot.targetColor.copy(StormCellRadar.COLOR_SQUALL_LINE);
           visualRadius = 4.50; // 380 - 600 km footprint (Excel)
-          isDoubleStroke = true;
         } else if (stormClass === 'MCS') {
           slot.targetColor.copy(StormCellRadar.COLOR_MCS);
           visualRadius = 3.65; // 280 - 380 km footprint (Excel)
-          isDoubleStroke = true;
         } else if (stormClass === 'SUPERCELL') {
           slot.targetColor.copy(StormCellRadar.COLOR_SUPERCELL);
           visualRadius = 2.85; // 190 - 280 km footprint (Excel)
-          isDoubleStroke = false;
         } else if (stormClass === 'MULTICELL') {
           slot.targetColor.copy(StormCellRadar.COLOR_MULTICELL);
           visualRadius = 2.05; // 100 - 190 km footprint (Excel)
-          isDoubleStroke = false;
         } else if (stormClass === 'SINGLE_CELL') {
           slot.targetColor.copy(StormCellRadar.COLOR_SINGLE_CELL);
           visualRadius = 1.35; // 45 - 100 km footprint (Excel)
-          isDoubleStroke = false;
         } else { // ISOLATED
           slot.targetColor.copy(StormCellRadar.COLOR_ISOLATED);
           visualRadius = 0.70; // < 45 km footprint (Excel)
-          isDoubleStroke = false;
         }
 
         // Dynamic Physical Radial Fit:
@@ -552,7 +543,8 @@ export class StormCellRadar implements IUpdatable {
 
         slot.targetEdgeColor.copy(slot.targetColor); // Always the EXACT same color!
         slot.targetRadius = visualRadius;
-        slot.isDoubleStroke = isDoubleStroke;
+        slot.isDoubleStroke = false;
+        slot.stormClass = stormClass;
 
         // Sleek Planetary Curvature Compliance (Altitude 1.20u, safely floats above 0.68u traces and 0.50u country polygons)
         const altitudeFraction = 1.20 / this.globeRadius;
@@ -982,17 +974,19 @@ export class StormCellRadar implements IUpdatable {
         slot.scanlineMaterial.uniforms.uIsDoubleStroke.value = slot.isDoubleStroke ? 1.0 : 0.0;
         slot.scanlineMaterial.uniforms.uColor.value.copy(slot.currentColor);
 
+        const tierMult = this.tierOpacities[slot.stormClass || 'ISOLATED'] ?? 1.0;
+
         // Passthrough glitch / internal electrical excitation surge
         const isImpactSurge = now < slot.passthroughGlitchUntil;
         if (isImpactSurge) {
           const surgeFrac = Math.max(0, (slot.passthroughGlitchUntil - now) / 450);
-          slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity * 0.45;
+          slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity * 0.45 * tierMult;
           slot.edgeMaterial.color.copy(slot.currentColor);
-          slot.edgeMaterial.opacity = Math.min(1.0, slot.currentEdgeOpacity + surgeFrac * 0.45);
+          slot.edgeMaterial.opacity = Math.min(1.0, (slot.currentEdgeOpacity + surgeFrac * 0.45) * tierMult);
         } else {
-          slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity;
+          slot.scanlineMaterial.uniforms.uOpacity.value = slot.currentOpacity * tierMult;
           slot.edgeMaterial.color.copy(slot.currentColor);
-          slot.edgeMaterial.opacity = slot.currentEdgeOpacity;
+          slot.edgeMaterial.opacity = slot.currentEdgeOpacity * tierMult;
         }
 
         // Update instanced attributes
@@ -1015,6 +1009,31 @@ export class StormCellRadar implements IUpdatable {
     (this.instancedHexMesh.geometry.getAttribute('aCellColor') as THREE.BufferAttribute).needsUpdate = true;
     (this.instancedHexMesh.geometry.getAttribute('aCellParams') as THREE.BufferAttribute).needsUpdate = true;
     (this.instancedHexMesh.geometry.getAttribute('aStrikeHitUV') as THREE.BufferAttribute).needsUpdate = true;
+  }
+
+  public setGlobalOpacity(opacity: number): void {
+    this.globalOpacity = Math.max(0.0, Math.min(1.0, opacity));
+    this.sharedScanlineMat.uniforms.uGlobalOpacity.value = this.globalOpacity;
+    for (let i = 0; i < this.hexPool.length; i++) {
+      this.hexPool[i].scanlineMaterial.uniforms.uGlobalOpacity.value = this.globalOpacity;
+    }
+  }
+
+  public getGlobalOpacity(): number {
+    return this.globalOpacity;
+  }
+
+  public setTierOpacity(tier: string, opacity: number): void {
+    const clamped = Math.max(0.0, Math.min(1.0, opacity));
+    this.tierOpacities[tier] = clamped;
+  }
+
+  public getTierOpacity(tier: string): number {
+    return this.tierOpacities[tier] ?? 1.0;
+  }
+
+  public getTierOpacities(): Record<string, number> {
+    return { ...this.tierOpacities };
   }
 
   public setEnabled(enabled: boolean): void {

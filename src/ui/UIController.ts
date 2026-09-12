@@ -96,6 +96,10 @@ export class UIController {
   private btnHudToggle: HTMLButtonElement | null = null;
   private btnActivePeteks: HTMLButtonElement | null = null;
   private dropdownPeteks: HTMLElement | null = null;
+  private sliderPetekMasterOpacity: HTMLInputElement | null = null;
+  private valPetekMasterOpacity: HTMLElement | null = null;
+  private btnToggleTierOpacity: HTMLButtonElement | null = null;
+  private panelTierOpacity: HTMLElement | null = null;
   private currentCategoryFilter: string = 'ALL';
   private rightSidebar: HTMLElement | null = null;
   private panelLiveFeed: HTMLElement | null = null;
@@ -274,6 +278,10 @@ export class UIController {
     // Peteks Dropdown
     this.btnActivePeteks = document.getElementById('btn-active-peteks') as HTMLButtonElement | null;
     this.dropdownPeteks = document.getElementById('dropdown-peteks');
+    this.sliderPetekMasterOpacity = document.getElementById('slider-petek-master-opacity') as HTMLInputElement | null;
+    this.valPetekMasterOpacity = document.getElementById('val-petek-master-opacity');
+    this.btnToggleTierOpacity = document.getElementById('btn-toggle-tier-opacity') as HTMLButtonElement | null;
+    this.panelTierOpacity = document.getElementById('panel-tier-opacity');
 
     // Right Sidebar & Accordions
     this.rightSidebar = document.getElementById('right-sidebar');
@@ -543,6 +551,55 @@ export class UIController {
           item.classList.add('active');
           closePeteksDropdown();
           this.callbacks.onCategoryFilterChange?.(category);
+        });
+      });
+    }
+
+    if (this.sliderPetekMasterOpacity) {
+      ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+        this.sliderPetekMasterOpacity?.addEventListener(evt, (e) => e.stopPropagation());
+      });
+      this.sliderPetekMasterOpacity.addEventListener('input', () => {
+        const val = this.sliderPetekMasterOpacity?.value || '100';
+        if (this.valPetekMasterOpacity) {
+          this.valPetekMasterOpacity.textContent = `${val}%`;
+        }
+        const pct = parseFloat(val) / 100;
+        this.callbacks.onPetekMasterOpacityChange?.(pct);
+      });
+    }
+
+    if (this.btnToggleTierOpacity) {
+      this.btnToggleTierOpacity.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.panelTierOpacity?.classList.toggle('hidden');
+        const chevron = document.getElementById('icon-tier-opacity-chevron');
+        if (chevron) {
+          const isHidden = this.panelTierOpacity?.classList.contains('hidden');
+          chevron.textContent = isHidden ? '▾' : '▴';
+        }
+      });
+    }
+
+    if (this.panelTierOpacity) {
+      ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+        this.panelTierOpacity?.addEventListener(evt, (e) => e.stopPropagation());
+      });
+      const tierSliders = this.panelTierOpacity.querySelectorAll<HTMLInputElement>('.slider-tier-opacity');
+      tierSliders.forEach((slider) => {
+        ['click', 'pointerdown', 'mousedown'].forEach((evt) => {
+          slider.addEventListener(evt, (e) => e.stopPropagation());
+        });
+        slider.addEventListener('input', () => {
+          const tier = slider.getAttribute('data-tier');
+          if (!tier) return;
+          const val = slider.value;
+          const valEl = document.getElementById(`val-tier-${tier}`);
+          if (valEl) {
+            valEl.textContent = `${val}%`;
+          }
+          const pct = parseFloat(val) / 100;
+          this.callbacks.onPetekTierOpacityChange?.(tier, pct);
         });
       });
     }

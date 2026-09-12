@@ -174,4 +174,55 @@ test('VFX Draw Call Minimization: InstancedMesh consolidation for shockwave ring
   radar.destroy();
 });
 
+test('StormCellRadar: Master & Per-Tier Opacity Controls and Single Stroke Verification', () => {
+  const radar = new StormCellRadar(100);
+
+  // Default global opacity is 1.0 (100%)
+  assert.equal(radar.getGlobalOpacity(), 1.0);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalOpacity.value, 1.0);
+
+  // Set global opacity to 35%
+  radar.setGlobalOpacity(0.35);
+  assert.equal(radar.getGlobalOpacity(), 0.35);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalOpacity.value, 0.35);
+
+  // Test bounds clamp [0.0, 1.0]
+  radar.setGlobalOpacity(-0.2);
+  assert.equal(radar.getGlobalOpacity(), 0.0);
+  radar.setGlobalOpacity(1.5);
+  assert.equal(radar.getGlobalOpacity(), 1.0);
+
+  // Test per-tier opacity controls
+  assert.equal(radar.getTierOpacity('SUPERCELL'), 1.0);
+  radar.setTierOpacity('SUPERCELL', 0.60);
+  assert.equal(radar.getTierOpacity('SUPERCELL'), 0.60);
+  radar.setTierOpacity('ISOLATED', 0.0);
+  assert.equal(radar.getTierOpacity('ISOLATED'), 0.0);
+
+  // Verify all cells use single stroke (isDoubleStroke = false)
+  const cell: StormCell = {
+    id: 'cell-single-stroke',
+    centroid: { latitude: 25, longitude: -80 },
+    boundingRadiusKm: 60,
+    strikeCount: 45,
+    tier: 'RED',
+    firstSeen: Date.now() - 15000,
+    lastSeen: Date.now(),
+    ageSeconds: 15,
+    meanIntensity: -40,
+    warningLevel: 'CRITICAL',
+    stormClass: 'EXTREME_OUTBREAK'
+  };
+
+  radar.updateCells([cell]);
+  const pool = (radar as any).hexPool;
+  const slot = pool.find((s: any) => s.cellId === 'cell-single-stroke');
+  assert.ok(slot);
+  assert.equal(slot.isDoubleStroke, false, 'All storm cells must strictly use single stroke (no double stroke clutter)');
+  assert.equal(slot.stormClass, 'EXTREME_OUTBREAK');
+
+  radar.destroy();
+});
+
+
 

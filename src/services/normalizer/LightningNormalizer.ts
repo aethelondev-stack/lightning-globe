@@ -128,12 +128,6 @@ export class LightningNormalizer {
       }
     }
 
-    // 6. Identifier and Source
-    const id =
-      typeof packet.id === 'string' && packet.id.trim().length > 0
-        ? packet.id.trim()
-        : `evt_${timestamp}_${Math.random().toString(36).slice(2, 9)}`;
-
     let source: import('../../types/lightning').LightningSource = fallbackSource;
     if (
       packet.source === 'blitzortung' ||
@@ -150,6 +144,14 @@ export class LightningNormalizer {
     ) {
       source = packet.source;
     }
+
+    // 6. Deterministic Identifier (eliminates random Math.random collisions and guarantees deduplication across multiple feeds)
+    const roundedLat = Math.round(lat * 1000) / 1000;
+    const roundedLon = Math.round(lon * 1000) / 1000;
+    const id =
+      typeof packet.id === 'string' && packet.id.trim().length > 0
+        ? packet.id.trim()
+        : `${source}_${roundedLat.toFixed(3)}_${roundedLon.toFixed(3)}_${timestamp}`;
 
     const color = typeof packet.color === 'string' ? packet.color : undefined;
 

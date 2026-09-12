@@ -245,7 +245,61 @@
           <div class="dropdown-wrapper">
             <button id="btn-active-peteks" class="ui-btn btn-peteks" title="Kategoriye Göre Aktif Petekler & Odak Kilidi">⬡ Petekler ▾</button>
             <div id="dropdown-peteks" class="hierarchy-dropdown hidden peteks-dropdown">
-              <div class="dropdown-header-title">⬡ PETEK KATEGORİ ODAK KİLİDİ</div>
+              <!-- Petek Şeffaflık Kontrol Paneli (Topluca ve Kategori Düzeyinde) -->
+              <div class="petek-opacity-panel">
+                <div class="petek-opacity-header">
+                  <span class="petek-opacity-title">🎚️ TOPLU PETEK ŞEFFAFLIĞI</span>
+                  <span id="val-petek-master-opacity" class="petek-opacity-badge">100%</span>
+                </div>
+                <input type="range" id="slider-petek-master-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" />
+
+                <!-- Kategori Düzeyinde Şeffaflık Bölümü -->
+                <div class="petek-tier-toggle-row">
+                  <button type="button" id="btn-toggle-tier-opacity" class="btn-toggle-tier-opacity">
+                    <span>⚙️ Kategori Düzeyinde Şeffaflık</span>
+                    <span id="icon-tier-opacity-chevron">▾</span>
+                  </button>
+                </div>
+                <div id="panel-tier-opacity" class="panel-tier-opacity hidden">
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🌌 Süper Patlama:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="EXTREME_OUTBREAK" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-EXTREME_OUTBREAK">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🟣 Fırtına Hattı:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="SQUALL_LINE" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-SQUALL_LINE">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🔴 Büyük Küme:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="MCS" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-MCS">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🟠 Süper Hücre:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="SUPERCELL" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-SUPERCELL">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🟡 Çok Hücre:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="MULTICELL" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-MULTICELL">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">🔵 Tek Hücre:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="SINGLE_CELL" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-SINGLE_CELL">100%</span>
+                  </div>
+                  <div class="tier-slider-row">
+                    <span class="tier-slider-label">⚪ İzole Çakma:</span>
+                    <input type="range" class="slider-tier-opacity" data-tier="ISOLATED" min="0" max="100" step="5" value="100" />
+                    <span class="tier-slider-val" id="val-tier-ISOLATED">100%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dropdown-header-title" style="margin-top: 8px;">⬡ PETEK KATEGORİ ODAK KİLİDİ</div>
               <div class="dropdown-item active" data-category="ALL">
                 <span>🌐 Tümü (Serbest Otomatik)</span>
                 <span class="badge-count" id="count-cat-all">0</span>
