@@ -358,6 +358,8 @@ html, body {
 
 .controls-bar,
 .camera-modes-bar {
+  position: relative;
+  z-index: 100;
   pointer-events: auto;
   user-select: none;
   display: flex;
@@ -1550,7 +1552,11 @@ html, body {
 }
 
 .peteks-dropdown {
-  min-width: 250px;
+  min-width: 290px;
+  max-height: 82vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
 }
 
 .dropdown-header-title {
