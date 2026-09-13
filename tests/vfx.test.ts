@@ -200,8 +200,8 @@ test('StormCellRadar: Master & Per-Tier Opacity Controls and Single Stroke Verif
   assert.equal(radar.getTierOpacity('ISOLATED'), 0.0);
 
   // Test global border opacity controls
-  assert.equal(radar.getGlobalBorderOpacity(), 1.0);
-  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBorderOpacity.value, 1.0);
+  assert.equal(radar.getGlobalBorderOpacity(), 0.75);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBorderOpacity.value, 0.75);
   radar.setGlobalBorderOpacity(0.40);
   assert.equal(radar.getGlobalBorderOpacity(), 0.40);
   assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBorderOpacity.value, 0.40);
@@ -211,8 +211,8 @@ test('StormCellRadar: Master & Per-Tier Opacity Controls and Single Stroke Verif
   assert.equal(radar.getGlobalBorderOpacity(), 1.0);
 
   // Test global body opacity controls
-  assert.equal(radar.getGlobalBodyOpacity(), 1.0);
-  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBodyOpacity.value, 1.0);
+  assert.equal(radar.getGlobalBodyOpacity(), 0.60);
+  assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBodyOpacity.value, 0.60);
   radar.setGlobalBodyOpacity(0.35);
   assert.equal(radar.getGlobalBodyOpacity(), 0.35);
   assert.equal((radar as any).sharedScanlineMat.uniforms.uGlobalBodyOpacity.value, 0.35);

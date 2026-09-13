@@ -112,10 +112,10 @@ export class UIController {
     EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
   };
   private tierBodyValues: Record<string, number> = {
-    EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
+    EXTREME_OUTBREAK: 60, SQUALL_LINE: 60, MCS: 60, SUPERCELL: 60, MULTICELL: 60, SINGLE_CELL: 60, ISOLATED: 60
   };
   private tierBorderValues: Record<string, number> = {
-    EXTREME_OUTBREAK: 100, SQUALL_LINE: 100, MCS: 100, SUPERCELL: 100, MULTICELL: 100, SINGLE_CELL: 100, ISOLATED: 100
+    EXTREME_OUTBREAK: 75, SQUALL_LINE: 75, MCS: 75, SUPERCELL: 75, MULTICELL: 75, SINGLE_CELL: 75, ISOLATED: 75
   };
   private currentCategoryFilter: string = 'ALL';
   private rightSidebar: HTMLElement | null = null;
@@ -598,7 +598,7 @@ export class UIController {
         this.sliderPetekBodyOpacity?.addEventListener(evt, (e) => e.stopPropagation());
       });
       this.sliderPetekBodyOpacity.addEventListener('input', () => {
-        const val = this.sliderPetekBodyOpacity?.value || '100';
+        const val = this.sliderPetekBodyOpacity?.value || '60';
         if (this.valPetekBodyOpacity) {
           this.valPetekBodyOpacity.textContent = `${val}%`;
         }
@@ -612,7 +612,7 @@ export class UIController {
         this.sliderPetekBorderOpacity?.addEventListener(evt, (e) => e.stopPropagation());
       });
       this.sliderPetekBorderOpacity.addEventListener('input', () => {
-        const val = this.sliderPetekBorderOpacity?.value || '100';
+        const val = this.sliderPetekBorderOpacity?.value || '75';
         if (this.valPetekBorderOpacity) {
           this.valPetekBorderOpacity.textContent = `${val}%`;
         }

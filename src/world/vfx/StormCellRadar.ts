@@ -79,8 +79,8 @@ export class StormCellRadar implements IUpdatable {
 
   private isEnabled: boolean = true;
   private globalOpacity: number = 1.0; // Master overall multiplier (hem dış hem iç aynı anda)
-  private globalBodyOpacity: number = 1.0; // Yalnızca iç gövde dolgusu (ayrı)
-  private globalBorderOpacity: number = 1.0; // Yalnızca dış çerçeve konturu (ayrı)
+  private globalBodyOpacity: number = 0.60; // Yalnızca iç gövde dolgusu (ayrı - varsayılan %60)
+  private globalBorderOpacity: number = 0.75; // Yalnızca dış çerçeve konturu (ayrı - varsayılan %75)
   private tierOpacities: Record<string, number> = {
     EXTREME_OUTBREAK: 1.0,
     SQUALL_LINE: 1.0,
@@ -174,8 +174,8 @@ export class StormCellRadar implements IUpdatable {
       uniforms: {
         uTime: { value: 0.0 },
         uGlobalOpacity: { value: 1.0 },
-        uGlobalBodyOpacity: { value: 1.0 },
-        uGlobalBorderOpacity: { value: 1.0 }
+        uGlobalBodyOpacity: { value: 0.60 },
+        uGlobalBorderOpacity: { value: 0.75 }
       },
       vertexShader: `
         attribute vec3 aCellColor;
@@ -335,8 +335,8 @@ export class StormCellRadar implements IUpdatable {
           uIsDoubleStroke: { value: 0.0 },
           uOpacity: { value: 0.22 },
           uGlobalOpacity: { value: 1.0 },
-          uGlobalBodyOpacity: { value: 1.0 },
-          uGlobalBorderOpacity: { value: 1.0 },
+          uGlobalBodyOpacity: { value: 0.60 },
+          uGlobalBorderOpacity: { value: 0.75 },
           uBorderOpacity: { value: 1.0 },
           uTime: { value: 0.0 },
           uStrikeHitTime: { value: -100.0 },
