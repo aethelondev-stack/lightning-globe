@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yıldırım Dünyası — Canlı Fırtına ve Şimşek Takibi</title>
+    <title>Aethelion — Real-Time Planetary Lightning Observatory</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -15,68 +15,68 @@
       <!-- Bağımsız Sol Üst Canlı Yayın Rozeti -->
       <div id="live-broadcast-indicator" class="live-broadcast-indicator">
         <span class="lbi-dot"></span>
-        <span class="lbi-text">CANLI</span>
+        <span class="lbi-text">LIVE</span>
         <span class="lbi-badge">KİCK & YT</span>
       </div>
 
       <!-- Glassmorphism Telemetry HUD Panel -->
-      <div class="hud-panel" role="region" aria-label="Sistem Telemetrisi">
+      <div class="hud-panel" role="region" aria-label="System Telemetry">
         <div class="hud-header">
           <div class="hud-header-title-wrap">
             <span class="live-pulse"></span>
-            <span class="hud-title">AETHELON YILDIRIM GÖZLEMEVİ</span>
+            <span class="hud-title">AETHELION LIGHTNING OBSERVATORY</span>
           </div>
-          <span id="hud-status" class="hud-status-chip hidden">CANLI</span>
-          <button id="btn-hud-toggle" class="hud-toggle-btn" title="Paneli Katla / Genişlet" aria-label="Toggle HUD">▾</button>
+          <span id="hud-status" class="hud-status-chip hidden">LIVE</span>
+          <button id="btn-hud-toggle" class="hud-toggle-btn" title="Collapse / Expand Panel" aria-label="Toggle HUD">▾</button>
         </div>
         <div class="hud-metrics">
           <div class="metric-item">
-            <span class="metric-label">AKIŞ HIZI</span>
-            <span class="metric-val"><span id="hud-rate">0</span> <span class="metric-unit">vuruş/sn</span></span>
+            <span class="metric-label">STRIKE RATE</span>
+            <span class="metric-val"><span id="hud-rate">0</span> <span class="metric-unit">strikes/s</span></span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">TOPLAM TESPİT</span>
+            <span class="metric-label">TOTAL DETECTIONS</span>
             <span class="metric-val" id="hud-total">0</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">VERİ HAVUZU</span>
+            <span class="metric-label">DATA POOL</span>
             <span class="metric-val"><span id="hud-store-count">0</span> <span class="metric-unit">/ 5000</span></span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">MÜKERRER REDDİ</span>
+            <span class="metric-label">DEDUP FILTERED</span>
             <span class="metric-val" id="hud-dedup-count">0</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">AKTİF DALGALAR</span>
+            <span class="metric-label">ACTIVE SHOCKWAVES</span>
             <span class="metric-val" id="hud-active">0</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">AKTİF HÜCRELER</span>
+            <span class="metric-label">ACTIVE CELLS</span>
             <span class="metric-val" id="hud-cluster-count">0</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">EN BÜYÜK FIRTINA</span>
-            <span class="metric-val" id="hud-top-storm">YOK</span>
+            <span class="metric-label">TOP STORM</span>
+            <span class="metric-val" id="hud-top-storm">NONE</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">AKTİVİTE PUANI</span>
+            <span class="metric-label">ACTIVITY SCORE</span>
             <span class="metric-val" id="hud-top-score">0.00</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">HÜCRE SINIFI</span>
+            <span class="metric-label">STORM CLASS</span>
             <span class="metric-val" id="hud-top-class">-</span>
           </div>
 
           <div class="metric-item perf-metric">
-            <span class="metric-label">PERFORMANS (FPS/MS)</span>
+            <span class="metric-label">PERFORMANCE</span>
             <span class="metric-val"><span id="hud-perf-fps">60</span> fps / <span id="hud-perf-frame-time">1.8</span> ms</span>
           </div>
           <div class="metric-item perf-metric">
-            <span class="metric-label">RAM BELLEK</span>
+            <span class="metric-label">MEMORY HEAP</span>
             <span class="metric-val"><span id="hud-perf-heap">0</span> <span class="metric-unit">MB</span></span>
           </div>
           <div class="metric-item perf-metric">
-            <span class="metric-label">ÇİZİM ÇAĞRILARI</span>
+            <span class="metric-label">DRAW CALLS</span>
             <span class="metric-val" id="hud-perf-draw-calls">0</span>
           </div>
         </div>
@@ -87,16 +87,16 @@
         <nav id="experience-controls" class="controls-bar" aria-label="Kontrol Konsolu">
           <!-- 1. KAMERA (Açılır Mega Yönetmen Menüsü) -->
           <div class="dropdown-wrapper">
-            <button id="btn-camera-main-toggle" class="ui-btn btn-camera-main" title="Kamera Yönetmeni, Modlar ve Açılar">📹 Kamera ▾</button>
+            <button id="btn-camera-main-toggle" class="ui-btn btn-camera-main" title="Cinematic Director, Modes and Angles">📹 Camera ▾</button>
             <div id="dropdown-camera-mega" class="hierarchy-dropdown camera-mega-dropdown hidden">
               <div class="cam-mega-header">
-                <span class="cam-mega-title">📹 SİNEMATİK KAMERA YÖNETMENİ</span>
+                <span class="cam-mega-title">📹 CINEMATIC CAMERA DIRECTOR</span>
                 <div class="cam-quick-toggle-wrap">
-                  <button id="btn-cam-quick-toggle" class="cam-quick-toggle-btn auto-active" title="Hızlı Manuel / Otomatik Geçiş">
+                  <button id="btn-cam-quick-toggle" class="cam-quick-toggle-btn auto-active" title="Quick Manual / Auto Toggle">
                     <span class="toggle-mode-dot"></span>
-                    <span id="label-quick-mode">🎬 OTO</span>
+                    <span id="label-quick-mode">🎬 AUTO</span>
                   </button>
-                  <div id="badge-filter-status" class="filter-status-pill" title="Aktif Kriterler">Tümü Açık</div>
+                  <div id="badge-filter-status" class="filter-status-pill" title="Active Criteria">All Open</div>
                 </div>
               </div>
 
@@ -104,35 +104,35 @@
               <div class="cam-mega-grid">
                 <!-- Sütun 1: Takip Modu -->
                 <div class="cam-mega-col">
-                  <div class="cam-mega-subhead">TAKİP MODU</div>
+                  <div class="cam-mega-subhead">TRACKING MODE</div>
                   <div class="cam-dropdown-option active" data-cam-mode="AUTO">
                     <span class="opt-icon">🎬</span>
                     <div class="opt-text">
-                      <div class="opt-title">Otomatik (Fırtına Takibi)</div>
-                      <div class="opt-desc">En aktif fırtınalara sinematik uçar</div>
+                      <div class="opt-title">Auto (Storm Tracking)</div>
+                      <div class="opt-desc">Cinematic flight to peak storm activity</div>
                     </div>
                   </div>
                   <div class="cam-dropdown-option" data-cam-mode="MANUAL">
                     <span class="opt-icon">🕹️</span>
                     <div class="opt-text">
-                      <div class="opt-title">Manuel (Kullanıcı Serbest)</div>
-                      <div class="opt-desc">Kamera serbest kalır, fareyle gezilir</div>
+                      <div class="opt-title">Manual (Free Orbit)</div>
+                      <div class="opt-desc">Free orbit controls, mouse navigation</div>
                     </div>
                   </div>
                   <div class="cam-dropdown-option" data-cam-mode="ORBIT">
                     <span class="opt-icon">🛰️</span>
                     <div class="opt-text">
-                      <div class="opt-title">Yörünge Süzülmesi</div>
-                      <div class="opt-desc">Dünya etrafında hipnotik yavaş tur</div>
+                      <div class="opt-title">Orbital Drift</div>
+                      <div class="opt-desc">Hypnotic slow cinematic planetary cruise</div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Sütun 2: Bakış Açısı & İrtifa -->
                 <div class="cam-mega-col">
-                  <div class="cam-mega-subhead">BAKIŞ AÇISI & İRTİFA</div>
+                  <div class="cam-mega-subhead">PITCH ANGLE & ALTITUDE</div>
                   <div class="pitch-preset-row">
-                    <button class="pitch-preset-btn" data-pitch="0">0° (Dik)</button>
+                    <button class="pitch-preset-btn" data-pitch="0">0° (Nadir)</button>
                     <button class="pitch-preset-btn active" data-pitch="15">15°</button>
                     <button class="pitch-preset-btn" data-pitch="25">25°</button>
                     <button class="pitch-preset-btn" data-pitch="45">45°</button>
@@ -142,7 +142,7 @@
 
                   <div class="cam-slider-group">
                     <div class="cam-slider-label-row">
-                      <span>Eğim Açısı (Pitch)</span>
+                      <span>Pitch Angle</span>
                       <span id="val-pitch-slider" class="cam-slider-val">15°</span>
                     </div>
                     <input type="range" id="slider-cam-pitch" min="0" max="75" step="1" value="15" class="cam-range-slider" />
@@ -150,7 +150,7 @@
 
                   <div class="cam-slider-group">
                     <div class="cam-slider-label-row">
-                      <span>Kamera İrtifası</span>
+                      <span>Camera Altitude</span>
                       <span id="val-dist-slider" class="cam-slider-val">220u</span>
                     </div>
                     <input type="range" id="slider-cam-dist" min="115" max="500" step="5" value="220" class="cam-range-slider" />
@@ -159,15 +159,15 @@
 
                 <!-- Sütun 3: Çekim Ölçeği -->
                 <div class="cam-mega-col">
-                  <div class="cam-mega-subhead">ÇEKİM ÖLÇEĞİ</div>
+                  <div class="cam-mega-subhead">FRAMING SCALE</div>
                   <div class="cam-scale-grid">
-                    <button class="cam-scale-btn active" data-scale="AUTO_DIVERSITY">🎲 Oto Çeşitlilik</button>
-                    <button class="cam-scale-btn" data-scale="VERY_CLOSE">115u Çok Yakın</button>
-                    <button class="cam-scale-btn" data-scale="CLOSE">140u Yakın</button>
-                    <button class="cam-scale-btn" data-scale="COUNTRY">200u Ülkesel</button>
-                    <button class="cam-scale-btn" data-scale="REGIONAL">260u Bölgesel</button>
-                    <button class="cam-scale-btn" data-scale="CONTINENTAL">310u Kıtasal</button>
-                    <button class="cam-scale-btn" data-scale="ATMOSPHERIC">400u Atmosferik</button>
+                    <button class="cam-scale-btn active" data-scale="AUTO_DIVERSITY">🎲 Auto Diversity</button>
+                    <button class="cam-scale-btn" data-scale="VERY_CLOSE">115u Extreme Close</button>
+                    <button class="cam-scale-btn" data-scale="CLOSE">140u Close</button>
+                    <button class="cam-scale-btn" data-scale="COUNTRY">200u Country</button>
+                    <button class="cam-scale-btn" data-scale="REGIONAL">260u Regional</button>
+                    <button class="cam-scale-btn" data-scale="CONTINENTAL">310u Continental</button>
+                    <button class="cam-scale-btn" data-scale="ATMOSPHERIC">400u Atmospheric</button>
                   </div>
                 </div>
               </div>
@@ -175,31 +175,31 @@
               <!-- Coğrafi Sekmeler: Kıtalar / Koridorlar / Ülke Arama -->
               <div class="cam-mega-geo-section">
                 <div class="dropdown-tabs-header">
-                  <button type="button" class="dropdown-tab-btn active" data-tab="continents">🌐 Kıtalar</button>
-                  <button type="button" class="dropdown-tab-btn" data-tab="corridors">⚡ Fırtına Koridorları</button>
-                  <button type="button" class="dropdown-tab-btn" data-tab="search">🔍 Ülke Ara & Odaklan</button>
+                  <button type="button" class="dropdown-tab-btn active" data-tab="continents">🌐 Continents</button>
+                  <button type="button" class="dropdown-tab-btn" data-tab="corridors">⚡ Storm Corridors</button>
+                  <button type="button" class="dropdown-tab-btn" data-tab="search">🔍 Search & Focus Country</button>
                 </div>
                 <div id="tab-pane-continents" class="dropdown-tab-pane">
-                  <div class="dropdown-item" data-lat="0" data-lon="0" data-dist="350">🌐 Tüm Dünya</div>
-                  <div class="dropdown-item" data-lat="50.0" data-lon="15.0" data-dist="240">🌍 Avrupa</div>
-                  <div class="dropdown-item" data-lat="35.0" data-lon="95.0" data-dist="290">🌏 Asya</div>
-                  <div class="dropdown-item" data-lat="2.0" data-lon="20.0" data-dist="270">🌍 Afrika</div>
-                  <div class="dropdown-item" data-lat="40.0" data-lon="-100.0" data-dist="280">🌎 Kuzey Amerika</div>
-                  <div class="dropdown-item" data-lat="-15.0" data-lon="-60.0" data-dist="270">🌎 Güney Amerika</div>
-                  <div class="dropdown-item" data-lat="-25.0" data-lon="135.0" data-dist="260">🌏 Okyanusya</div>
-                  <div class="dropdown-item" data-lat="-80.0" data-lon="0.0" data-dist="260">❄️ Antarktika</div>
+                  <div class="dropdown-item" data-lat="0" data-lon="0" data-dist="350">🌐 Whole Earth</div>
+                  <div class="dropdown-item" data-lat="50.0" data-lon="15.0" data-dist="240">🌍 Europe</div>
+                  <div class="dropdown-item" data-lat="35.0" data-lon="95.0" data-dist="290">🌏 Asia</div>
+                  <div class="dropdown-item" data-lat="2.0" data-lon="20.0" data-dist="270">🌍 Africa</div>
+                  <div class="dropdown-item" data-lat="40.0" data-lon="-100.0" data-dist="280">🌎 North America</div>
+                  <div class="dropdown-item" data-lat="-15.0" data-lon="-60.0" data-dist="270">🌎 South America</div>
+                  <div class="dropdown-item" data-lat="-25.0" data-lon="135.0" data-dist="260">🌏 Oceania</div>
+                  <div class="dropdown-item" data-lat="-80.0" data-lon="0.0" data-dist="260">❄️ Antarctica</div>
                 </div>
                 <div id="tab-pane-corridors" class="dropdown-tab-pane hidden">
-                  <div class="dropdown-item" data-lat="36.0" data-lon="18.0" data-dist="180">🌊 Akdeniz Havzası</div>
-                  <div class="dropdown-item" data-lat="29.0" data-lon="45.0" data-dist="180">🏜️ Orta Doğu</div>
-                  <div class="dropdown-item" data-lat="-1.0" data-lon="23.0" data-dist="180">⚡ Kongo Havzası</div>
-                  <div class="dropdown-item" data-lat="5.0" data-lon="110.0" data-dist="190">🌴 Güneydoğu Asya</div>
-                  <div class="dropdown-item" data-lat="18.0" data-lon="-75.0" data-dist="180">🌀 Karayipler</div>
-                  <div class="dropdown-item" data-lat="38.0" data-lon="-98.0" data-dist="190">🌪️ Kuzey Amerika Ovaları</div>
+                  <div class="dropdown-item" data-lat="36.0" data-lon="18.0" data-dist="180">🌊 Mediterranean Basin</div>
+                  <div class="dropdown-item" data-lat="29.0" data-lon="45.0" data-dist="180">🏜️ Middle East</div>
+                  <div class="dropdown-item" data-lat="-1.0" data-lon="23.0" data-dist="180">⚡ Congo Basin</div>
+                  <div class="dropdown-item" data-lat="5.0" data-lon="110.0" data-dist="190">🌴 Southeast Asia</div>
+                  <div class="dropdown-item" data-lat="18.0" data-lon="-75.0" data-dist="180">🌀 Caribbean</div>
+                  <div class="dropdown-item" data-lat="38.0" data-lon="-98.0" data-dist="190">🌪️ North American Plains</div>
                 </div>
                 <div id="tab-pane-search" class="dropdown-tab-pane hidden">
                   <div class="dropdown-search-box">
-                    <input type="text" id="input-country-search" class="dropdown-input" placeholder="🔍 Ülke ara..." autocomplete="off" />
+                    <input type="text" id="input-country-search" class="dropdown-input" placeholder="🔍 Search country..." autocomplete="off" />
                   </div>
                   <div id="country-search-list" class="dropdown-list"></div>
                 </div>
@@ -239,17 +239,17 @@
           <button id="btn-feed-mode" style="display: none;"></button>
 
           <!-- 2. ATMOSFER -->
-          <button id="btn-atmosphere" class="ui-btn btn-atmosphere active" title="Termodinamik Konvektif Atmosfer Katmanı">🌌 Atmosfer</button>
+          <button id="btn-atmosphere" class="ui-btn btn-atmosphere active" title="Thermodynamic Convective Atmospheric Layer">🌌 Atmosphere</button>
 
           <!-- 3. PETEKLER -->
           <div class="dropdown-wrapper">
-            <button id="btn-active-peteks" class="ui-btn btn-peteks" title="Kategoriye Göre Aktif Petekler & Odak Kilidi">⬡ Petekler ▾</button>
+            <button id="btn-active-peteks" class="ui-btn btn-peteks" title="Active Storm Cells by Tier & Focus Lock">⬡ Radar Cells ▾</button>
             <div id="dropdown-peteks" class="hierarchy-dropdown hidden peteks-dropdown">
               <!-- Petek Şeffaflık Kontrol Paneli (Topluca ve Kategori Düzeyinde) -->
               <div class="petek-opacity-panel">
                 <!-- 1. Birlikte / Genel Şeffaflık -->
                 <div class="petek-opacity-header">
-                  <span class="petek-opacity-title">🔗 GENEL ŞEFFAFLIK (BİRLİKTE)</span>
+                  <span class="petek-opacity-title">🔗 MASTER OPACITY</span>
                   <span id="val-petek-master-opacity" class="petek-opacity-badge">100%</span>
                 </div>
                 <input type="range" id="slider-petek-master-opacity" class="petek-range-slider" min="0" max="100" step="5" value="100" title="Dış çerçeve ve iç dolguyu aynı anda orantılı kontrol eder" />
@@ -257,13 +257,13 @@
                 <!-- 2. Ayrı Ayrı Kontrol Bölümü (İç ve Dış) -->
                 <div class="petek-sub-sliders">
                   <div class="petek-opacity-header sub-header">
-                    <span class="petek-opacity-sub-title">🎚️ İÇ GÖVDE (AYRI)</span>
+                    <span class="petek-opacity-sub-title">🎚️ BODY FILL</span>
                     <span id="val-petek-body-opacity" class="petek-opacity-badge sub-badge">60%</span>
                   </div>
                   <input type="range" id="slider-petek-body-opacity" class="petek-range-slider sub-slider" min="0" max="100" step="5" value="60" title="Yalnızca peteklerin iç renk dolgusunu ayarlar" />
 
                   <div class="petek-opacity-header sub-header" style="margin-top: 6px;">
-                    <span class="petek-opacity-sub-title">📐 DIŞ ÇERÇEVE (AYRI)</span>
+                    <span class="petek-opacity-sub-title">📐 OUTER BORDER</span>
                     <span id="val-petek-border-opacity" class="petek-opacity-badge sub-badge">75%</span>
                   </div>
                   <input type="range" id="slider-petek-border-opacity" class="petek-range-slider sub-slider" min="0" max="100" step="5" value="75" title="Yalnızca peteklerin dış kontur çizgisini ayarlar" />
@@ -272,85 +272,85 @@
                 <!-- Kategori Düzeyinde Şeffaflık Bölümü -->
                 <div class="petek-tier-toggle-row">
                   <button type="button" id="btn-toggle-tier-opacity" class="btn-toggle-tier-opacity">
-                    <span>⚙️ Kategori Düzeyinde Şeffaflık</span>
+                    <span>⚙️ Per-Category Opacity Tuning</span>
                     <span id="icon-tier-opacity-chevron">▾</span>
                   </button>
                 </div>
                 <div id="panel-tier-opacity" class="panel-tier-opacity hidden">
                   <div class="tier-mode-nav">
-                    <button type="button" id="btn-tier-mode-all" class="btn-tier-mode active">🔗 Birlikte</button>
-                    <button type="button" id="btn-tier-mode-body" class="btn-tier-mode">🎚️ İç Dolgu</button>
-                    <button type="button" id="btn-tier-mode-border" class="btn-tier-mode">📐 Dış Çerçeve</button>
+                    <button type="button" id="btn-tier-mode-all" class="btn-tier-mode active">🔗 Master</button>
+                    <button type="button" id="btn-tier-mode-body" class="btn-tier-mode">🎚️ Body Fill</button>
+                    <button type="button" id="btn-tier-mode-border" class="btn-tier-mode">📐 Border</button>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🌌 Süper Patlama:</span>
+                    <span class="tier-slider-label">🌌 Extreme Outbreak:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="EXTREME_OUTBREAK" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-EXTREME_OUTBREAK">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🟣 Fırtına Hattı:</span>
+                    <span class="tier-slider-label">🟣 Squall Line:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="SQUALL_LINE" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-SQUALL_LINE">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🔴 Büyük Küme:</span>
+                    <span class="tier-slider-label">🔴 Mesoscale (MCS):</span>
                     <input type="range" class="slider-tier-opacity" data-tier="MCS" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-MCS">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🟠 Süper Hücre:</span>
+                    <span class="tier-slider-label">🟠 Supercell:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="SUPERCELL" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-SUPERCELL">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🟡 Çok Hücre:</span>
+                    <span class="tier-slider-label">🟡 Multicell:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="MULTICELL" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-MULTICELL">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">🔵 Tek Hücre:</span>
+                    <span class="tier-slider-label">🔵 Single Cell:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="SINGLE_CELL" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-SINGLE_CELL">100%</span>
                   </div>
                   <div class="tier-slider-row">
-                    <span class="tier-slider-label">⚪ İzole Çakma:</span>
+                    <span class="tier-slider-label">⚪ Isolated:</span>
                     <input type="range" class="slider-tier-opacity" data-tier="ISOLATED" min="0" max="100" step="5" value="100" />
                     <span class="tier-slider-val" id="val-tier-ISOLATED">100%</span>
                   </div>
                 </div>
               </div>
 
-              <div class="dropdown-header-title" style="margin-top: 8px;">⬡ PETEK KATEGORİ ODAK KİLİDİ</div>
+              <div class="dropdown-header-title" style="margin-top: 8px;">⬡ STORM CATEGORY FOCUS LOCK</div>
               <div class="dropdown-item active" data-category="ALL">
-                <span>🌐 Tümü (Serbest Otomatik)</span>
+                <span>🌐 All (Auto Tracking)</span>
                 <span class="badge-count" id="count-cat-all">0</span>
               </div>
               <div class="dropdown-item" data-category="ISOLATED">
-                <span>⚪ İzole Çakma (&lt;45 km)</span>
+                <span>⚪ Isolated (&lt;45 km)</span>
                 <span class="badge-count" id="count-cat-isolated">0</span>
               </div>
               <div class="dropdown-item" data-category="SINGLE_CELL">
-                <span>🔵 Tek Hücre (45-100 km)</span>
+                <span>🔵 Single Cell (45-100 km)</span>
                 <span class="badge-count" id="count-cat-single">0</span>
               </div>
               <div class="dropdown-item" data-category="MULTICELL">
-                <span>🟡 Çok Hücre (100-190 km)</span>
+                <span>🟡 Multicell (100-190 km)</span>
                 <span class="badge-count" id="count-cat-multicell">0</span>
               </div>
               <div class="dropdown-item" data-category="SUPERCELL">
-                <span>🟠 Süper Hücre (190-280 km)</span>
+                <span>🟠 Supercell (190-280 km)</span>
                 <span class="badge-count" id="count-cat-supercell">0</span>
               </div>
               <div class="dropdown-item" data-category="MCS">
-                <span>🔴 Büyük Fırtına Kümesi (280-380 km)</span>
+                <span>🔴 Mesoscale MCS (280-380 km)</span>
                 <span class="badge-count" id="count-cat-mcs">0</span>
               </div>
               <div class="dropdown-item" data-category="SQUALL_LINE">
-                <span>🟣 Fırtına Hattı (380-600 km)</span>
+                <span>🟣 Squall Line (380-600 km)</span>
                 <span class="badge-count" id="count-cat-squall">0</span>
               </div>
               <div class="dropdown-item" data-category="EXTREME_OUTBREAK">
-                <span>🌌 Süper Patlama (500+ km)</span>
+                <span>🌌 Super Outbreak (500+ km)</span>
                 <span class="badge-count" id="count-cat-outbreak">0</span>
               </div>
             </div>
@@ -371,7 +371,7 @@
         <div id="realtime-broadcast-strip" class="realtime-broadcast-strip">
           <div class="rbs-content">
             <span class="rbs-live-dot"></span>
-            <span class="rbs-text">YERKÜREDEKİ TÜM ŞİMŞEKLERİ ANLIK OLARAK İZLE</span>
+            <span class="rbs-text">LIVE PLANETARY REAL-TIME LIGHTNING OBSERVATORY</span>
           </div>
         </div>
       </header>
@@ -383,7 +383,7 @@
         </div>
         <div class="vfc-content">
           <div class="vfc-row-top">
-            <span id="vfc-badge" class="vfc-badge">SEYİRCİ İSTEĞİ</span>
+            <span id="vfc-badge" class="vfc-badge">VIEWER REQUEST</span>
             <span id="vfc-user" class="vfc-user">@Kullanıcı</span>
           </div>
           <div class="vfc-row-mid">
@@ -400,49 +400,49 @@
           <div class="card-country">
             <span id="strike-flag" class="card-flag">🌍</span>
             <div class="card-location-info">
-              <span id="strike-country" class="card-country-name">Konum aranıyor...</span>
-              <span id="strike-city" class="card-city-name">Bölge taranıyor...</span>
+              <span id="strike-country" class="card-country-name">Locating coordinates...</span>
+              <span id="strike-city" class="card-city-name">Scanning region...</span>
             </div>
           </div>
-          <span id="strike-class-badge" class="strike-badge badge-standard">⚡ STANDART</span>
+          <span id="strike-class-badge" class="strike-badge badge-standard">⚡ STANDARD</span>
           <button id="btn-close-strike-card" class="card-close-btn" aria-label="Kapat">✕</button>
         </div>
         <div class="card-body">
           <div class="card-stat-row">
-            <span class="card-stat-label">KOORDİNATLAR</span>
+            <span class="card-stat-label">COORDINATES</span>
             <span id="strike-coords" class="card-stat-val">0.000° K, 0.000° D</span>
           </div>
           <div class="card-stat-row">
-            <span class="card-stat-label">UTC ZAMANI</span>
+            <span class="card-stat-label">UTC TIME</span>
             <span id="strike-time-utc" class="card-stat-val">00:00:00.000</span>
           </div>
           <div class="card-stat-row">
-            <span class="card-stat-label">YEREL SAAT</span>
+            <span class="card-stat-label">LOCAL TIME</span>
             <span id="strike-time-local" class="card-stat-val">00:00:00</span>
           </div>
           <div class="card-stat-row">
-            <span class="card-stat-label">AKIM ŞİDDETİ</span>
+            <span class="card-stat-label">PEAK CURRENT</span>
             <span id="strike-current" class="card-stat-val">⚡ 0.0 kA</span>
           </div>
           <div class="card-stat-row">
-            <span class="card-stat-label">POLARİTE / TİP</span>
+            <span class="card-stat-label">POLARITY / TYPE</span>
             <span id="strike-polarity" class="card-stat-val">- Negatif (CG)</span>
           </div>
           <div class="card-stat-row">
-            <span class="card-stat-label">VERİ KAYNAĞI</span>
+            <span class="card-stat-label">SENSOR SOURCE</span>
             <span id="strike-source-val" class="card-stat-val text-neon-blue">⚡ BLITZORTUNG (RF)</span>
           </div>
           <div id="row-optical-energy" class="card-stat-row hidden">
-            <span class="card-stat-label">OPTİK UYDU</span>
+            <span class="card-stat-label">OPTICAL SATELLITE</span>
             <span id="strike-optical-val" class="card-stat-val text-neon-purple">🛰️ 0.0 J (0 km²)</span>
           </div>
           <div class="card-stat-row highlight-stat-row">
-            <span class="card-stat-label">BUGÜNKÜ VURUŞLAR</span>
+            <span class="card-stat-label">TODAY DETECTIONS</span>
             <span id="strike-today-count" class="card-stat-val text-neon-gold">⚡ 0</span>
           </div>
         </div>
         <div class="card-footer" style="display: none;">
-          <button id="btn-fly-to-strike" class="ui-btn btn-fly-strike">🚀 VURUŞA UÇ</button>
+          <button id="btn-fly-to-strike" class="ui-btn btn-fly-strike">🚀 FLY TO STRIKE</button>
         </div>
       </div>
 
@@ -463,7 +463,7 @@
           <div class="sfx-card-header">
             <div class="sfx-card-title">
               <span class="sfx-icon">⚡</span>
-              <span>ŞİMŞEK SES KONSOLU</span>
+              <span>LIGHTNING AUDIO CONSOLE</span>
             </div>
             <button id="btn-close-sfx" class="sfx-close-btn" aria-label="Kapat">✕</button>
           </div>
@@ -471,7 +471,7 @@
             <!-- Ses Seviyesi Slider -->
             <div class="sfx-control-group">
               <div class="sfx-label-row">
-                <span class="sfx-label">SES SEVİYESİ</span>
+                <span class="sfx-label">MASTER VOLUME</span>
                 <span id="sfx-volume-val" class="sfx-val">80%</span>
               </div>
               <input type="range" id="sfx-volume-slider" class="sfx-volume-slider" min="0" max="100" value="80" step="1" />
@@ -480,25 +480,25 @@
             <!-- Ses Profilleri -->
             <div class="sfx-control-group">
               <div class="sfx-label-row">
-                <span class="sfx-label">PROSEDÜREL SES PROFİLİ</span>
+                <span class="sfx-label">PROCEDURAL SOUND PROFILE</span>
                 <span id="sfx-active-profile-name" class="sfx-val text-neon-gold">⚡ DİNAMİK</span>
               </div>
               <div class="sfx-profiles-grid">
                 <button class="sfx-profile-btn active sfx-btn-dynamic" data-profile="DYNAMIC" title="Akım şiddetine göre otomatik profil değişir (Önerilen)">
-                  <span class="profile-badge">⚡ DİNAMİK (Şiddete Duyarlı)</span>
-                  <span class="profile-desc">Vuruş şiddetine (kA) göre profili otomatik seçer</span>
+                  <span class="profile-badge">⚡ DYNAMIC (Adaptive)</span>
+                  <span class="profile-desc">Auto-selects acoustic profile based on peak current (kA)</span>
                 </button>
                 <button class="sfx-profile-btn" data-profile="v1" title="Zengin akustik atmosferik gök gürültüsü">
-                  <span class="profile-badge">v1 DOĞAL GÖK GÜRÜLTÜSÜ</span>
-                  <span class="profile-desc">Akustik çıtırtı, Brownian yuvarlanma & sub-bass</span>
+                  <span class="profile-badge">v1 NATURAL THUNDER</span>
+                  <span class="profile-desc">Acoustic crackle, Brownian roll & sub-bass</span>
                 </button>
                 <button class="sfx-profile-btn" data-profile="v3" title="Yüksek voltajlı iyonize ark boşalımı">
-                  <span class="profile-badge">v3 İYONİZE PLAZMA</span>
-                  <span class="profile-desc">Rezonant elektrik ark sweep'i ve iyonize hava cızırtısı</span>
+                  <span class="profile-badge">v3 IONIZED PLASMA</span>
+                  <span class="profile-desc">Resonant electric arc sweep & ionized air sizzle</span>
                 </button>
                 <button class="sfx-profile-btn" data-profile="v4" title="Kısa, tok, kulağı yormayan net kırılma">
-                  <span class="profile-badge">v4 TAKTİK KIRILMA</span>
-                  <span class="profile-desc">Hızlı 0.4s atak, tok gövde, sıfır uğultu (Yoğun fırtına dostu)</span>
+                  <span class="profile-badge">v4 TACTICAL CRACK</span>
+                  <span class="profile-desc">Fast 0.4s punchy attack, zero rumble fatigue</span>
                 </button>
               </div>
             </div>
@@ -506,7 +506,7 @@
             <!-- Test Çakımı Butonu -->
             <div class="sfx-test-row">
               <button id="btn-sfx-test-strike" class="ui-btn btn-sfx-test" title="Seçili profille anında test çakımı sesi oynatır">
-                ⚡ Test Çakımı Dinle
+                ⚡ Listen Test Bolt
               </button>
             </div>
           </div>
@@ -528,7 +528,7 @@
           <div class="music-card-header">
             <div class="music-card-title">
               <span class="music-icon">🎧</span>
-              <span>GECE GÖZLEMİ FON MÜZİĞİ</span>
+              <span>AMBIENT NIGHT MUSIC</span>
             </div>
             <button id="btn-close-music" class="music-close-btn" aria-label="Kapat">✕</button>
           </div>
@@ -560,8 +560,8 @@
 
           <!-- Playlist Section -->
           <div class="music-playlist-header">
-            <span>ÇALMA LİSTESİ (20 PARÇA)</span>
-            <span class="music-loop-badge">Döngü: Açık</span>
+            <span>PLAYLIST (20 TRACKS)</span>
+            <span class="music-loop-badge">Loop: On</span>
           </div>
           <div id="music-playlist-items" class="music-playlist-items">
             <!-- Dynamically populated -->
@@ -576,20 +576,20 @@
           <div class="accordion-header" id="header-live-feed">
             <div class="accordion-title">
               <span class="accordion-icon">⚡</span>
-              <span>CANLI ŞİMŞEK GÜNLÜĞÜ</span>
+              <span>LIVE STRIKE FEED</span>
               <span class="accordion-badge" id="feed-count-badge">0</span>
             </div>
             <button class="accordion-toggle" id="btn-toggle-feed" aria-label="Akordiyonu Aç/Kapat">▾</button>
           </div>
           <div class="accordion-content" id="content-live-feed">
             <div class="feed-actions-bar">
-              <span class="feed-status-text">⚡ Gerçek Zamanlı Akış (24 Saat)</span>
+              <span class="feed-status-text">⚡ Real-Time Global Telemetry (24h)</span>
               <button id="btn-clear-archive" class="btn-clear-archive" title="Tüm kayıtlı ve önbellekteki verileri kalıcı olarak sıfırlar">
-                🗑️ Arşivi Sıfırla
+                🗑️ Clear Feed
               </button>
             </div>
             <div id="live-feed-scroll" class="live-feed-scroll">
-              <div class="empty-feed-msg">Canlı şimşek vuruşları bekleniyor...</div>
+              <div class="empty-feed-msg">Listening for live lightning strikes...</div>
             </div>
           </div>
         </div>
@@ -599,18 +599,18 @@
           <div class="accordion-header" id="header-camera-queue">
             <div class="accordion-title">
               <span class="accordion-icon">📡</span>
-              <span>KAMERA KUYRUĞU</span>
+              <span>DIRECTOR QUEUE</span>
               <span class="accordion-badge" id="queue-count-badge">0 / 20</span>
             </div>
             <button class="accordion-toggle" id="btn-toggle-queue" aria-label="Akordiyonu Aç/Kapat">▾</button>
           </div>
           <div class="accordion-content" id="content-camera-queue">
             <div class="queue-status-bar">
-              <span class="queue-status-text">⚡ 10 Doğal + 10 Seyirci Hedefi</span>
-              <span id="queue-dwell-text" class="queue-dwell-text">Kalış: 7 sn</span>
+              <span class="queue-status-text">⚡ 10 Natural + 10 Viewer Targets</span>
+              <span id="queue-dwell-text" class="queue-dwell-text">Dwell: 7s</span>
             </div>
             <div id="camera-queue-list" class="camera-queue-list">
-              <div class="empty-queue-msg">Kamera hedefleri hesaplanıyor...</div>
+              <div class="empty-queue-msg">Calculating priority storm targets...</div>
             </div>
           </div>
         </div>
@@ -620,14 +620,14 @@
           <div class="accordion-header" id="header-storms">
             <div class="accordion-title">
               <span class="accordion-icon">⚡</span>
-              <span>AKTİF FIRTINA HÜCRELERİ</span>
+              <span>ACTIVE STORM CELLS</span>
               <span class="accordion-badge" id="storms-count-badge">0</span>
             </div>
             <button class="accordion-toggle" id="btn-toggle-storms-accordion" aria-label="Akordiyonu Aç/Kapat">▾</button>
           </div>
           <div class="accordion-content" id="content-storms">
             <div id="storm-list-container" class="storm-list right-sidebar-storm-list">
-              <div class="empty-drawer-msg">Aktif fırtına hücreleri taranıyor...</div>
+              <div class="empty-drawer-msg">Tracking atmospheric storm clusters...</div>
             </div>
           </div>
         </div>
@@ -637,20 +637,20 @@
           <div class="accordion-header" id="header-leaderboard">
             <div class="accordion-title">
               <span class="accordion-icon">🏆</span>
-              <span>ÜLKE YILDIRIM SIRALAMASI</span>
+              <span>COUNTRY LEADERBOARD</span>
               <span class="accordion-badge badge-gold" id="leaderboard-total-count">0</span>
             </div>
             <button class="accordion-toggle" id="btn-toggle-leaderboard-accordion" aria-label="Akordiyonu Aç/Kapat">▾</button>
           </div>
           <div class="accordion-content" id="content-leaderboard">
             <div class="leaderboard-periods" role="tablist">
-              <button id="btn-period-day" class="ui-btn btn-period active" data-period="day">GÜN</button>
-              <button id="btn-period-week" class="ui-btn btn-period" data-period="week">HAFTA</button>
-              <button id="btn-period-month" class="ui-btn btn-period" data-period="month">AY</button>
-              <button id="btn-period-year" class="ui-btn btn-period" data-period="year">YIL</button>
+              <button id="btn-period-day" class="ui-btn btn-period active" data-period="day">DAY</button>
+              <button id="btn-period-week" class="ui-btn btn-period" data-period="week">WEEK</button>
+              <button id="btn-period-month" class="ui-btn btn-period" data-period="month">MONTH</button>
+              <button id="btn-period-year" class="ui-btn btn-period" data-period="year">YEAR</button>
             </div>
             <div id="leaderboard-list-container" class="leaderboard-list right-sidebar-leaderboard-list">
-              <div class="empty-drawer-msg">Küresel yıldırım verileri toplanıyor...</div>
+              <div class="empty-drawer-msg">Aggregating global telemetry...</div>
             </div>
           </div>
         </div>
@@ -660,8 +660,8 @@
           <div class="accordion-header" id="header-analytics">
             <div class="accordion-title">
               <span class="accordion-icon">📊</span>
-              <span>GELİŞMİŞ ANALİZ</span>
-              <span class="accordion-badge badge-soon">YAKINDA</span>
+              <span>ADVANCED ANALYTICS</span>
+              <span class="accordion-badge badge-soon">COMING SOON</span>
             </div>
             <button class="accordion-toggle" id="btn-toggle-analytics" aria-label="Akordiyonu Aç/Kapat">▾</button>
           </div>
@@ -672,10 +672,10 @@
                 <div class="radar-crosshair"></div>
               </div>
               <div class="analytics-desc">
-                <h4>Meteorolojik İleri Düzey Modüller</h4>
-                <p>• CAPE (Konvektif Kullanılabilir Potansiyel Enerji) Haritalama</p>
-                <p>• Doppler Rüzgâr Makası ve Fırtına İlerleme Vektörleri</p>
-                <p>• 6 Saatlik Yapay Zekâ Fırtına Tahmin Modeli</p>
+                <h4>Advanced Meteorological Modules</h4>
+                <p>• CAPE (Convective Available Potential Energy) Heatmaps</p>
+                <p>• Doppler Wind Shear & Storm Heading Vectors</p>
+                <p>• 6-Hour Atmospheric Neural Forecast Engine</p>
               </div>
             </div>
           </div>
@@ -686,26 +686,26 @@
       <footer id="bottom-command-bar" class="bottom-command-bar" role="complementary" aria-label="Seyirci Chat Komutları">
         <div class="bcb-item bcb-title">
           <span class="bcb-icon">🎮</span>
-          <span>Kamerayı Yönetmek İçin Chat'i Kullan</span>
+          <span>Control Camera Via Live Chat</span>
         </div>
         <div class="bcb-divider"></div>
         <div class="bcb-item bcb-syntax">
-          <span class="bcb-label">Kullanım:</span>
+          <span class="bcb-label">Usage:</span>
           <span class="bcb-token">!ulke [ülke ismi]</span>
-          <span class="bcb-or">veya</span>
+          <span class="bcb-or">or</span>
           <span class="bcb-token">![ülke]</span>
         </div>
         <div class="bcb-divider"></div>
         <div class="bcb-item bcb-example">
-          <span class="bcb-label">Örnek:</span>
-          <span class="bcb-pill">!ulke turkiye</span>
+          <span class="bcb-label">Example:</span>
+          <span class="bcb-pill">!country japan</span>
           <span class="bcb-comma">,</span>
-          <span class="bcb-pill">!turkiye</span>
+          <span class="bcb-pill">!japan</span>
         </div>
         <div class="bcb-divider"></div>
         <div class="bcb-item bcb-note">
           <span class="bcb-warn-icon">⚠️</span>
-          <span>Türkçe Karakter Kullanmayın.</span>
+          <span>Type Country Name in English.</span>
         </div>
       </footer>
     </div>
