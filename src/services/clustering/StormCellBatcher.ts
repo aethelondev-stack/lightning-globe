@@ -606,7 +606,7 @@ export class StormCellBatcher {
       );
       const count = recentNearby.length + 1;
       const evaluated = classifyMeteorologicalStorm(20, 0, count);
-      const decayTime = count >= 220 ? 900000 : (count >= 90 ? 480000 : 180000); // 3m to 15m graceful decay
+      const decayTime = count >= 220 ? 900000 : (count >= 90 ? 480000 : 420000); // 7m to 15m graceful decay
 
       const newCell: StormCell = {
         id: `live-cell-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -873,7 +873,7 @@ export class StormCellBatcher {
         existing.stormClass = stormEval.stormClass;
         existing.stormClassLabel = stormEval.label;
         const cellTimeout = this.getTimeoutForCell(existing.stormClass);
-        existing.heartbeatRemainingMs = Math.max(0, cellTimeout - (now - existing.lastSeen));
+        existing.heartbeatRemainingMs = Math.max(0, (this.isCustomWindowMs ? this.windowMs : cellTimeout) - (now - existing.lastSeen));
 
         const lastCentroid = existing.hourlyCentroids[existing.hourlyCentroids.length - 1];
         if (!lastCentroid || (now - lastCentroid.timestamp) > 900000 || haversineDistanceKm(centroid.latitude, centroid.longitude, lastCentroid.lat, lastCentroid.lon) > 10) {
@@ -894,7 +894,7 @@ export class StormCellBatcher {
           firstSeen,
           lastSeen,
           meanIntensity,
-          heartbeatRemainingMs: Math.max(0, cellTimeout - (now - lastSeen)),
+          heartbeatRemainingMs: Math.max(0, (this.isCustomWindowMs ? this.windowMs : cellTimeout) - (now - lastSeen)),
           fadeProgress: 0,
           isFading: false,
           tier: stormEval.tier,
@@ -1151,34 +1151,40 @@ export class StormCellBatcher {
  */
 export function classifyMeteorologicalStorm(
   _radiusKm: number,
-  _ageMinutes: number,
-  strikeCount: number
+  ageMinutes: number,
+  strikeCount: number,
+  strikesPerMinute?: number
 ): { stormClass: MeteorologicalStormClass; label: string; tier: StormCellTier } {
-  // 7. EXTREME_OUTBREAK (Süper Fırtına Patlaması: 650 km, 2000+ vuruş) - AŞIRI NADİR!
-  if (strikeCount >= 2000) {
+  // Convective Flash Rate (Strikes Per Minute):
+  const spm = strikesPerMinute !== undefined
+    ? strikesPerMinute
+    : (ageMinutes > 0 ? strikeCount / Math.max(0.5, ageMinutes) : strikeCount * 2);
+
+  // 7. EXTREME_OUTBREAK (Süper Fırtına Patlaması: 2000+ vuruş veya 1000+ vuruşla 100+ vuruş/dk)
+  if (strikeCount >= 2000 || (strikeCount >= 1000 && spm >= 100)) {
     return { stormClass: 'EXTREME_OUTBREAK', label: 'Süper Fırtına Patlaması', tier: 'EXTREME' };
   }
-  // 6. Fırtına Hattı (Squall Line): 450 km, 1000+ vuruş
-  if (strikeCount >= 1000) {
+  // 6. Fırtına Hattı (Squall Line): 450 km, 1000+ vuruş veya 300+ vuruşla 70+ vuruş/dk
+  if (strikeCount >= 1000 || (strikeCount >= 300 && spm >= 70)) {
     return { stormClass: 'SQUALL_LINE', label: 'Fırtına Hattı (Squall Line)', tier: 'RED' };
   }
-  // 5. Büyük Fırtına Kümesi (MCS): 280 km, 500+ vuruş
-  if (strikeCount >= 500) {
+  // 5. Büyük Fırtına Kümesi (MCS): 280 km, 500+ vuruş veya 100+ vuruşla 45+ vuruş/dk
+  if (strikeCount >= 500 || (strikeCount >= 100 && spm >= 45)) {
     return { stormClass: 'MCS', label: 'Büyük Fırtına Kümesi', tier: 'RED' };
   }
-  // 4. Süper Hücre (Supercell): 150 km, 220+ vuruş
-  if (strikeCount >= 220) {
+  // 4. Süper Hücre (Supercell): 150 km, 220+ vuruş veya 40+ vuruşla 22+ vuruş/dk
+  if (strikeCount >= 220 || (strikeCount >= 40 && spm >= 22)) {
     return { stormClass: 'SUPERCELL', label: 'Süper Hücre (Supercell)', tier: 'RED' };
   }
-  // 3. Çok Hücre (Multicell Cluster): 90 km, 90+ vuruş
-  if (strikeCount >= 90) {
+  // 3. Çok Hücre (Multicell Cluster): 90 km, 90+ vuruş veya 20+ vuruşla 8+ vuruş/dk
+  if (strikeCount >= 90 || (strikeCount >= 20 && spm >= 8)) {
     return { stormClass: 'MULTICELL', label: 'Çok Hücre (Multicell Cluster)', tier: 'YELLOW' };
   }
-  // 2. Tek Hücre (Single-Cell): 40 km, 30+ vuruş
-  if (strikeCount >= 30) {
+  // 2. Tek Hücre (Single-Cell): 40 km, 30+ vuruş veya 10+ vuruşla 3+ vuruş/dk
+  if (strikeCount >= 30 || (strikeCount >= 10 && spm >= 3)) {
     return { stormClass: 'SINGLE_CELL', label: 'Tek Hücre (Single-Cell)', tier: 'BLUE' };
   }
-  // 1. İzole Çakma: < 15 km, 8+ vuruş (veya canlı başlangıç)
+  // 1. İzole Çakma: < 15 km veya < 10 vuruş
   return { stormClass: 'ISOLATED', label: 'İzole Çakma (Isolated)', tier: 'WHITE' };
 }
 

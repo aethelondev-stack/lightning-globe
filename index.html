@@ -16,7 +16,7 @@
       <div id="live-broadcast-indicator" class="live-broadcast-indicator">
         <span class="lbi-dot"></span>
         <span class="lbi-text">LIVE</span>
-        <span class="lbi-badge">KİCK & YT</span>
+        <span class="lbi-badge">KICK & YT</span>
       </div>
 
       <!-- Glassmorphism Telemetry HUD Panel -->
@@ -334,36 +334,36 @@
                 <span class="badge-count" id="count-cat-single">0</span>
               </div>
               <div class="dropdown-item" data-category="MULTICELL">
-                <span>🟡 Multicell (100-190 km)</span>
+                <span>🟢 Multicell (100-190 km)</span>
                 <span class="badge-count" id="count-cat-multicell">0</span>
               </div>
               <div class="dropdown-item" data-category="SUPERCELL">
-                <span>🟠 Supercell (190-280 km)</span>
+                <span>🔴 Supercell (190-280 km)</span>
                 <span class="badge-count" id="count-cat-supercell">0</span>
               </div>
               <div class="dropdown-item" data-category="MCS">
-                <span>🔴 Mesoscale MCS (280-380 km)</span>
+                <span>🟣 Mesoscale MCS (280-380 km)</span>
                 <span class="badge-count" id="count-cat-mcs">0</span>
               </div>
               <div class="dropdown-item" data-category="SQUALL_LINE">
-                <span>🟣 Squall Line (380-600 km)</span>
+                <span>🛑 Squall Line (380-600 km)</span>
                 <span class="badge-count" id="count-cat-squall">0</span>
               </div>
               <div class="dropdown-item" data-category="EXTREME_OUTBREAK">
-                <span>🌌 Super Outbreak (500+ km)</span>
+                <span>🎆 Super Outbreak (500+ km)</span>
                 <span class="badge-count" id="count-cat-outbreak">0</span>
               </div>
             </div>
           </div>
 
           <!-- 4. FIRTINALAR -->
-          <button id="btn-toggle-drawer" class="ui-btn btn-drawer" title="Aktif Fırtına Hücreleri Listesi">
-            ⚡ Fırtınalar <span class="drawer-badge">0</span>
+          <button id="btn-toggle-drawer" class="ui-btn btn-drawer" title="Active Storm Cells List">
+            ⚡ Storms <span class="drawer-badge">0</span>
           </button>
 
           <!-- 5. SIRALAMA -->
-          <button id="btn-leaderboard" class="ui-btn btn-leaderboard" title="Ülke Yıldırım Liderlik Tablosu">
-            🏆 Sıralama
+          <button id="btn-leaderboard" class="ui-btn btn-leaderboard" title="Country Lightning Leaderboard">
+            🏆 Leaderboard
           </button>
         </nav>
 
@@ -410,7 +410,7 @@
         <div class="card-body">
           <div class="card-stat-row">
             <span class="card-stat-label">COORDINATES</span>
-            <span id="strike-coords" class="card-stat-val">0.000° K, 0.000° D</span>
+            <span id="strike-coords" class="card-stat-val">0.000° N, 0.000° E</span>
           </div>
           <div class="card-stat-row">
             <span class="card-stat-label">UTC TIME</span>
@@ -426,7 +426,7 @@
           </div>
           <div class="card-stat-row">
             <span class="card-stat-label">POLARITY / TYPE</span>
-            <span id="strike-polarity" class="card-stat-val">- Negatif (CG)</span>
+            <span id="strike-polarity" class="card-stat-val">- Negative (CG)</span>
           </div>
           <div class="card-stat-row">
             <span class="card-stat-label">SENSOR SOURCE</span>
@@ -449,13 +449,13 @@
       <!-- Ülke Üzerine Gelince Çıkan İpucu (Hover Tooltip) -->
       <div id="country-hover-tooltip" class="country-hover-tooltip hidden" aria-live="polite">
         <span id="tooltip-flag" class="tooltip-flag">🇹🇷</span>
-        <span id="tooltip-name" class="tooltip-name">Türkiye</span>
+        <span id="tooltip-name" class="tooltip-name">Turkey</span>
       </div>
 
       <!-- Sağ Üst Köşe: Fon Müziği Widget'ı & Ses Butonu & Popup Çalar -->
       <div id="music-player-widget" class="music-player-widget">
-        <button id="btn-audio" class="ui-btn btn-audio-widget" title="Yıldırım Vuruş Sesleri & Konsolu">
-          🔊 Ses
+        <button id="btn-audio" class="ui-btn btn-audio-widget" title="Lightning Acoustic Console">
+          🔊 Sound
         </button>
 
         <!-- Şimşek Ses Konsolu Popup Kartı -->
@@ -465,7 +465,7 @@
               <span class="sfx-icon">⚡</span>
               <span>LIGHTNING AUDIO CONSOLE</span>
             </div>
-            <button id="btn-close-sfx" class="sfx-close-btn" aria-label="Kapat">✕</button>
+            <button id="btn-close-sfx" class="sfx-close-btn" aria-label="Close">✕</button>
           </div>
           <div class="sfx-card-body">
             <!-- Ses Seviyesi Slider -->
@@ -481,7 +481,7 @@
             <div class="sfx-control-group">
               <div class="sfx-label-row">
                 <span class="sfx-label">PROCEDURAL SOUND PROFILE</span>
-                <span id="sfx-active-profile-name" class="sfx-val text-neon-gold">⚡ DİNAMİK</span>
+                <span id="sfx-active-profile-name" class="sfx-val text-neon-gold">⚡ DYNAMIC</span>
               </div>
               <div class="sfx-profiles-grid">
                 <button class="sfx-profile-btn active sfx-btn-dynamic" data-profile="DYNAMIC" title="Akım şiddetine göre otomatik profil değişir (Önerilen)">
@@ -686,26 +686,23 @@
       <footer id="bottom-command-bar" class="bottom-command-bar" role="complementary" aria-label="Seyirci Chat Komutları">
         <div class="bcb-item bcb-title">
           <span class="bcb-icon">🎮</span>
-          <span>Control Camera Via Live Chat</span>
-        </div>
-        <div class="bcb-divider"></div>
-        <div class="bcb-item bcb-syntax">
-          <span class="bcb-label">Usage:</span>
-          <span class="bcb-token">!ulke [ülke ismi]</span>
-          <span class="bcb-or">or</span>
-          <span class="bcb-token">![ülke]</span>
+          <span>Camera Controls:</span>
         </div>
         <div class="bcb-divider"></div>
         <div class="bcb-item bcb-example">
-          <span class="bcb-label">Example:</span>
-          <span class="bcb-pill">!country japan</span>
-          <span class="bcb-comma">,</span>
+          <span class="bcb-label">Type in Chat:</span>
           <span class="bcb-pill">!japan</span>
+          <span class="bcb-pill">!turkey</span>
+          <span class="bcb-pill">!usa</span>
+          <span class="bcb-pill">!brazil</span>
+          <span class="bcb-pill">!germany</span>
+          <span class="bcb-pill">!storm</span>
+          <span class="bcb-pill">!help</span>
         </div>
         <div class="bcb-divider"></div>
         <div class="bcb-item bcb-note">
-          <span class="bcb-warn-icon">⚠️</span>
-          <span>Type Country Name in English.</span>
+          <span class="bcb-warn-icon">🌍</span>
+          <span>Any country in English (!france, !uk, !italy, etc.)</span>
         </div>
       </footer>
     </div>

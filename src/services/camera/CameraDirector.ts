@@ -84,6 +84,7 @@ export class CameraDirector {
 
   // Smart Tour State
   private tourStepIndex: number = 0;
+  private lastPickedScale: ShotScale | null = null;
 
   // Pre-allocated scratch objects (Zero heap allocation in update loop)
   private readonly scratchCurrentPos = new THREE.Vector3();
@@ -396,6 +397,7 @@ export class CameraDirector {
       case 'LOCAL': return 165;
       case 'REGIONAL': return 195;
       case 'CONTINENTAL': return 240;
+      case 'GLOBAL': return 380;
       default: return this.getTargetDistance();
     }
   }
@@ -480,6 +482,11 @@ export class CameraDirector {
   }
 
   public isClusterEligible(cluster: ScoredCluster): boolean {
+    // Viewer requests explicitly commanded by live stream audience bypass automatic filters
+    if (cluster.id && cluster.id.startsWith('viewer-')) {
+      return true;
+    }
+
     const lat = cluster.centroid.latitude;
     const lon = cluster.centroid.longitude;
 
@@ -533,13 +540,31 @@ export class CameraDirector {
     let targetDist = this.calculateFramingDistance(cluster);
 
     if (isOcean) {
-      // In open ocean far from land: avoid wide empty ocean framing, strictly pick VERY_CLOSE (115) or CLOSE (140)
-      targetDist = Math.random() < 0.5 ? SHOT_SCALE_DISTANCES.VERY_CLOSE : SHOT_SCALE_DISTANCES.CLOSE;
+      // In open ocean: avoid wide empty ocean void, strictly alternate between VERY_CLOSE (145) and CLOSE (175)
+      const pickedScale: ShotScale = this.lastPickedScale === 'VERY_CLOSE' ? 'CLOSE' : 'VERY_CLOSE';
+      this.lastPickedScale = pickedScale;
+      targetDist = SHOT_SCALE_DISTANCES[pickedScale];
     } else if (this.filterMatrix.shotScale === 'AUTO_DIVERSITY') {
-      // Dynamic Shot Variety when AUTO_DIVERSITY mode is selected by user
-      const dynamicScales: ShotScale[] = ['VERY_CLOSE', 'CLOSE', 'COUNTRY', 'REGIONAL'];
-      this.tourStepIndex = (this.tourStepIndex + 1) % dynamicScales.length;
-      const pickedScale = dynamicScales[this.tourStepIndex];
+      // Dynamic Shot Variety across ALL 6 scales when AUTO_DIVERSITY mode is selected on land
+      const dynamicScales: ShotScale[] = [
+        'VERY_CLOSE',
+        'CLOSE',
+        'COUNTRY',
+        'REGIONAL',
+        'CONTINENTAL',
+        'ATMOSPHERIC'
+      ];
+      // Contrast Rule: Prevent picking identical or immediately adjacent scales consecutively
+      let candidatePool: ShotScale[];
+      if (this.lastPickedScale === 'VERY_CLOSE' || this.lastPickedScale === 'CLOSE') {
+        candidatePool = ['REGIONAL', 'CONTINENTAL', 'ATMOSPHERIC', 'COUNTRY'];
+      } else if (this.lastPickedScale === 'CONTINENTAL' || this.lastPickedScale === 'ATMOSPHERIC') {
+        candidatePool = ['VERY_CLOSE', 'CLOSE', 'COUNTRY'];
+      } else {
+        candidatePool = dynamicScales.filter((s) => s !== this.lastPickedScale);
+      }
+      const pickedScale = candidatePool[Math.floor(Math.random() * candidatePool.length)] || 'COUNTRY';
+      this.lastPickedScale = pickedScale;
       targetDist = SHOT_SCALE_DISTANCES[pickedScale];
     }
 
@@ -822,7 +847,8 @@ export class CameraDirector {
       // Handshake trigger (400ms before touchdown)
       if (!this.handshakeTriggered && this.phaseElapsedSec >= Math.max(0, this.approachDurationSec - 0.4)) {
         this.handshakeTriggered = true;
-        if (this.activeFlightIntent) {
+        // Master Rule: Only sync satellite pacing arrival if target is an active storm with real strikes
+        if (this.activeFlightIntent && this.activeTargetCluster && (this.activeTargetCluster.eventCount > 0 || (this.activeTargetCluster.events && this.activeTargetCluster.events.length > 0))) {
           StochasticPacingQueue.broadcastArrivalSync(
             this.activeFlightIntent.targetLat,
             this.activeFlightIntent.targetLon,
@@ -836,7 +862,10 @@ export class CameraDirector {
       if (!this.arrivalFlashTriggered && this.phaseElapsedSec >= Math.max(0, this.approachDurationSec - 1.2)) {
         this.arrivalFlashTriggered = true;
         if (this.activeTargetCluster && this.onArrivalFlash) {
-          this.onArrivalFlash(this.activeTargetCluster);
+          // Master Rule: Never trigger arrival flash on calm sky targets (0 strikes) or viewer calm regions
+          if (this.activeTargetCluster.eventCount > 0 || (this.activeTargetCluster.events && this.activeTargetCluster.events.length > 0)) {
+            this.onArrivalFlash(this.activeTargetCluster);
+          }
         }
       }
 

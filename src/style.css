@@ -3296,8 +3296,8 @@ html, body {
    ========================================================================== */
 .viewer-flight-card {
   position: absolute;
-  bottom: 20px;
-  left: 330px; /* Sits next to strike card or telemetry panel */
+  bottom: 84px;
+  left: 24px; /* Floats cleanly in bottom-left above bottom command bar */
   background: rgba(8, 14, 28, 0.94);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(245, 158, 11, 0.4);
@@ -3307,7 +3307,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  z-index: 26;
+  z-index: 995;
   pointer-events: auto;
   user-select: none;
   animation: cardFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);

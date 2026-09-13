@@ -8,6 +8,8 @@
  * - On-demand cached reverse geocoding for city/suburb details
  */
 
+import { GeoIndex } from '../../utils/geoRegions';
+
 export interface GeoLocationResult {
   country: string;
   iso: string;
@@ -129,6 +131,25 @@ export class GeoEnricher {
         rings
       };
     });
+
+    // Seamlessly register all 241 UN-recognized countries into GeoIndex for camera resolution
+    for (let i = 0; i < this.indexedCountries.length; i++) {
+      const c = this.indexedCountries[i];
+      if (!c.name || c.name === 'Unknown') continue;
+      const cLat = (c.bbox[1] + c.bbox[3]) * 0.5;
+      const cLon = (c.bbox[0] + c.bbox[2]) * 0.5;
+      GeoIndex.registerCountry({
+        name: c.name,
+        iso: c.iso,
+        lat: cLat,
+        lon: cLon,
+        minLat: c.bbox[1],
+        maxLat: c.bbox[3],
+        minLon: c.bbox[0],
+        maxLon: c.bbox[2],
+        continent: 'OTHER'
+      });
+    }
   }
 
   /**

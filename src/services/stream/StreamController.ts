@@ -35,10 +35,8 @@ export class StreamController {
     this.wsUrl = options?.wsUrl ?? `ws://${host}:3001`;
     this.onCommandCallback = options?.onCommand;
 
-    if (this.isStreamMode) {
-      this.initHUD();
-      this.connect();
-    }
+    this.initHUD();
+    this.connect();
   }
 
   private initHUD(): void {
@@ -126,9 +124,7 @@ export class StreamController {
     if (this.reconnectTimer) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      if (this.isStreamMode) {
-        this.connect();
-      }
+      this.connect();
     }, 4000);
   }
 

@@ -1242,11 +1242,11 @@ export class UIController {
         <span class="country-flag">${item.flag}</span>
         <div class="country-details">
           <span class="country-name">${item.country}</span>
-          <span class="country-share">%${item.percentage.toFixed(1)} küresel pay</span>
+          <span class="country-share">${item.percentage.toFixed(1)}% global share</span>
         </div>
         <div class="country-stats">
           <span class="strike-count">${item.count.toLocaleString()}</span>
-          <span class="strike-pct">vuruş</span>
+          <span class="strike-pct">strikes</span>
         </div>
       `;
 
@@ -1295,7 +1295,7 @@ export class UIController {
     if (!this.stormListContainer) return;
 
     if (this.currentClusters.length === 0) {
-      this.stormListContainer.innerHTML = '<div class="empty-drawer-msg">Aktif fırtına hücresi tespit edilmedi.</div>';
+      this.stormListContainer.innerHTML = '<div class="empty-drawer-msg">No active storm cells detected.</div>';
       return;
     }
 
@@ -1307,8 +1307,8 @@ export class UIController {
       card.className = `storm-card class-${cluster.presentationClass.toLowerCase()}`;
       card.setAttribute('data-cluster-id', cluster.id);
 
-      const latDir = cluster.centroid.latitude >= 0 ? 'K' : 'G';
-      const lonDir = cluster.centroid.longitude >= 0 ? 'D' : 'B';
+      const latDir = cluster.centroid.latitude >= 0 ? 'N' : 'S';
+      const lonDir = cluster.centroid.longitude >= 0 ? 'E' : 'W';
       const latStr = `${Math.abs(cluster.centroid.latitude).toFixed(1)}°${latDir}`;
       const lonStr = `${Math.abs(cluster.centroid.longitude).toFixed(1)}°${lonDir}`;
 
@@ -1320,8 +1320,8 @@ export class UIController {
         <div class="card-body">
           <div class="card-coords">${latStr}, ${lonStr}</div>
           <div class="card-stats">
-            <span class="stat-item">⚡ ${cluster.eventCount} vuruş</span>
-            <span class="stat-item">⏱ ${Math.round(cluster.strikesPerMinute)} /dk</span>
+            <span class="stat-item">⚡ ${cluster.eventCount} strikes</span>
+            <span class="stat-item">⏱ ${Math.round(cluster.strikesPerMinute)} /min</span>
           </div>
         </div>
       `;
@@ -1354,10 +1354,10 @@ export class UIController {
     // 1. View Mode Button
     if (this.btnViewMode) {
       const isAuto = this.state.viewMode === 'AUTO';
-      this.btnViewMode.textContent = isAuto ? '🤖 OTO MOD' : '🖐️ MANUEL';
+      this.btnViewMode.textContent = isAuto ? '🤖 AUTO' : '🖐️ MANUAL';
       this.btnViewMode.title = isAuto
-        ? 'Kamera Modu: Otomatik Yönetmen (Tıkla: Manuel Serbest Keşfe Geç)'
-        : 'Kamera Modu: Manuel Serbest Keşif (Tıkla: Otomatik Yönetmene Geç)';
+        ? 'Camera Mode: Automatic Director (Click to switch to Manual Exploration)'
+        : 'Camera Mode: Manual Free Exploration (Click to switch to Automatic Director)';
       this.btnViewMode.classList.toggle('mode-auto', isAuto);
       this.btnViewMode.classList.toggle('mode-manual', !isAuto);
     }
@@ -1369,19 +1369,19 @@ export class UIController {
 
     // 3. Reduced Motion Button
     if (this.btnReducedMotion) {
-      this.btnReducedMotion.textContent = this.state.reducedMotion ? 'HAREKET: AZ' : 'HAREKET: NORMAL';
+      this.btnReducedMotion.textContent = this.state.reducedMotion ? 'MOTION: REDUCED' : 'MOTION: NORMAL';
       this.btnReducedMotion.classList.toggle('active', this.state.reducedMotion);
     }
 
     // 4. Audio Button (Phase 14)
     if (this.btnAudio) {
-      this.btnAudio.textContent = this.state.isAudioMuted ? '🔇 Ses' : '🔊 Ses';
+      this.btnAudio.textContent = this.state.isAudioMuted ? '🔇 Sound' : '🔊 Sound';
       this.btnAudio.classList.toggle('active', !this.state.isAudioMuted);
     }
 
     // 5. 24H Trails Button (Phase 18)
     if (this.btnTrails) {
-      this.btnTrails.textContent = '⏳ 24S İz';
+      this.btnTrails.textContent = '⏳ 24H Trails';
       this.btnTrails.classList.toggle('active', this.state.isTrailsEnabled);
     }
 
@@ -1394,18 +1394,18 @@ export class UIController {
     // 7. Feed Mode Switcher Button (FAZ 2)
     if (this.btnFeedMode) {
       if (this.state.multiSourceMode === 'ALL_HYBRID') {
-        this.btnFeedMode.textContent = '📡 Hibrit';
+        this.btnFeedMode.textContent = '📡 Hybrid';
       } else if (this.state.multiSourceMode === 'BLITZORTUNG_ONLY') {
         this.btnFeedMode.textContent = '⚡ Blitz (RF)';
       } else {
-        this.btnFeedMode.textContent = '🛰️ GOES (Uydu)';
+        this.btnFeedMode.textContent = '🛰️ GOES (Satellite)';
       }
       this.btnFeedMode.classList.add('active');
     }
 
     // 8. Atmosphere Convective Layer Button (FAZ 2)
     if (this.btnAtmosphere) {
-      this.btnAtmosphere.textContent = '🌌 Atmosfer';
+      this.btnAtmosphere.textContent = '🌌 Atmosphere';
       this.btnAtmosphere.classList.toggle('active', this.state.isAtmosphereEnabled);
     }
   }
@@ -1580,24 +1580,24 @@ export class UIController {
       this.strikeCurrent.textContent = `⚡ ${telemetry.totalPowerGW.toFixed(2)} GW`;
     }
     if (this.strikePolarity) {
-      this.strikePolarity.textContent = `Fırtına Uyarı Durumu: ${telemetry.warningLevel}`;
+      this.strikePolarity.textContent = `Storm Warning Level: ${telemetry.warningLevel}`;
     }
 
     if (this.strikeTodayCount) {
-      this.strikeTodayCount.textContent = `⚡ ${telemetry.strikeCount} Aktif Vuruş`;
+      this.strikeTodayCount.textContent = `⚡ ${telemetry.strikeCount} Active Strikes`;
     }
 
     if (this.strikeClassBadge) {
       this.strikeClassBadge.className = 'strike-badge';
       if (telemetry.warningLevel === 'CRITICAL') {
         this.strikeClassBadge.classList.add('badge-superbolt');
-        this.strikeClassBadge.textContent = '🔥 KRİTİK';
+        this.strikeClassBadge.textContent = '🔥 CRITICAL';
       } else if (telemetry.warningLevel === 'ELEVATED') {
         this.strikeClassBadge.classList.add('badge-severe');
-        this.strikeClassBadge.textContent = '⚡ YÜKSEK';
+        this.strikeClassBadge.textContent = '⚡ ELEVATED';
       } else {
         this.strikeClassBadge.classList.add('badge-standard');
-        this.strikeClassBadge.textContent = '⚡ AKTİF';
+        this.strikeClassBadge.textContent = '⚡ ACTIVE';
       }
     }
 
@@ -1625,7 +1625,7 @@ export class UIController {
   public updateStrikeLocality(city?: string, region?: string, street?: string): void {
     if (this.strikeCity) {
       const parts = [street, city, region].filter(Boolean);
-      this.strikeCity.textContent = parts.length > 0 ? parts.join(', ') : 'Açık Arazi / Deniz';
+      this.strikeCity.textContent = parts.length > 0 ? parts.join(', ') : 'Open Terrain / Waters';
     }
   }
 
@@ -1655,7 +1655,7 @@ export class UIController {
       const empty = document.createElement('div');
       empty.className = 'dropdown-item';
       empty.style.color = '#64748b';
-      empty.textContent = 'Eşleşen ülke bulunamadı';
+      empty.textContent = 'No matching country found';
       this.countrySearchList.appendChild(empty);
       return;
     }
@@ -1740,7 +1740,7 @@ export class UIController {
       const d = new Date(event.timestamp);
       const timeStr = d.toTimeString().slice(0, 8);
       const kA = typeof event.peakCurrent === 'number' ? Math.round(Math.abs(event.peakCurrent)) : 25;
-      const countryName = country || event.country || 'Uluslararası / Açık Deniz';
+      const countryName = country || event.country || 'International / Open Waters';
       const flagIcon = flag || event.flag || '⚡';
       const typeLabel = event.type ?? 'CG';
 
@@ -1809,7 +1809,7 @@ export class UIController {
     }
     this.pendingFeedItems = [];
     if (!this.liveFeedScroll) return;
-    this.liveFeedScroll.innerHTML = '<div class="empty-feed-msg">Arşiv sıfırlandı. Yeni vuruşlar bekleniyor...</div>';
+    this.liveFeedScroll.innerHTML = '<div class="empty-feed-msg">Feed cleared. Listening for new strikes...</div>';
     this.liveFeedItemsCount = 0;
     if (this.feedCountBadge) {
       this.feedCountBadge.textContent = '0';
@@ -2044,13 +2044,13 @@ export class UIController {
         if (valDistSlider) valDistSlider.textContent = `${SHOT_SCALE_DISTANCES[scale]}u`;
         if (labelScale) {
           const names: Record<ShotScale, string> = {
-            AUTO_DIVERSITY: 'Çekim: Oto Seçim',
-            VERY_CLOSE: 'Çekim: Çok Yakın',
-            CLOSE: 'Çekim: Yakın',
-            COUNTRY: 'Çekim: Ülkesel',
-            REGIONAL: 'Çekim: Bölgesel',
-            CONTINENTAL: 'Çekim: Kıtasal',
-            ATMOSPHERIC: 'Çekim: Atmosferik'
+            AUTO_DIVERSITY: 'Shot: Auto Diversity',
+            VERY_CLOSE: 'Shot: Very Close',
+            CLOSE: 'Shot: Close',
+            COUNTRY: 'Shot: Country',
+            REGIONAL: 'Shot: Regional',
+            CONTINENTAL: 'Shot: Continental',
+            ATMOSPHERIC: 'Shot: Atmospheric'
           };
           labelScale.textContent = names[scale];
         }
@@ -2090,7 +2090,7 @@ export class UIController {
         const lat = parseFloat(item.getAttribute('data-lat') || '0');
         const lon = parseFloat(item.getAttribute('data-lon') || '0');
         const dist = parseFloat(item.getAttribute('data-dist') || '270');
-        const name = item.textContent?.trim() || 'Bölge';
+        const name = item.textContent?.trim() || 'Region';
         closeCameraMegaDropdown();
         if (dist >= 320) {
           this.callbacks.onClassFilterChange?.('ALL');
@@ -2460,7 +2460,7 @@ export class UIController {
       const isFirst = idx === 0;
       const isViewer = item.type === 'VIEWER';
       const flag = item.countryFlag || '🌍';
-      const country = item.countryName || 'Bölgesel Odak';
+      const country = item.countryName || 'Regional Focus';
 
       let typeBadge = '';
       let detailText = '';
@@ -2468,22 +2468,22 @@ export class UIController {
       if (isViewer && item.viewerRequest) {
         typeBadge = `<span class="queue-badge-viewer">👤 @${item.viewerRequest.username}</span>`;
         if (item.viewerRequest.hasStorm) {
-          detailText = `<span class="queue-status-storm">⚡ Aktif Fırtına</span>`;
+          detailText = `<span class="queue-status-storm">⚡ Active Storm</span>`;
         } else {
-          detailText = `<span class="queue-status-calm">🛰️ Sakin Semalar (0 Vuruş)</span>`;
+          detailText = `<span class="queue-status-calm">🛰️ Calm Skies (0 Strikes)</span>`;
         }
       } else {
-        typeBadge = `<span class="queue-badge-natural">⚡ DOĞAL ODAK</span>`;
+        typeBadge = `<span class="queue-badge-natural">⚡ NATURAL FOCUS</span>`;
         const score = item.cluster ? (item.cluster.activityScore * 100).toFixed(0) : '85';
         const strikes = item.cluster ? item.cluster.eventCount : 12;
-        detailText = `<span class="queue-status-score">Aktivite: %${score} • ${strikes} Vuruş</span>`;
+        detailText = `<span class="queue-status-score">Activity: ${score}% • ${strikes} Strikes</span>`;
       }
 
       html += `
         <div class="queue-item ${isFirst ? 'queue-item-first' : ''} ${isViewer ? 'queue-item-viewer' : ''}">
           <div class="queue-col-rank">
             <span class="queue-rank-num">#${idx + 1}</span>
-            ${isFirst ? '<span class="queue-tag-next">SIRADAKİ</span>' : ''}
+            ${isFirst ? '<span class="queue-tag-next">NEXT</span>' : ''}
           </div>
           <div class="queue-col-info">
             <div class="queue-title-row">
@@ -2493,7 +2493,7 @@ export class UIController {
             </div>
             <div class="queue-sub-row">
               ${detailText}
-              <span class="queue-cadence-scale">${item.scale || 'BÖLGESEL'}</span>
+              <span class="queue-cadence-scale">${item.scale || 'REGIONAL'}</span>
             </div>
           </div>
         </div>
@@ -2517,7 +2517,7 @@ export class UIController {
       // Currently actively focusing on a viewer request
       this.viewerFlightCard.classList.remove('hidden');
       if (this.vfcBadge) {
-        this.vfcBadge.textContent = '🎬 CANLI ODAK';
+        this.vfcBadge.textContent = '🎬 LIVE FOCUS';
         this.vfcBadge.className = 'vfc-badge vfc-badge-live';
       }
       if (this.vfcUser) {
@@ -2531,10 +2531,10 @@ export class UIController {
       }
       if (this.vfcStatusBanner) {
         if (currentReq.hasStorm) {
-          this.vfcStatusBanner.textContent = '⚡ Fırtına hücresi inceleniyor';
+          this.vfcStatusBanner.textContent = '⚡ Analyzing storm cell';
           this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-storm';
         } else {
-          this.vfcStatusBanner.textContent = `🛰️ @${currentReq.username}: ${currentReq.countryName} semaları şu an sakin (0 Vuruş)`;
+          this.vfcStatusBanner.textContent = `🛰️ @${currentReq.username}: ${currentReq.countryName} skies are currently calm (0 Strikes)`;
           this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-calm';
         }
       }
@@ -2545,20 +2545,20 @@ export class UIController {
       // Natural storm active, but next in line is a viewer request
       this.viewerFlightCard.classList.remove('hidden');
       if (this.vfcBadge) {
-        this.vfcBadge.textContent = '🎯 SIRADAKİ İSTEK';
+        this.vfcBadge.textContent = '🎯 NEXT TARGET';
         this.vfcBadge.className = 'vfc-badge vfc-badge-upcoming';
       }
       if (this.vfcUser) {
         this.vfcUser.textContent = `@${nextReq.username}`;
       }
       if (this.vfcTargetName) {
-        this.vfcTargetName.textContent = `Hedef: ${nextReq.countryFlag || '🌍'} ${nextReq.countryName}`;
+        this.vfcTargetName.textContent = `Target: ${nextReq.countryFlag || '🌍'} ${nextReq.countryName}`;
       }
       if (this.vfcCountdown) {
         this.vfcCountdown.textContent = `${Math.max(0, Math.ceil(remainingSec))}s`;
       }
       if (this.vfcStatusBanner) {
-        this.vfcStatusBanner.textContent = `Fırtına geçişi sonrası kalkış yapılacak (${nextReq.hasStorm ? 'Aktif Fırtına' : 'Sakin Alan'})`;
+        this.vfcStatusBanner.textContent = `Transitioning after storm passage (${nextReq.hasStorm ? 'Active Storm' : 'Calm Region'})`;
         this.vfcStatusBanner.className = 'vfc-status-banner vfc-status-upcoming';
       }
       return;

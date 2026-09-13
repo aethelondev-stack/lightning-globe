@@ -82,6 +82,21 @@ export class FulguriteTraceLayer implements IUpdatable {
     }
   }
 
+  public static getStrikeRadius(peakCurrent?: number): number {
+    const absKa = Math.abs(peakCurrent ?? 25);
+    if (absKa < 10) {
+      return 0.22;
+    } else if (absKa <= 35) {
+      return 0.32;
+    } else if (absKa < 75) {
+      return 0.44;
+    } else if (absKa < 150) {
+      return 0.58;
+    } else {
+      return 0.76;
+    }
+  }
+
   constructor(config?: FulguriteTraceConfig) {
     // 500,000 strikes capacity for persistent 24h planetary accumulation with zero drop
     this.maxStrikes = config?.maxStrikes ?? 500000;
@@ -163,10 +178,10 @@ export class FulguriteTraceLayer implements IUpdatable {
         varying vec3 vColor;
 
         void main() {
-          // Instant Impact Strike Flash Burst (0 - 0.9s):
+          // Instant Impact Strike Flash Burst (0 - 1.2s):
           float flashBoost = 0.0;
-          if (vAgeSeconds < 0.9) {
-            float flashProg = vAgeSeconds / 0.9;
+          if (vAgeSeconds < 1.2) {
+            float flashProg = vAgeSeconds / 1.2;
             flashBoost = 1.0 - smoothstep(0.0, 1.0, flashProg);
           }
 
@@ -245,20 +260,8 @@ export class FulguriteTraceLayer implements IUpdatable {
     }
     FulguriteTraceLayer.BITANGENT.crossVectors(FulguriteTraceLayer.NORMAL, FulguriteTraceLayer.TANGENT).normalize();
 
-    // Calibrated subtle micro-hairline footprint scaling (0.08u - 0.18u) for crisp elegance
-    const absKa = Math.abs(peakCurrent ?? 25);
-    let r = 0.11;
-    if (absKa < 10) {
-      r = 0.08;
-    } else if (absKa < 35) {
-      r = 0.11;
-    } else if (absKa < 75) {
-      r = 0.13;
-    } else if (absKa < 150) {
-      r = 0.15;
-    } else {
-      r = 0.18;
-    }
+    // Dynamic scientific footprint radius scaling (0.22u - 0.76u) for rich planetary presence
+    const r = FulguriteTraceLayer.getStrikeRadius(peakCurrent);
 
     const strikeOffset = this.writeHead * FulguriteTraceLayer.VERTICES_PER_STRIKE * FulguriteTraceLayer.FLOATS_PER_VERTEX;
     const birthOffset = this.writeHead * FulguriteTraceLayer.VERTICES_PER_STRIKE;
@@ -319,8 +322,7 @@ export class FulguriteTraceLayer implements IUpdatable {
       }
       FulguriteTraceLayer.BITANGENT.crossVectors(FulguriteTraceLayer.NORMAL, FulguriteTraceLayer.TANGENT).normalize();
 
-      const absKa = Math.abs(s.peakCurrent ?? 25);
-      const r = absKa < 10 ? 0.08 : (absKa < 35 ? 0.11 : (absKa < 75 ? 0.13 : (absKa < 150 ? 0.15 : 0.18)));
+      const r = FulguriteTraceLayer.getStrikeRadius(s.peakCurrent);
       const tierColor = FulguriteTraceLayer.getTierColor(s.peakCurrent);
 
       const strikeOffset = i * FulguriteTraceLayer.VERTICES_PER_STRIKE * FulguriteTraceLayer.FLOATS_PER_VERTEX;

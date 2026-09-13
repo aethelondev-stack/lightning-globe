@@ -190,10 +190,16 @@ export class UnifiedStreamProvider implements ILightningProvider {
         return [];
       }
 
-      // Off-thread JSON parsing via Web Worker to guarantee zero UI micro-stutter
-      if (typeof window !== 'undefined' && window.Worker) {
+      let text = '';
+      if (typeof res.text === 'function') {
         try {
-          const text = await res.text();
+          text = await res.text();
+        } catch {}
+      }
+
+      // Off-thread JSON parsing via Web Worker to guarantee zero UI micro-stutter
+      if (text && typeof window !== 'undefined' && window.Worker) {
+        try {
           const normalized = await this.parseWithWorker(text, since);
           if (normalized && normalized.length > 0) {
             return normalized;
@@ -203,7 +209,18 @@ export class UnifiedStreamProvider implements ILightningProvider {
         }
       }
 
-      const json = await res.json();
+      let json: any = null;
+      if (text) {
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          console.warn('[UnifiedStreamProvider] Main thread JSON parse failed:', parseErr);
+        }
+      } else if (typeof res.json === 'function') {
+        try {
+          json = await res.json();
+        } catch {}
+      }
       let strikes = json?.strikes || [];
 
       // If running on local machine and local archive is empty/stale (< 5000 strikes), trigger on-demand VPS sync
@@ -353,7 +370,7 @@ export class UnifiedStreamProvider implements ILightningProvider {
         const timeout = setTimeout(() => {
           worker.terminate();
           reject(new Error('Worker parse timeout'));
-        }, 12000);
+        }, 30000);
 
         worker.onmessage = (e: MessageEvent) => {
           clearTimeout(timeout);

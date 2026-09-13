@@ -114,8 +114,8 @@ export class StormCellRadar implements IUpdatable {
   private readonly cellHitUVArray: Float32Array = new Float32Array(512 * 2);
 
   // 6 Meteorological Storm Classes (Foto 2 Specification Table):
-  // 1. ISOLATED (İzole Çakma: < 5 km, 1-2/dk): Pure Diamond Ice White
-  private static readonly COLOR_ISOLATED = new THREE.Color(0xf8fafc);
+  // 1. ISOLATED (İzole Çakma: < 5 km, 1-2/dk): Radiant Ice White / Electric Cyan Tint
+  private static readonly COLOR_ISOLATED = new THREE.Color(0xbbf2f6);
   public static readonly COLOR_ISOLATED_EDGE = StormCellRadar.COLOR_ISOLATED;
 
   // 2. SINGLE_CELL (Tek Hücre: 15 km, 3-10/dk): Electric Sky Cyan (Vibrant)
@@ -123,23 +123,23 @@ export class StormCellRadar implements IUpdatable {
   public static readonly COLOR_SINGLE_CELL_EDGE = StormCellRadar.COLOR_SINGLE_CELL;
 
   // 3. MULTICELL (Çok Hücre: 40 km, 11-30/dk): Vivid Neon Emerald
-  private static readonly COLOR_MULTICELL = new THREE.Color(0x00ff88);
+  private static readonly COLOR_MULTICELL = new THREE.Color(0x10b981);
   public static readonly COLOR_MULTICELL_EDGE = StormCellRadar.COLOR_MULTICELL;
 
-  // 4. SUPERCELL (Süper Hücre: 60 km, 31-60/dk): Radiant Golden Amber
-  private static readonly COLOR_SUPERCELL = new THREE.Color(0xffb700);
+  // 4. SUPERCELL (Süper Hücre: 60 km, 31-60/dk): Radiant Ruby Plasma Red (Foto 2 Red Tier)
+  private static readonly COLOR_SUPERCELL = new THREE.Color(0xff1744);
   public static readonly COLOR_SUPERCELL_EDGE = StormCellRadar.COLOR_SUPERCELL;
 
-  // 5. MCS (Büyük Fırtına Kümesi: 120 km, 61-100/dk): Deep Ionic Vivid Magenta (Double Stroke)
-  private static readonly COLOR_MCS = new THREE.Color(0xff007f);
+  // 5. MCS (Büyük Fırtına Kümesi: 120 km, 61-100/dk): Deep Royal Electric Violet / Purple
+  private static readonly COLOR_MCS = new THREE.Color(0x8b5cf6);
   public static readonly COLOR_MCS_EDGE = StormCellRadar.COLOR_MCS;
 
-  // 6. SQUALL_LINE (Fırtına Hattı: 250 km, 100+/dk): Ultra-Bright Plasma Red (Double Stroke)
-  private static readonly COLOR_SQUALL_LINE = new THREE.Color(0xff1744);
+  // 6. SQUALL_LINE (Fırtına Hattı: 250 km, 100+/dk): Intense Crimson Blast (Double Stroke)
+  private static readonly COLOR_SQUALL_LINE = new THREE.Color(0xf43f5e);
   public static readonly COLOR_SQUALL_LINE_EDGE = StormCellRadar.COLOR_SQUALL_LINE;
 
-  // 7. EXTREME_OUTBREAK (Süper Fırtına Patlaması: 650 km, 2000+ vuruş): Cosmic Pulsar Violet (Double Stroke)
-  private static readonly COLOR_EXTREME = new THREE.Color(0xd500f9);
+  // 7. EXTREME_OUTBREAK (Süper Fırtına Patlaması: 650 km, 2000+ vuruş): Cosmic Pulsar Magenta / Neon Violet (Double Stroke)
+  private static readonly COLOR_EXTREME = new THREE.Color(0xd946ef);
   public static readonly COLOR_EXTREME_EDGE = StormCellRadar.COLOR_EXTREME;
 
   constructor(globeRadius: number = EngineConfig.globe.radius, camera?: THREE.Camera) {
@@ -576,17 +576,17 @@ export class StormCellRadar implements IUpdatable {
           visualRadius = 2.05; // 100 - 190 km footprint (Excel)
         } else if (stormClass === 'SINGLE_CELL') {
           slot.targetColor.copy(StormCellRadar.COLOR_SINGLE_CELL);
-          visualRadius = 1.35; // 45 - 100 km footprint (Excel)
+          visualRadius = 1.75; // 45 - 100 km footprint
         } else { // ISOLATED
           slot.targetColor.copy(StormCellRadar.COLOR_ISOLATED);
-          visualRadius = 0.70; // < 45 km footprint (Excel)
+          visualRadius = 1.35; // Bold and crystal-clear from planetary orbit
         }
 
         // Dynamic Physical Radial Fit:
         // Decouple visual size from static class tables so concentrated storms (e.g. 850 strikes in 25 km)
-        // do NOT form giant hollow hexagons. Bounded smoothly between 0.65u and the class ceiling.
-        const physicalSpreadU = Math.max(0.65, ((cell.boundingRadiusKm ?? 30) / 6371.0) * this.globeRadius * 1.55);
-        visualRadius = Math.max(0.65, Math.min(visualRadius, physicalSpreadU));
+        // do NOT form giant hollow hexagons. Bounded smoothly between 1.30u and the class ceiling.
+        const physicalSpreadU = Math.max(1.30, ((cell.boundingRadiusKm ?? 30) / 6371.0) * this.globeRadius * 1.55);
+        visualRadius = Math.max(1.30, Math.min(visualRadius, physicalSpreadU));
 
         slot.targetEdgeColor.copy(slot.targetColor); // Always the EXACT same color!
         slot.targetRadius = visualRadius;
@@ -638,10 +638,15 @@ export class StormCellRadar implements IUpdatable {
             radiusKm: cell.boundingRadiusKm,
             strikeCount: cell.strikeCount,
             totalPowerGW,
-            driftSpeedKmH: slot.driftSpeedKmH,
-            driftHeading: slot.driftHeading,
-            warningLevel: cell.warningLevel
-          } as StormCellTelemetry
+            meanIntensityKA: Math.round(Math.abs(cell.meanIntensity)),
+            tier: cell.tier ?? 'BLUE',
+            warningLevel: cell.warningLevel ?? 'NORMAL',
+            stormClass,
+            heading: slot.driftHeading,
+            speedKmH: slot.driftSpeedKmH,
+            firstSeen: cell.firstSeen,
+            lastSeen: cell.lastSeen
+          }
         };
 
         // Opacity based on fadeProgress (rich, vibrant body fill)
@@ -668,6 +673,55 @@ export class StormCellRadar implements IUpdatable {
             this.globeRadius
           );
           slot.targetPos.lerp(midPos, cell.fusionState.progress);
+        }
+      }
+    }
+
+    // 1.5. Render sub-hotspot micro hexagons (7-rosette cores inside large/convective storms)
+    for (let c = 0; c < activeSlice.length; c++) {
+      const cell = activeSlice[c];
+      if (!cell.subHotspots || cell.subHotspots.length === 0) continue;
+
+      for (let h = 0; h < cell.subHotspots.length; h++) {
+        const hotspot = cell.subHotspots[h];
+        let slotIdx = this.hexPool.findIndex((s, idx) => !usedSlotIndices.has(idx) && s.cellId === hotspot.id);
+        if (slotIdx === -1) {
+          slotIdx = this.hexPool.findIndex((s, idx) => !usedSlotIndices.has(idx) && !s.active);
+        }
+        if (slotIdx === -1) break;
+
+        usedSlotIndices.add(slotIdx);
+        const slot = this.hexPool[slotIdx];
+        const isNew = slot.cellId !== hotspot.id;
+        slot.active = true;
+        slot.cellId = hotspot.id;
+        slot.cellData = cell;
+
+        slot.targetColor.setHex(0xf0fdf4); // Radiant diamond core white
+        slot.targetEdgeColor.setHex(0x38bdf8); // Neon electric cyan edge
+        slot.targetRadius = 0.55; // Crisp sub-hex nested inside parent
+        slot.isDoubleStroke = false;
+        slot.stormClass = 'ISOLATED';
+
+        const hotspotPos = latLngToVector3(
+          hotspot.latitude,
+          hotspot.longitude,
+          1.22 / this.globeRadius,
+          this.globeRadius
+        );
+        slot.targetPos.copy(hotspotPos);
+
+        const fade = Math.max(0.20, hotspot.alpha);
+        slot.targetOpacity = 0.20 * fade;
+        slot.targetEdgeOpacity = 0.60 * fade;
+
+        if (slot.currentOpacity <= 0.01 || isNew) {
+          slot.currentPos.copy(hotspotPos);
+          slot.currentRadius = 0.55;
+          slot.currentOpacity = slot.targetOpacity;
+          slot.currentEdgeOpacity = slot.targetEdgeOpacity;
+          slot.currentColor.copy(slot.targetColor);
+          slot.currentEdgeColor.copy(slot.targetEdgeColor);
         }
       }
     }

@@ -520,9 +520,18 @@ function init(): void {
       const currentCoords = vector3ToLatLng(engine.camera.position);
       const currentDist = engine.camera.position.length();
 
+      // Help & System Commands
+      if (cmd === '!help' || cmd === '!commands' || cmd === '!yardim' || cmd === '!info' || cmd === '!komut' || cmd === '!komutlar') {
+        streamController.showToast(payload.user, '🎮 Type ![country] (e.g. !japan, !turkey, !usa, !brazil) or !storm to direct camera!');
+        return;
+      } else if (cmd === '!countries' || cmd === '!ulkeler') {
+        streamController.showToast(payload.user, '🌍 Popular: !japan, !turkey, !usa, !brazil, !germany, !france, !uk, !italy, !spain');
+        return;
+      }
+
       // Audience Interactive Country Targeting (Full AI Automation)
       let requestedCountry: string | null = null;
-      if (cmd === '!turkiye' || cmd === '!turk' || cmd === '!tr' || cmd === '!türkiye') {
+      if (cmd === '!turkiye' || cmd === '!turk' || cmd === '!tr' || cmd === '!türkiye' || cmd === '!turkey') {
         requestedCountry = 'Türkiye';
       } else if (cmd === '!brezilya' || cmd === '!brazil' || cmd === '!br') {
         requestedCountry = 'Brezilya';
@@ -546,6 +555,8 @@ function init(): void {
         requestedCountry = 'Avustralya';
       } else if (cmd.startsWith('!ulke ') || cmd.startsWith('!ülke ') || cmd.startsWith('!country ')) {
         requestedCountry = payload.command.substring(cmd.indexOf(' ') + 1).trim();
+      } else if (cmd.startsWith('!') && !['!firtina', '!storm', '!dunya', '!world', '!oto', '!auto', '!zoom', '!uzaklas', '!out', '!help', '!commands', '!info', '!yardim', '!countries', '!ulkeler'].includes(cmd)) {
+        requestedCountry = payload.command.substring(1).trim();
       }
 
       if (requestedCountry) {
@@ -555,7 +566,7 @@ function init(): void {
           platform: 'kick'
         });
         if (res.success) {
-          const statusNote = res.isCalmSky ? '🛰️ Sakin alan' : '⚡ Aktif fırtına';
+          const statusNote = res.isCalmSky ? '🛰️ Calm Skies' : '⚡ Active Storm';
           streamController.showToast(payload.user, `🎯 @${payload.user} -> ${requestedCountry} (#${res.position} | ${statusNote})`);
         } else {
           streamController.showToast(payload.user, `⚠️ @${payload.user}: ${res.message}`);
@@ -566,23 +577,23 @@ function init(): void {
         if (target) {
           cameraDirector.startCinematicFlight(target);
           const geo = geoEnricher.lookup(target.centroid.latitude, target.centroid.longitude);
-          streamController.showToast(payload.user, `⚡ En aktif fırtınaya (${geo.flag} ${geo.country}) uçuluyor!`);
+          streamController.showToast(payload.user, `⚡ Tracking top storm (${geo.flag} ${geo.country})!`);
         } else {
-          streamController.showToast(payload.user, "⚡ Şu anda fırtına odağı taranıyor...");
+          streamController.showToast(payload.user, "⚡ Scanning for active storm centers...");
         }
       } else if (cmd === '!dunya' || cmd === '!world') {
         cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
         cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, 380);
-        streamController.showToast(payload.user, "🌍 Dünya genel görünümüne geçildi.");
+        streamController.showToast(payload.user, "🌍 Planetary Overview Mode activated.");
       } else if (cmd === '!oto' || cmd === '!auto') {
         cameraDirector.setFilterMatrix({ cameraMode: 'AUTO', autoFollow: true });
-        streamController.showToast(payload.user, "🎥 Otonom sinematik kamera devrede.");
+        streamController.showToast(payload.user, "🎥 Autonomous Cinematic Camera active.");
       } else if (cmd === '!zoom') {
         cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, Math.max(150, currentDist * 0.7));
-        streamController.showToast(payload.user, "🔍 Yakınlaştırıldı.");
+        streamController.showToast(payload.user, "🔍 Zoomed In.");
       } else if (cmd === '!uzaklas' || cmd === '!out') {
         cameraDirector.flyToLocation(currentCoords.lat, currentCoords.lng, Math.min(380, currentDist * 1.4));
-        streamController.showToast(payload.user, "🔭 Uzaklaştırıldı.");
+        streamController.showToast(payload.user, "🔭 Zoomed Out.");
       }
     }
   });
@@ -668,26 +679,21 @@ function init(): void {
     }
   };
 
-  // Arrival-synced flash playback hook: 1.2s before touchdown, trigger focal strike so user witnesses flash & shockwave live
+  // Arrival-synced flash playback hook: 1.2s before touchdown
   cameraDirector.onArrivalFlash = (cluster) => {
-    const lat = cluster.centroid.latitude;
-    const lon = cluster.centroid.longitude;
-    const lastEvent = cluster.events && cluster.events.length > 0 ? cluster.events[cluster.events.length - 1] : null;
-    const arrivalEvent: LightningEvent = {
-      id: `arrival-flash-${cluster.id}-${Date.now()}`,
-      latitude: lat,
-      longitude: lon,
-      timestamp: Date.now(),
-      peakCurrent: lastEvent?.peakCurrent ?? (Math.random() < 0.35 ? 42 : 26),
-      type: lastEvent?.type ?? 'CG',
-      source: lastEvent?.source ?? 'goes16_glm'
-    };
-    lightningRenderer.addEvent(arrivalEvent);
-    const strikePos = latLngToVector3(lat, lon, 0, EngineConfig.globe.radius);
-    // Forced arrival sound: 0ms latency, guaranteed synchronous playback with visual touchdown flash
-    soundDirector.playStrikeSound(arrivalEvent.peakCurrent ?? 45, strikePos, engine.camera.position, undefined, true);
-    globeManager.fulguriteTraceLayer.addStrike(lat, lon, arrivalEvent.timestamp, arrivalEvent.peakCurrent ?? 25);
-    globeManager.stormCellRadar.triggerStrikeImpact(cluster.id, lat, lon, arrivalEvent.peakCurrent ?? 25);
+    // Master Rule (AGENTS.md): Strictly 0% fake/simulated data.
+    // Never fabricate synthetic strikes for calm regions or viewer requests.
+    if (!cluster.events || cluster.events.length === 0 || cluster.eventCount === 0 || cluster.id.startsWith('viewer-')) {
+      return;
+    }
+
+    const lastEvent = cluster.events[cluster.events.length - 1];
+    if (!lastEvent || (Date.now() - lastEvent.timestamp > 15000)) {
+      return; // No fresh real telemetry in this cluster
+    }
+
+    // Highlight radar impact strictly with genuine real telemetry
+    globeManager.stormCellRadar.triggerStrikeImpact(cluster.id, lastEvent.latitude, lastEvent.longitude, lastEvent.peakCurrent ?? 25);
   };
 
   // Interactive Raycasting Strike Selection on Canvas (Phase 17)

@@ -80,10 +80,16 @@ export function viteUnifiedHubPlugin(): Plugin {
       const keyPath = path.resolve(process.cwd(), 'ssh-key-2026-09-10.key');
       if (fs.existsSync(keyPath)) {
         try {
-          execSync('scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json .cache/lightning_24h.json', { timeout: 10000, stdio: 'ignore' });
-          hub.loadFromDiskCache();
-          synced = true;
-          console.log('⚡ [UNIFIED HUB] On-demand sync from Oracle VPS succeeded.');
+          const tmpVps = path.resolve(process.cwd(), '.cache', 'vps_incoming.json');
+          execSync(`scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json "${tmpVps}"`, { timeout: 30000, stdio: 'ignore' });
+          if (fs.existsSync(tmpVps)) {
+            const vpsData = JSON.parse(fs.readFileSync(tmpVps, 'utf8'));
+            hub.mergeStrikesIntoHistory(vpsData?.strikes || []);
+            fs.unlinkSync(tmpVps);
+            hub.saveToDiskCache();
+            synced = true;
+            console.log('⚡ [UNIFIED HUB] On-demand sync & merge from Oracle VPS succeeded.');
+          }
         } catch (e: any) {
           console.warn('⚠️ [UNIFIED HUB] On-demand sync from VPS failed:', e?.message);
         }
@@ -92,6 +98,14 @@ export function viteUnifiedHubPlugin(): Plugin {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'no-cache');
       res.end(JSON.stringify({ status: synced ? 'SYNCED' : 'SKIPPED', cachedCount: hub.getStats().cached24hCount }));
+    });
+
+    // 5. Hot Reload Disk Cache into Hub Memory
+    middlewares.use('/api/lightning/reload-cache', (_req: any, res: any) => {
+      hub.loadFromDiskCache();
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.end(JSON.stringify({ status: 'RELOADED', cachedCount: hub.getStats().cached24hCount }));
     });
 
     console.log('⚡ [UNIFIED HUB] SSE stream mounted at /api/lightning/stream');

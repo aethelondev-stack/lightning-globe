@@ -250,12 +250,58 @@ export class GlobeManager implements IUpdatable {
         this.countryLabelManager.initLabels(countries.features);
         this.globe.labelsData([]);
 
-        // Register loaded countries into GeoIndex for camera filtering
+        // Register loaded countries into GeoIndex with accurate polygon centroids and bounding boxes
         for (const feature of countries.features) {
           const name = feature.properties?.name;
           const iso = feature.properties?.iso_a2;
-          if (name) {
-            GeoIndex.registerCountry({ name, iso, lat: 0, lon: 0 });
+          if (!name) continue;
+
+          // Never overwrite existing calibrated high-fidelity country metadata
+          const existing = GeoIndex.getCountry(name);
+          if (existing && (existing.lat !== 0 || existing.lon !== 0 || existing.minLat !== undefined)) {
+            continue;
+          }
+
+          // Calculate bounding box and centroid from polygon rings
+          let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+          let sumLat = 0, sumLon = 0, ptCount = 0;
+
+          const evalRing = (ring: number[][]) => {
+            if (!ring) return;
+            for (let i = 0; i < ring.length; i++) {
+              const [lon, lat] = ring[i];
+              if (lat < minLat) minLat = lat;
+              if (lat > maxLat) maxLat = lat;
+              if (lon < minLon) minLon = lon;
+              if (lon > maxLon) maxLon = lon;
+              sumLat += lat;
+              sumLon += lon;
+              ptCount++;
+            }
+          };
+
+          if (feature.geometry?.type === 'Polygon' && Array.isArray(feature.geometry.coordinates)) {
+            evalRing(feature.geometry.coordinates[0]);
+          } else if (feature.geometry?.type === 'MultiPolygon' && Array.isArray(feature.geometry.coordinates)) {
+            for (const poly of feature.geometry.coordinates) {
+              if (Array.isArray(poly) && poly[0]) evalRing(poly[0]);
+            }
+          }
+
+          if (ptCount > 0 && (minLat !== 90 && maxLat !== -90)) {
+            const cLat = (minLat + maxLat) * 0.5;
+            const cLon = (minLon + maxLon) * 0.5;
+            GeoIndex.registerCountry({
+              name,
+              iso,
+              lat: cLat,
+              lon: cLon,
+              minLat,
+              maxLat,
+              minLon,
+              maxLon,
+              continent: 'EU'
+            });
           }
         }
 

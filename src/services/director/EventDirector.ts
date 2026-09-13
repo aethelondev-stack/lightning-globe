@@ -6,7 +6,8 @@ import type { CameraFilterMatrix } from '../../types/camera';
 import { classifyMeteorologicalStorm } from '../clustering/StormCellBatcher';
 import { EngineConfig } from '../../core/Config';
 import { haversineDistanceKm } from '../../utils/coordinates';
-import { GeoIndex } from '../../utils/geoRegions';
+import { GeoIndex, POPULAR_COUNTRIES } from '../../utils/geoRegions';
+import { GeoEnricher } from '../geo/GeoEnricher';
 
 export type ContinentCode = 'NA' | 'SA' | 'EU' | 'AF' | 'AS' | 'OC' | 'OTHER';
 
@@ -34,7 +35,7 @@ export const RARE_CONTINENTS: ContinentCode[] = ['EU', 'AS', 'OC', 'AF'];
 export class EventDirector {
   private queue: QueueItem[] = [];
   private viewerQueue: ViewerRequest[] = [];
-  private lastTargetType: 'NATURAL' | 'VIEWER' = 'VIEWER';
+  private lastTargetType: 'NATURAL' | 'VIEWER' = 'NATURAL';
   private currentViewerRequest: ViewerRequest | null = null;
   private history: Map<string, PresentationHistoryEntry> = new Map();
   private currentPresentation: ScoredCluster | null = null;
@@ -240,25 +241,38 @@ export class EventDirector {
       // LRU Continent Recency Penalty: if continent was recently visited, penalize it so camera tours other continents
       const continentRecency = this.recentVisitedContinents.indexOf(cont);
       if (continentRecency !== -1) {
-        // Most recent (0) gets -0.85, 2nd most recent (1) gets -0.60, etc.
-        const penalty = Math.max(0.15, 0.85 - continentRecency * 0.25);
+        // Most recent (0) gets -1.25, 2nd most recent (1) gets -0.85, etc.
+        const penalty = Math.max(0.25, 1.25 - continentRecency * 0.35);
         priority -= penalty;
       } else {
-        // Fresh/unvisited continent gets diversity priority boost (+0.80)
-        priority += 0.80;
+        // Fresh/unvisited continent gets diversity priority boost (+1.10)
+        priority += 1.10;
       }
 
       // Exact storm ID recency penalty
       const targetRecency = this.recentTargetIds.indexOf(cluster.id);
       if (targetRecency !== -1) {
-        priority -= Math.max(0.20, 0.75 - targetRecency * 0.15);
+        priority -= Math.max(0.30, 0.90 - targetRecency * 0.20);
       }
 
-      // 5-second brief observation cadence: penalize immediate same-continent re-visit
+      // Inter-storm spatial separation boost: if far from currently presented storm (>2500 km), give roaming bonus
+      if (this.currentPresentation) {
+        const distFromCurrent = haversineDistanceKm(
+          this.currentPresentation.centroid.latitude,
+          this.currentPresentation.centroid.longitude,
+          cluster.centroid.latitude,
+          cluster.centroid.longitude
+        );
+        if (distFromCurrent >= 2500) {
+          priority += 0.45;
+        }
+      }
+
+      // 8-second observation cadence: penalize immediate same-continent re-visit
       const lastVisit = this.lastContinentVisitTime[cont] ?? 0;
       const elapsed = currentTime - lastVisit;
-      if (elapsed < 5000) {
-        priority -= 0.30;
+      if (elapsed < 8000) {
+        priority -= 0.45;
       }
 
       return { cluster, priority };
@@ -300,22 +314,27 @@ export class EventDirector {
     }
 
     if (this.viewerQueue.length >= 10) {
-      return { success: false, message: 'Kamera istek kuyruğu dolu (10/10). Lütfen 2 dakika sonra deneyin.' };
+      return { success: false, message: 'Camera request queue is full (10/10). Please try again in 2 minutes.' };
     }
 
-    // Resolve country via GeoIndex
+    // Resolve country via POPULAR_COUNTRIES and GeoIndex
     const queryNorm = query.trim().toLowerCase();
     const allCountries = GeoIndex.getCountryList();
-    const matchedCountry = allCountries.find((c) => {
+    const matchedCountry = POPULAR_COUNTRIES.find((c) => {
       if (c.name.toLowerCase() === queryNorm) return true;
       if (c.iso && c.iso.toLowerCase() === queryNorm) return true;
-      // Partial / fuzzy matches for common names
       if (queryNorm === 'türkiye' || queryNorm === 'turkey' || queryNorm === 'tr') return c.iso === 'TR';
-      if (queryNorm === 'abd' || queryNorm === 'usa' || queryNorm === 'amerika') return c.iso === 'US';
+      if (queryNorm === 'abd' || queryNorm === 'usa' || queryNorm === 'amerika' || queryNorm === 'united states') return c.iso === 'US';
       if (queryNorm === 'brezilya' || queryNorm === 'brazil' || queryNorm === 'br') return c.iso === 'BR';
       if (queryNorm === 'japonya' || queryNorm === 'japan' || queryNorm === 'jp') return c.iso === 'JP';
       if (queryNorm === 'almanya' || queryNorm === 'germany' || queryNorm === 'de') return c.iso === 'DE';
-      if (queryNorm === 'ingiltere' || queryNorm === 'uk') return c.iso === 'GB';
+      if (queryNorm === 'ingiltere' || queryNorm === 'uk' || queryNorm === 'united kingdom' || queryNorm === 'gb') return c.iso === 'GB';
+      if (queryNorm === 'kanada' || queryNorm === 'canada' || queryNorm === 'ca') return c.iso === 'CA';
+      if (queryNorm === 'avustralya' || queryNorm === 'australia' || queryNorm === 'au') return c.iso === 'AU';
+      return false;
+    }) || allCountries.find((c) => {
+      if (c.name.toLowerCase() === queryNorm) return true;
+      if (c.iso && c.iso.toLowerCase() === queryNorm) return true;
       return false;
     }) || GeoIndex.getCountry(query);
 
@@ -326,22 +345,53 @@ export class EventDirector {
       const codePoints = countryIso.toUpperCase().split('').map((c) => 127397 + c.charCodeAt(0));
       countryFlag = String.fromCodePoint(...codePoints);
     }
-    const centerLat = matchedCountry?.lat ?? 0;
-    const centerLon = matchedCountry?.lon ?? 0;
+    let centerLat = matchedCountry?.lat ?? 0;
+    let centerLon = matchedCountry?.lon ?? 0;
 
-    // Search for an active storm inside or near country boundaries
+    // Safety fallback: If coordinates resolved to (0, 0) Null Island, check POPULAR_COUNTRIES or GeoEnricher
+    if (centerLat === 0 && centerLon === 0) {
+      const pop = POPULAR_COUNTRIES.find((c) => c.iso === countryIso || c.name.toLowerCase() === queryNorm);
+      if (pop && (pop.lat !== 0 || pop.lon !== 0)) {
+        centerLat = pop.lat;
+        centerLon = pop.lon;
+      } else {
+        try {
+          const enricher = GeoEnricher.getInstance();
+          if (enricher.isReady()) {
+            const eList = enricher.getAllCountriesList();
+            const found = eList.find((c) => c.name.toLowerCase() === queryNorm || (c.iso && c.iso.toLowerCase() === queryNorm));
+            if (found && (found.centroid.lat !== 0 || found.centroid.lon !== 0)) {
+              centerLat = found.centroid.lat;
+              centerLon = found.centroid.lon;
+              if (countryFlag === '🌍' && found.flag) {
+                countryFlag = found.flag;
+              }
+            }
+          }
+        } catch {
+          // Ignored
+        }
+      }
+    }
+
+    // Search for an active storm strictly inside country boundaries
     let bestCluster: ScoredCluster | null = null;
-    for (const cluster of this.lastKnownClusters) {
-      const lat = cluster.centroid.latitude;
-      const lon = cluster.centroid.longitude;
-      const dist = haversineDistanceKm(lat, lon, centerLat, centerLon);
-      const isInside = (matchedCountry?.minLat !== undefined &&
-        lat >= matchedCountry.minLat && lat <= (matchedCountry.maxLat ?? 90) &&
-        lon >= (matchedCountry.minLon ?? -180) && lon <= (matchedCountry.maxLon ?? 180)) || dist < 450;
+    const effectiveCountry = (matchedCountry && matchedCountry.minLat !== undefined)
+      ? matchedCountry
+      : POPULAR_COUNTRIES.find((c) => c.iso === countryIso || c.name.toLowerCase() === queryNorm);
 
-      if (isInside) {
-        if (!bestCluster || cluster.activityScore > bestCluster.activityScore) {
-          bestCluster = cluster;
+    if (effectiveCountry && effectiveCountry.minLat !== undefined) {
+      for (const cluster of this.lastKnownClusters) {
+        const lat = cluster.centroid.latitude;
+        const lon = cluster.centroid.longitude;
+        const isInside = (
+          lat >= effectiveCountry.minLat && lat <= (effectiveCountry.maxLat ?? 90) &&
+          lon >= (effectiveCountry.minLon ?? -180) && lon <= (effectiveCountry.maxLon ?? 180));
+
+        if (isInside) {
+          if (!bestCluster || cluster.activityScore > bestCluster.activityScore) {
+            bestCluster = cluster;
+          }
         }
       }
     }
@@ -354,9 +404,9 @@ export class EventDirector {
       eventCount: 0,
       firstEventTimestamp: currentTime,
       lastEventTimestamp: currentTime,
-      boundingRadiusKm: 250,
+      boundingRadiusKm: 320,
       activityScore: 0.10,
-      presentationClass: 'REGIONAL',
+      presentationClass: 'CONTINENTAL',
       strikesPerMinute: 0,
       growthRate: 1.0,
       breakdown: { rateScore: 0.1, growthScore: 0.1, energyScore: 0.1, clusterSizeScore: 0.1 },
@@ -385,7 +435,7 @@ export class EventDirector {
 
     return {
       success: true,
-      message: `${countryName} kamera kuyruğuna eklendi! (Sıra: ${this.viewerQueue.length})`,
+      message: `${countryName} added to camera queue! (Position: #${this.viewerQueue.length})`,
       position: this.viewerQueue.length,
       isCalmSky: isCalm
     };
@@ -480,6 +530,16 @@ export class EventDirector {
 
       this.presentationCount++;
       this.notifyViewerRequestChange();
+
+      // Interleaved Planetary Overview Slot (every 4th natural presentation):
+      // Elevate presentation class to GLOBAL to give a wide-angle orbital overview of the active hemisphere
+      if (this.presentationCount > 0 && this.presentationCount % 4 === 0 && selected.presentationClass !== 'MACRO') {
+        return {
+          ...selected,
+          presentationClass: 'GLOBAL'
+        };
+      }
+
       return selected;
     }
 

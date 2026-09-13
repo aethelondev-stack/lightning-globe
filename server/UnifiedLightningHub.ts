@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import type { ServerResponse } from 'http';
+import NodeWebSocket from 'ws';
 import type { LightningEvent, LightningSource } from '../src/types/lightning';
 
 export interface HubStats {
@@ -563,8 +564,8 @@ export class UnifiedLightningHub {
         await fs.promises.mkdir(dir, { recursive: true });
       }
 
-      // Prune strikes older than 24 hours and keep memory footprint bounded (max 120,000 strikes)
-      this.pruneStaleHistory(120000);
+      // Prune strikes strictly older than 24 hours (preserves true 24h rolling window without FIFO eviction)
+      this.pruneStaleHistory();
 
       const strikes = Array.from(this.historyMap.values());
       const payload = {
@@ -586,6 +587,26 @@ export class UnifiedLightningHub {
   }
 
   /**
+   * Merges an array or file of strikes into the in-memory history map without dropping existing verified strikes.
+   */
+  public mergeStrikesIntoHistory(strikes: LightningEvent[]): number {
+    if (!strikes || strikes.length === 0) return 0;
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    let added = 0;
+    for (let i = 0; i < strikes.length; i++) {
+      const s = strikes[i];
+      if (s && s.id && s.timestamp >= cutoff && this.isValidStrike(s)) {
+        if (!this.historyMap.has(s.id)) {
+          this.historyMap.set(s.id, s);
+          added++;
+        }
+      }
+    }
+    if (added > 0) this.isCacheDirty = true;
+    return added;
+  }
+
+  /**
    * Loads cached strikes from disk (.cache/lightning_24h.json).
    * Automatically synchronizes from 7/24 Oracle VPS if local PC was off and cache is stale.
    */
@@ -599,8 +620,15 @@ export class UnifiedLightningHub {
         if (isStaleOrMissing) {
           try {
             console.log('🔄 [UnifiedLightningHub] Local 24h cache stale or missing. Auto-syncing from Oracle VPS 7/24 archive...');
-            execSync('scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json .cache/lightning_24h.json', { timeout: 8000, stdio: 'ignore' });
-            console.log('✅ [UnifiedLightningHub] Synced 24h archive from Oracle VPS.');
+            const tmpVpsFile = path.resolve(process.cwd(), '.cache', 'vps_incoming.json');
+            execSync(`scp -o StrictHostKeyChecking=no -i ssh-key-2026-09-10.key ubuntu@130.61.53.100:/home/ubuntu/lightning-globe/.cache/lightning_24h.json "${tmpVpsFile}"`, { timeout: 30000, stdio: 'ignore' });
+            if (fs.existsSync(tmpVpsFile)) {
+              const vpsData = JSON.parse(fs.readFileSync(tmpVpsFile, 'utf8'));
+              const vpsStrikes = vpsData?.strikes || [];
+              const mergedCount = this.mergeStrikesIntoHistory(vpsStrikes);
+              fs.unlinkSync(tmpVpsFile);
+              console.log(`✅ [UnifiedLightningHub] Merged ${mergedCount} strikes from Oracle VPS archive.`);
+            }
           } catch (e: any) {
             console.warn('⚠️ [UnifiedLightningHub] Note on VPS auto-sync:', e?.message);
           }
@@ -616,19 +644,20 @@ export class UnifiedLightningHub {
 
       let loadedCount = 0;
       for (let i = 0; i < strikes.length; i++) {
-        if (loadedCount >= 120000) break;
         const s = strikes[i];
         if (s && s.id && s.timestamp >= cutoff && this.isValidStrike(s)) {
           // NOAA Sector Partitioning: GOES-18 covers West (< -105°), GOES-19 covers East (>= -105°)
           if (s.source === 'goes18_glm' && s.longitude >= -105) continue;
           if ((s.source === 'goes19_glm' || s.source === 'goes16_glm') && s.longitude < -105) continue;
 
-          this.historyMap.set(s.id, s);
-          loadedCount++;
+          if (!this.historyMap.has(s.id)) {
+            this.historyMap.set(s.id, s);
+            loadedCount++;
+          }
         }
       }
 
-      console.log(`📂 [UnifiedLightningHub] Loaded ${loadedCount} real strikes from disk cache.`);
+      console.log(`📂 [UnifiedLightningHub] Total ${this.historyMap.size} real strikes active in 24h history cache.`);
     } catch (err) {
       console.warn('⚠️ [UnifiedLightningHub] Failed to load disk cache:', err);
     }
@@ -695,22 +724,11 @@ export class UnifiedLightningHub {
     this.isCacheDirty = true;
   }
 
-  private pruneStaleHistory(maxRetention: number = 120000): void {
+  private pruneStaleHistory(): void {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     for (const [id, strike] of this.historyMap.entries()) {
       if (strike.timestamp < cutoff) {
         this.historyMap.delete(id);
-      }
-    }
-
-    // Keep memory and JSON serialization bounded
-    if (this.historyMap.size > maxRetention) {
-      const excess = this.historyMap.size - maxRetention;
-      let removed = 0;
-      for (const id of this.historyMap.keys()) {
-        this.historyMap.delete(id);
-        removed++;
-        if (removed >= excess) break;
       }
     }
   }
@@ -734,7 +752,9 @@ export class UnifiedLightningHub {
 
   // --- Blitzortung RF Connector ---
   private connectBlitzortungRf(): void {
-    if (!this.isRunning || typeof WebSocket === 'undefined') return;
+    if (!this.isRunning) return;
+    const WsClass: any = typeof WebSocket !== 'undefined' ? WebSocket : NodeWebSocket;
+    if (!WsClass) return;
 
     const endpoints = [
       'wss://ws1.blitzortung.org',
@@ -745,7 +765,7 @@ export class UnifiedLightningHub {
     const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
 
     try {
-      const socket = new WebSocket(endpoint);
+      const socket = new WsClass(endpoint);
       this.rfSocket = socket;
 
       socket.onopen = () => {

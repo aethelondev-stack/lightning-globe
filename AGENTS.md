@@ -218,4 +218,75 @@ Features:
   `npm run sync:vps`
 - **Yerel Port:** `http://localhost:3005`
 
+## 15. Fırtına Hücreleri (Storm Cell Radar) Renk Matrisi ve Sınıflandırma Mantığı (Kalıcı Hafıza)
+
+- **7 Meteorolojik Fırtına Sınıfı ve Standart Renk Tablosu:**
+  - `ISOLATED` (< 30 vuruş): Buz Beyazı / Kristal Camgöbeği (`#bbf2f6`), yarıçap tabanı 1.35u
+  - `SINGLE_CELL` (30-89 vuruş veya 3+ SPM): Elektrik Mavisi / Sky Cyan (`#00e5ff`), yarıçap tabanı 1.75u
+  - `MULTICELL` (90-219 vuruş veya 8+ SPM): Canlı Zümrüt Yeşili / Emerald (`#10b981`)
+  - `SUPERCELL` (220-499 vuruş veya 22+ SPM): **Saf Plazma Kırmızısı / Ruby Red (`#ff1744`)**
+  - `MCS` (500-999 vuruş veya 45+ SPM): **Asil Elektrik Moru / Deep Violet (`#8b5cf6`)**
+  - `SQUALL_LINE` (1000-1999 vuruş veya 70+ SPM): **Yoğun Kor Kırmızı / Crimson (`#f43f5e`)**
+  - `EXTREME_OUTBREAK` (2000+ vuruş veya 100+ SPM): **Kozmik Parlak Mor / Pulsar Violet (`#d946ef`)**
+- **Canlı Yayın Frekans Sınıflandırması (SPM):**
+  Canlı tamponda (30s pencere) ham toplam vuruş sayısı 220'ye ulaşamayacağı için, sınıflandırma dakikalık konvektif vuruş hızını (`strikesPerMinute`) hesaba katar. Canlı yayında 22+ SPM üreten fırtınalar kırmızı Süper Hücreye, 45+ SPM üretenler mor MCS'ye dönüşür.
+- **Tek Kontur Kuralı:** Tüm petekler `isDoubleStroke: false` ile çizilir (GPU fill-rate ve görsel sadelik testi gereği).
+- **Mikro-Petekler (Sub-Hotspots):** 7-rosette alt-çekirdekler ana hücrenin göbeğinde 0.55u yarıçaplı zarif beyaz/cyan lazer aksanı olarak çizilir, ana peteğin kırmızı/mor rengini bastırmaz.
+
+## 16. Kamera Rejisi ve 6 Ölçekli Çeşitlilik (Kalıcı Hafıza)
+
+- **6 Çekim Ölçeği:**
+  `VERY_CLOSE (145)`, `CLOSE (175)`, `COUNTRY (220)`, `REGIONAL (195-260)`, `CONTINENTAL (240-310)`, `ATMOSPHERIC / GLOBAL (380)`.
+- **Kontrastlı Seçim Kuralı:** Art arda aynı veya yakın iki ölçek seçilmez (`lastPickedScale` hafızası).
+- **Gezegen Devriyesi (Interleaved Planetary Overview):** Her 4 doğal fırtına sunumunda 1 kez reji otomatik olarak `GLOBAL (380)` atmosferik yörüngeye yükselerek kıtalar arası sakin bir ufuk turu atar; aynı 2 bölge arasındaki mekik dokumayı kırar.
+- **Kıta Çeşitlilik Bonusu:** Son ziyaret edilen kıtaya -1.25 ceza, taze kıtalara +1.10 bonus, 2500+ km uzaktaki sistemlere +0.45 gezinti bonusu uygulanır.
+
+## 17. Veri Akışı ve Çoklu Sensör Entegrasyonu (Kalıcı Hafıza)
+
+- **Sensör Kaynakları ve Rolleri:**
+  - `Blitzortung (RF)`: Küresel yer istasyonları ağı; anlık, nanasaniye hassasiyetinde yer vuruşları (CG/IC). Anında (0ms) render kuyruğuna alınır.
+  - `NOAA GOES-16 & GOES-18 GLM`: Geostationary hava uyduları; Amerika ve Pasifik optik flaş telemetrisi. AWS S3 açık veri havuzundan `h5wasm` NetCDF-4 motoruyla çözülür.
+  - `EUMETSAT MTG-LI`: Avrupa ve Afrika yıldırım görüntüleyici uydu verisi.
+  - `Bölgesel Ağlar`: Singapur NEA, Japonya JMA, Finlandiya FMI resmi meteoroloji yayınları.
+- **Çapraz Sensör Eşleştirme ve Mükerrer Eleme (Deduplication):**
+  - Kriter: Zaman farkı $\Delta t \le 1200\text{ ms}$ ve mesafe $\Delta r \le 18\text{ km}$ ($0.20^\circ$ uzamsal ızgara).
+  - RF ve optik flaş aynı anda yakalandığında tekil hibrit (`hybrid`) vuruşa dönüştürülür; çift vuruş patlaması engellenir.
+- **24 Saatlik Bellek & Disk Arşivi:**
+  - Hem yerelde hem Oracle VPS'te `.cache/lightning_24h.json` dosyasında gerçek 24 saatlik telemetri saklanır.
+  - Sabit FIFO kesme kaldırılmıştır; yalnızca 24 saatten eski (`timestamp < 24h`) veriler elenir. Uydular yer istasyonlarını (Avrupa/Asya) bellekten silemez.
+
+## 18. Ses ve Görsel Efekt Motoru (VFX & Procedural Audio)
+
+- **Prosedürel 3D Akustik (`SoundDirector.ts`):**
+  - Şimşeğin uzaklığına ve enerjisine (kA) göre fiziksel ses gecikmesi ($v \approx 343\text{ m/s}$ analog ölçekleme), bas rezonansı ve stereo panlama hesaplanır.
+- **Ambiyans Müzik Çalar (`BackgroundMusicPlayer.ts`):**
+  - Creative Commons (CC BY) lisanslı Stellardrone, Scott Buckley ve Kai Engel parçalarını kesintisiz ve yumuşak geçişle (cross-fade) çalar.
+- **Fulgurit 24 Saatlik İz Katmanı (`FulguriteTraceLayer.ts`):**
+  - 500.000 kalıcı iz kapasitesi, 5 yoğunluk rengi ve parçalı şeffaflık sönümleme tablosu (piecewise opacity decay).
+- **Güneş Işığı Çizgisi (Solar Terminator & Glow):**
+  - Gerçek astronomik güneş konumu hesabı (`src/utils/sun.ts`), gece şehir ışıkları ve atmosferik Fresnel ufuk ışıması (AtmosphereGlow).
+
+## 19. OBS Studio ve Yayın Optimizasyonu Rehberi
+
+- **Yerel Önizleme Adresi:** `http://localhost:3005`
+- **OBS Tarayıcı Kaynağı:**
+  - Genişlik: 1920, Yükseklik: 1080.
+  - OBS ayarlarında "Donanım Hızlandırması" (Browser Hardware Acceleration) açık tutulmalıdır.
+  - Sayfa yenilemek için: Kaynağa sağ tık -> *Refresh cache of current page*.
+- **Bilgisayar Yükünü Düşürme:**
+  - OBS önizleme ekranına sağ tıklayıp *Önizlemeyi Devre Dışı Bırak* (Disable Preview) seçilirse GPU/CPU yükü %30-50 azalır.
+  - Kullanılmayan YouTube Chat/Panel Dock pencereleri kapatıldığında ~400 MB RAM tasarrufu sağlanır.
+- **Yayın Stabilitesi:**
+  - Wi-Fi dalgalanmalarına karşı OBS Gelişmiş Ağ Ayarları'nda "Dinamik Bit Hızı" aktif tutulmalı, 6500 kbps CBR tercih edilmelidir.
+
+## 20. Kritik Komutlar ve İş Akışı Referansı
+
+- **Yerel Canlı Başlatıcı:** `CANLI_SIMSEK_BASLAT.bat` (Vite, VPS sync ve OBS kontrolünü tek tıkla yapar)
+- **Manuel Dev Sunucusu:** `npx vite --port 3005`
+- **Birim & Regresyon Testleri:** `npm test` (109 test, kesinlikle yeşil kalmalıdır)
+- **Üretim Derlemesi:** `npm run build` (`tsc && vite build`)
+- **VPS Veri Senkronizasyonu:** `npm run sync:vps`
+- **VPS PM2 Durumu:** `ssh -i "ssh-key-2026-09-10.key" ubuntu@130.61.53.100 "pm2 status"`
+- **VPS Yeniden Başlatma:** `ssh -i "ssh-key-2026-09-10.key" ubuntu@130.61.53.100 "pm2 restart lightning-vite"`
+
 
