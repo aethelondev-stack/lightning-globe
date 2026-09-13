@@ -587,12 +587,26 @@ function init(): void {
     }
   });
 
-  // Autoplay music and enable sound in broadcast mode
-  const isBroadcastMode = new URLSearchParams(window.location.search).has('broadcast') || new URLSearchParams(window.location.search).has('stream');
-  if (isBroadcastMode) {
+  // 17. Automatic Audio Activation (Procedural Thunder SFX & Ambient Music)
+  const activateAudio = () => {
     soundDirector.setMuted(false);
+    uiController.setAudioMuted(false);
     bgMusicPlayer.play();
-  }
+  };
+
+  // Immediate start (OBS Browser Source / Unrestricted environments)
+  activateAudio();
+
+  // One-time user gesture unlock for standard browsers requiring initial interaction
+  const onUserGesture = () => {
+    activateAudio();
+    window.removeEventListener('pointerdown', onUserGesture);
+    window.removeEventListener('keydown', onUserGesture);
+    window.removeEventListener('touchstart', onUserGesture);
+  };
+  window.addEventListener('pointerdown', onUserGesture, { passive: true });
+  window.addEventListener('keydown', onUserGesture, { passive: true });
+  window.addEventListener('touchstart', onUserGesture, { passive: true });
 
   // Connect Camera Director target provider from Event Director (only active if autoFollow is explicitly enabled)
   cameraDirector.setTargetProvider(() => {

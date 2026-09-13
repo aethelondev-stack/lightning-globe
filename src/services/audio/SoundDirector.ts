@@ -155,6 +155,9 @@ export class SoundDirector {
         try {
           this.audioCtx = new AudioContextClass();
           this.setupOutputChain(this.audioCtx);
+          if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume().catch(() => {});
+          }
         } catch (err) {
           console.warn('Unable to initialize Web Audio AudioContext:', err);
         }
