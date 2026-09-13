@@ -239,6 +239,7 @@ test('StormCellRadar: Master & Per-Tier Opacity Controls and Single Stroke Verif
     centroid: { latitude: 25, longitude: -80 },
     boundingRadiusKm: 60,
     strikeCount: 45,
+    events: [],
     tier: 'RED',
     firstSeen: Date.now() - 15000,
     lastSeen: Date.now(),
