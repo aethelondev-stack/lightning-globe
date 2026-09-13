@@ -190,6 +190,19 @@ export class UnifiedStreamProvider implements ILightningProvider {
         return [];
       }
 
+      // Off-thread JSON parsing via Web Worker to guarantee zero UI micro-stutter
+      if (typeof window !== 'undefined' && window.Worker) {
+        try {
+          const text = await res.text();
+          const normalized = await this.parseWithWorker(text, since);
+          if (normalized && normalized.length > 0) {
+            return normalized;
+          }
+        } catch (workerErr) {
+          console.warn('[UnifiedStreamProvider] Worker parse fallback to main thread:', workerErr);
+        }
+      }
+
       const json = await res.json();
       let strikes = json?.strikes || [];
 
@@ -323,5 +336,66 @@ export class UnifiedStreamProvider implements ILightningProvider {
       this.recentTimestamps = this.recentTimestamps.filter(t => t >= cutoff);
       this.currentEventsPerSec = this.recentTimestamps.length;
     }, 500);
+  }
+
+  /**
+   * Spawns lightningDataWorker off-thread to decode JSON archives without main thread jitter.
+   */
+  private async parseWithWorker(jsonText: string, since: number = 0): Promise<LightningEvent[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const worker = new Worker(
+          new URL('../../workers/lightningDataWorker.ts', import.meta.url),
+          { type: 'module' }
+        );
+
+        const reqId = `worker-${Date.now()}`;
+        const timeout = setTimeout(() => {
+          worker.terminate();
+          reject(new Error('Worker parse timeout'));
+        }, 12000);
+
+        worker.onmessage = (e: MessageEvent) => {
+          clearTimeout(timeout);
+          worker.terminate();
+
+          if (e.data?.type === 'PARSE_COMPLETE' && Array.isArray(e.data.strikes)) {
+            const rawStrikes = e.data.strikes;
+            const events: LightningEvent[] = [];
+            for (let i = 0; i < rawStrikes.length; i++) {
+              const s = rawStrikes[i];
+              events.push({
+                id: s.id,
+                latitude: s.lat,
+                longitude: s.lon,
+                timestamp: s.time,
+                peakCurrent: s.ka,
+                type: s.type,
+                source: s.src as any
+              });
+            }
+            console.log(`⚡ [UnifiedStreamProvider] Worker decoded ${events.length} strikes in ${Math.round(e.data.durationMs)}ms with zero UI micro-stutter.`);
+            resolve(events);
+          } else {
+            reject(new Error(e.data?.error || 'Unknown worker error'));
+          }
+        };
+
+        worker.onerror = (err) => {
+          clearTimeout(timeout);
+          worker.terminate();
+          reject(err);
+        };
+
+        worker.postMessage({
+          type: 'PARSE_ARCHIVE',
+          id: reqId,
+          jsonString: jsonText,
+          since
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 }

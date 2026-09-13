@@ -83,8 +83,8 @@ export class FulguriteTraceLayer implements IUpdatable {
   }
 
   constructor(config?: FulguriteTraceConfig) {
-    // 120,000 strikes capacity for persistent 24h planetary accumulation with zero drop
-    this.maxStrikes = config?.maxStrikes ?? 120000;
+    // 500,000 strikes capacity for persistent 24h planetary accumulation with zero drop
+    this.maxStrikes = config?.maxStrikes ?? 500000;
     // Elevate above country landmass polygons (100.35u) and borders (100.60u) to guarantee 0% occlusion at grazing angles
     this.globeRadius = (config?.globeRadius ?? EngineConfig.globe.radius) + 0.92;
     this.currentDayKey = new Date().toISOString().slice(0, 10);

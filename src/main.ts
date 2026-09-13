@@ -233,8 +233,8 @@ function init(): void {
       }
 
       if (strikesToRender.length > 0) {
-        // Hydrate up to FulguriteTraceLayer's 120,000 strike capacity (eliminates artificial 4000 strike cutoff)
-        const maxCapacity = globeManager.fulguriteTraceLayer.maxStrikes ?? 120000;
+        // Hydrate up to FulguriteTraceLayer's 500,000 strike capacity (eliminates artificial cutoff)
+        const maxCapacity = globeManager.fulguriteTraceLayer.maxStrikes ?? 500000;
         const visualStrikes = strikesToRender.length > maxCapacity
           ? strikesToRender.slice(-maxCapacity)
           : strikesToRender;

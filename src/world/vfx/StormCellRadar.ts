@@ -75,7 +75,7 @@ export class StormCellRadar implements IUpdatable {
   private camera: THREE.Camera | null = null;
   private readonly globeRadius: number;
   private readonly hexPool: HexagonSlot[] = [];
-  private readonly maxCells: number = 128;
+  private readonly maxCells: number = 512;
 
   private isEnabled: boolean = true;
   private globalOpacity: number = 1.0; // Master overall multiplier (hem dış hem iç aynı anda)
@@ -109,9 +109,9 @@ export class StormCellRadar implements IUpdatable {
 
   public readonly instancedHexMesh!: THREE.InstancedMesh;
   private readonly sharedScanlineMat!: THREE.ShaderMaterial;
-  private readonly cellColorsArray: Float32Array = new Float32Array(128 * 3);
-  private readonly cellParamsArray: Float32Array = new Float32Array(128 * 4);
-  private readonly cellHitUVArray: Float32Array = new Float32Array(128 * 2);
+  private readonly cellColorsArray: Float32Array = new Float32Array(512 * 3);
+  private readonly cellParamsArray: Float32Array = new Float32Array(512 * 4);
+  private readonly cellHitUVArray: Float32Array = new Float32Array(512 * 2);
 
   // 6 Meteorological Storm Classes (Foto 2 Specification Table):
   // 1. ISOLATED (İzole Çakma: < 5 km, 1-2/dk): Pure Diamond Ice White
@@ -191,6 +191,12 @@ export class StormCellRadar implements IUpdatable {
         varying vec2 vStrikeHitUV;
 
         void main() {
+          // Hardware Vertex-Stage Culling: if cell opacity is 0, clip vertex entirely to save rasterization fill-rate
+          if (aCellParams.y <= 0.0001 && aCellParams.x <= 0.0001) {
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            return;
+          }
+
           vUv = uv;
           vColor = aCellColor;
           vBorderOpacity = aCellParams.x;
