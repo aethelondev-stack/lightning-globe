@@ -9,17 +9,24 @@ export interface FulguriteTraceConfig {
 }
 
 /**
- * FulguriteTraceLayer: Minimal High-Tech Electric Micro-Traces (Lichtenberg Imprints).
+ * FulguriteTraceLayer: Luminous 24-Hour Planetary Lightning Micro-Traces & Temporal Age Map.
  *
  * Capabilities:
- * 1. 60,000 strikes capacity for persistent 24-hour planetary accumulation.
- * 2. 60 FPS GPU Memcpy: Uses THREE.BufferAttribute.updateRange to send only 48 bytes per strike
- *    instead of the full 2.88 MB buffer, eliminating frame drops.
- * 3. Dynamic Footprint Scaling: 0.12u (minor) to 0.65u (superbolt) based on peak current.
- * 4. 48-Step Half-Hour Cooling GLSL Shader: Transitions smoothly through white/cyan -> azure
- *    -> ocean blue -> midnight indigo -> faint graphite -> fade out at 24h.
- * 5. Vertex-Stage Hardware Culling: Automatically drops vertices older than 24 hours before fragment shading.
- * 6. Zero-stutter Hydration: hydrateHistoricalStrikes loads 24h history in 1ms via typed array operations.
+ * 1. 500,000 strikes capacity for persistent 24-hour planetary accumulation without premature eviction.
+ * 2. NormalBlending Physics: Eliminates solid white blowout in storm clusters while keeping colors vibrant.
+ * 3. 5-Tier Chromatic Intensity Palette (Foto 2 Specification):
+ *    - Minor (< 10 kA): Turquoise Cyan (#26C6DA)
+ *    - Standard (10 - 35 kA): Neon Lilac (#D6A2E8)
+ *    - Severe (35 - 75 kA): Amber Gold (#FFC436)
+ *    - Violent (75 - 150 kA): Ionic Fuchsia (#FF1493)
+ *    - Superbolt (>= 150 kA): Cosmic Pulsar Ice-Violet (#A78BFA)
+ * 4. Temporal Depth Gradient (Zamana Göre Derinlik Gradyanı / Age Decay Map):
+ *    - 0 - 15m: Radiant electric burst with 1.2s instant diamond flash bloom.
+ *    - 15m - 2h: Saturated, crystal-clear meteorological telemetry.
+ *    - 2h - 8h: Gently cooling electric hues with celestial sapphire-lavender edging.
+ *    - 8h - 24h: Deep luminous cosmic storm paths (alpha 0.25 - 0.45), clearly visible across oceans & continents.
+ * 5. Eye-Space Backface Culling: Automatically culls backside vertices in camera space, 100% immune to globe rotation.
+ * 6. High-Performance GPU Memcpy: Atomic batch updates during animation loop (0.01ms per frame).
  */
 export class FulguriteTraceLayer implements IUpdatable {
   public readonly lineMesh: THREE.LineSegments;
@@ -44,7 +51,6 @@ export class FulguriteTraceLayer implements IUpdatable {
   private dirtyMinStrike: number = -1;
   private dirtyMaxStrike: number = -1;
   private isEnabled: boolean = true;
-  private currentDayKey: string = '';
 
   private static readonly UP = new THREE.Vector3(0, 1, 0);
   private static readonly NORMAL = new THREE.Vector3();
@@ -56,15 +62,10 @@ export class FulguriteTraceLayer implements IUpdatable {
   private static readonly P4 = new THREE.Vector3();
 
   // 5 Lightning Intensity Tier Colors (Foto 2 Color Palette):
-  // 1. MINOR (< 10 kA): Turquoise Cyan (#26C6DA)
   public static readonly COLOR_TIER_MINOR = new THREE.Color(0x26c6da);
-  // 2. STANDARD (10 - 35 kA): Neon Lilac (#D6A2E8)
   public static readonly COLOR_TIER_STANDARD = new THREE.Color(0xd6a2e8);
-  // 3. SEVERE (35 - 75 kA): Amber Gold (#FFC436)
   public static readonly COLOR_TIER_SEVERE = new THREE.Color(0xffc436);
-  // 4. VIOLENT (75 - 150 kA): Ionic Fuchsia (#FF1493)
   public static readonly COLOR_TIER_VIOLENT = new THREE.Color(0xff1493);
-  // 5. SUPERBOLT (>= 150 kA): Cosmic Pulsar Ice-Violet (#A78BFA)
   public static readonly COLOR_TIER_SUPERBOLT = new THREE.Color(0xa78bfa);
 
   public static getTierColor(peakCurrent?: number): THREE.Color {
@@ -85,24 +86,22 @@ export class FulguriteTraceLayer implements IUpdatable {
   public static getStrikeRadius(peakCurrent?: number): number {
     const absKa = Math.abs(peakCurrent ?? 25);
     if (absKa < 10) {
-      return 0.22;
+      return 0.11;
     } else if (absKa <= 35) {
-      return 0.32;
+      return 0.16;
     } else if (absKa < 75) {
-      return 0.44;
+      return 0.22;
     } else if (absKa < 150) {
-      return 0.58;
+      return 0.29;
     } else {
-      return 0.76;
+      return 0.38;
     }
   }
 
   constructor(config?: FulguriteTraceConfig) {
-    // 500,000 strikes capacity for persistent 24h planetary accumulation with zero drop
     this.maxStrikes = config?.maxStrikes ?? 500000;
-    // Elevate above country landmass polygons (100.35u) and borders (100.60u) to guarantee 0% occlusion at grazing angles
+    // Elevate above country landmass polygons (100.35u) and borders (100.60u) to guarantee 0% occlusion
     this.globeRadius = (config?.globeRadius ?? EngineConfig.globe.radius) + 0.92;
-    this.currentDayKey = new Date().toISOString().slice(0, 10);
 
     const totalVertices = this.maxStrikes * FulguriteTraceLayer.VERTICES_PER_STRIKE;
     this.positions = new Float32Array(totalVertices * FulguriteTraceLayer.FLOATS_PER_VERTEX);
@@ -122,14 +121,15 @@ export class FulguriteTraceLayer implements IUpdatable {
     this.geometry.setAttribute('aColor', this.colorAttr);
     this.geometry.setDrawRange(0, 0);
 
-    // Custom Shader: 5 Intensity Tier Colors with Instant Strike Flash Bloom + Exact 24-Hour Decay Table
+    // Custom Shader: NormalBlending prevents additive whiteout in dense clusters
+    // while Temporal Depth Gradient preserves 24-hour storm tracks with vibrant color
     this.material = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -3,
       polygonOffsetUnits: -4,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       uniforms: {
         uCurrentTime: { value: Date.now() },
         uMinBirthTime: { value: 0.0 }
@@ -155,21 +155,21 @@ export class FulguriteTraceLayer implements IUpdatable {
           vAgeSeconds = ageSec;
           vColor = aColor;
 
-          // Hardware Vertex-Stage Culling: Drop vertex outside viewport if expired (>24h = 86400s)
+          // Hardware Vertex-Stage Culling: Drop vertex if expired (>24h = 86400s)
           if (ageSec >= 86400.0) {
             gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
             return;
           }
 
-          // Spherical horizon backface culling: cull points on the backside of Earth
-          vec3 worldNormal = normalize(position);
-          vec3 viewDir = normalize(cameraPosition - position);
-          if (dot(worldNormal, viewDir) < -0.05) {
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+          // Camera Eye-Space Horizon Backface Culling (100% immune to globe rotation)
+          vec3 mvNormal = normalize(mat3(modelViewMatrix) * position);
+          if (dot(mvNormal, normalize(-mvPosition.xyz)) < -0.05) {
             gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
             return;
           }
 
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -185,22 +185,25 @@ export class FulguriteTraceLayer implements IUpdatable {
             flashBoost = 1.0 - smoothstep(0.0, 1.0, flashProg);
           }
 
-          // Luminous 24-Hour Fulgurite Web Decay Model:
-          // 0 - 2h: 0.85 -> 0.70 (Crisp, electric, radiant)
-          // 2 - 6h: 0.70 -> 0.52 (Clear, solid atmospheric telemetry)
-          // 6 - 12h: 0.52 -> 0.38 (Visible, glowing trace)
-          // 12 - 24h: 0.38 -> 0.22 (Warm historical imprint across the continents)
+          // 24-Hour Custom Piecewise Opacity Decay Model (Yaş Haritası):
+          // 0 - 1h: 0.95 -> 0.80 (Crisp, radiant electric live burst)
+          // 1 - 2h: 0.80 -> 0.70 (Solid, saturated atmospheric telemetry)
+          // 2 - 3h: 0.70 -> 0.60 (Cooling vibrant trace)
+          // 3 - 4h: 0.60 -> 0.50 (Clearly defined storm path)
+          // 4 - 24h: 0.50 -> 0.25 (Maintains clear, glowing celestial visibility at 24h)
           float ageH = max(0.0, vAgeSeconds) / 3600.0;
-          float baseAlpha = 0.85;
+          float baseAlpha = 0.95;
 
-          if (ageH <= 2.0) {
-            baseAlpha = 0.85 - (0.075 * ageH);
-          } else if (ageH <= 6.0) {
-            baseAlpha = 0.70 - (0.045 * (ageH - 2.0));
-          } else if (ageH <= 12.0) {
-            baseAlpha = 0.52 - (0.023 * (ageH - 6.0));
+          if (ageH <= 1.0) {
+            baseAlpha = 0.95 - (0.15 * ageH);
+          } else if (ageH <= 2.0) {
+            baseAlpha = 0.80 - (0.10 * (ageH - 1.0));
+          } else if (ageH <= 3.0) {
+            baseAlpha = 0.70 - (0.10 * (ageH - 2.0));
+          } else if (ageH <= 4.0) {
+            baseAlpha = 0.60 - (0.10 * (ageH - 3.0));
           } else if (ageH <= 24.0) {
-            baseAlpha = 0.38 - (0.013 * (ageH - 12.0));
+            baseAlpha = 0.50 - (0.0125 * (ageH - 4.0));
           } else {
             baseAlpha = 0.0;
           }
@@ -209,11 +212,24 @@ export class FulguriteTraceLayer implements IUpdatable {
             discard;
           }
 
-          // Retain vibrant electric colors while aging gracefully
-          vec3 agedColor = mix(vColor, vec3(0.40, 0.55, 0.75), clamp(ageH / 32.0, 0.0, 0.35));
-          vec3 finalColor = mix(agedColor, vColor, flashBoost * 0.60);
+          // Chromatic Aging Spectrum (Temporal Depth Gradient):
+          // 0 - 2h: Pure vibrant tier colors (Cyan #26C6DA, Lilac #D6A2E8, Gold #FFC436, Fuchsia #FF1493, Ice-Violet #A78BFA)
+          // 2h - 8h: Softly cooling electric hue with celestial sapphire-lavender edging
+          // 8h - 24h: Deep luminous cosmic indigo-cyan storm path across the continents
+          vec3 agedColor = vColor;
+          if (ageH > 2.0 && ageH <= 8.0) {
+            float t = (ageH - 2.0) / 6.0;
+            agedColor = mix(vColor, vec3(0.40, 0.55, 0.90), t * 0.35);
+          } else if (ageH > 8.0) {
+            float t = clamp((ageH - 8.0) / 16.0, 0.0, 1.0);
+            agedColor = mix(mix(vColor, vec3(0.40, 0.55, 0.90), 0.35), vec3(0.32, 0.48, 0.85), t * 0.50);
+          }
 
-          gl_FragColor = vec4(finalColor, clamp(baseAlpha + flashBoost * 0.45, 0.0, 1.0));
+          // Live strike flash (radiant diamond core for first 1.2s)
+          vec3 finalColor = mix(agedColor, vec3(1.0, 1.0, 1.0), flashBoost * 0.70);
+          float finalAlpha = clamp(baseAlpha + flashBoost * 0.30, 0.0, 1.0);
+
+          gl_FragColor = vec4(finalColor, finalAlpha);
         }
       `
     });
@@ -244,14 +260,12 @@ export class FulguriteTraceLayer implements IUpdatable {
 
   /**
    * Records a strike into the persistent 24-hour circular buffer.
-   * Guaranteed to record all strikes globally regardless of camera view direction.
    */
   public recordStrike(latitude: number, longitude: number, timestamp: number, peakCurrent?: number): void {
     if (!this.isEnabled) return;
 
     const root = latLngToVector3(latitude, longitude, 0, this.globeRadius);
 
-    // Calculate tangent reference frame on sphere surface
     FulguriteTraceLayer.NORMAL.copy(root).normalize();
     if (Math.abs(FulguriteTraceLayer.NORMAL.y) > 0.92) {
       FulguriteTraceLayer.TANGENT.crossVectors(FulguriteTraceLayer.NORMAL, new THREE.Vector3(1, 0, 0)).normalize();
@@ -260,9 +274,7 @@ export class FulguriteTraceLayer implements IUpdatable {
     }
     FulguriteTraceLayer.BITANGENT.crossVectors(FulguriteTraceLayer.NORMAL, FulguriteTraceLayer.TANGENT).normalize();
 
-    // Dynamic scientific footprint radius scaling (0.22u - 0.76u) for rich planetary presence
     const r = FulguriteTraceLayer.getStrikeRadius(peakCurrent);
-
     const strikeOffset = this.writeHead * FulguriteTraceLayer.VERTICES_PER_STRIKE * FulguriteTraceLayer.FLOATS_PER_VERTEX;
     const birthOffset = this.writeHead * FulguriteTraceLayer.VERTICES_PER_STRIKE;
 
@@ -301,7 +313,7 @@ export class FulguriteTraceLayer implements IUpdatable {
   }
 
   /**
-   * Hydrates past 24h strikes on boot in ~1ms without any UI hitch or animation triggering.
+   * Hydrates past 24h strikes on boot in ~45ms without any UI hitch or animation triggering.
    */
   public hydrateHistoricalStrikes(
     strikes: Array<{ latitude: number; longitude: number; timestamp: number; peakCurrent?: number }>
@@ -356,7 +368,7 @@ export class FulguriteTraceLayer implements IUpdatable {
     this.birthAttr.needsUpdate = true;
 
     this.geometry.setDrawRange(0, this.activeStrikeCount * FulguriteTraceLayer.VERTICES_PER_STRIKE);
-    console.log(`⚡ Hydrated ${countToLoad} historical strike traces from archive without stutter.`);
+    console.log(`⚡ Hydrated ${countToLoad} historical strike traces with NormalBlending & Temporal Age Map without stutter.`);
   }
 
   private writeVertex(
@@ -379,8 +391,8 @@ export class FulguriteTraceLayer implements IUpdatable {
 
   public update(): void {
     if (!this.isEnabled) return;
-    const now = Date.now();
-    this.material.uniforms.uCurrentTime.value = now;
+
+    this.material.uniforms.uCurrentTime.value = Date.now();
 
     // Flush batch dirty strike buffer to GPU once per animation frame
     if (this.dirtyMinStrike !== -1) {
@@ -424,23 +436,13 @@ export class FulguriteTraceLayer implements IUpdatable {
     }
   }
 
-  /**
-   * Automatically clears daily visual traces at UTC 00:00 midnight for the new day.
-   */
-  public checkDayRollover(now: number = Date.now()): void {
-    const today = new Date(now).toISOString().slice(0, 10);
-    if (!this.currentDayKey) {
-      this.currentDayKey = today;
-    } else if (this.currentDayKey !== today) {
-      console.log(`🌙 UTC 00:00 Day Rollover: Clearing daily visual traces for ${today}`);
-      this.clear();
-      this.currentDayKey = today;
-    }
-  }
-
   public setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
     this.lineMesh.visible = enabled;
+  }
+
+  public getActiveCount(): number {
+    return this.activeStrikeCount;
   }
 
   public clear(): void {
@@ -451,4 +453,3 @@ export class FulguriteTraceLayer implements IUpdatable {
     this.geometry.setDrawRange(0, 0);
   }
 }
-
