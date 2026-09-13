@@ -171,3 +171,31 @@ Bir iş:
 5. Performans
 6. UX
 7. Görsel polish
+
+## 13. Kanal Kimliği, Markalama ve İletişim Bilgisi (Kalıcı Hafıza)
+
+- **Kanal Adı:** Aethelion - Earth Lightning Live
+- **Handle:** @AethelionDev / @AethelionLive
+- **Resmi İletişim Maili:** aethelondev@gmail.com
+- **Yayın Başlığı Şablonu:**
+  `🔴 LIVE: Earth Lightning & Storm Tracker 24/7 | Real-time NOAA Satellites & Thunder Audio`
+- **Kanal ve Yayın Açıklaması:**
+```text
+⚡ Welcome to Aethelion — The 24/7 Real-Time Planetary Lightning & Storm Observatory.
+
+Watch Earth’s real-time lightning strikes, severe storms, and atmospheric discharges visualized live from orbital space perspective. Powered by ground RF sensor networks and geostationary weather satellites (NOAA GOES-16/18 GLM & EUMETSAT MTG).
+
+Features:
+• Real-time global lightning tracking (500,000+ persistent strike telemetry)
+• Procedural real-time 3D acoustics & thunder soundscapes
+• Autonomous cinematic camera tracking active global storm clusters
+• Meteorological classifications: Isolated, Multicell, Supercell, Squall Line, MCS
+
+🎵 Ambient Music Credits (Creative Commons):
+- Stellardrone (https://stellardrone.bandcamp.com) - Licensed under CC BY
+- Scott Buckley (https://www.scottbuckley.com.au) - Licensed under CC BY 4.0
+- Kai Engel (https://www.kai-engel.com) - Licensed under CC BY 4.0
+
+🌍 Inquiries / Contact: aethelondev@gmail.com
+```
+
