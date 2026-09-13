@@ -199,3 +199,23 @@ Features:
 🌍 Inquiries / Contact: aethelondev@gmail.com
 ```
 
+## 14. Altyapı, Sunucu ve API Bilgileri (Kalıcı Hafıza)
+
+- **Oracle Cloud VPS IP:** `130.61.53.100`
+- **Kullanıcı Adı:** `ubuntu`
+- **SSH Anahtar Dosyası (Proje Kök Dizini):** `ssh-key-2026-09-10.key`
+- **Bağlantı Komutu:**
+  `ssh -i "ssh-key-2026-09-10.key" -o StrictHostKeyChecking=no ubuntu@130.61.53.100`
+- **Sunucu Dizin Yolu:** `/home/ubuntu/lightning-globe`
+- **Sunucu Çalışan Servisleri:**
+  - `PM2`: `lightning-vite` (ID 0, Port 3000, Nginx Port 80 arkasında)
+  - `PM2`: `kick-chat-bridge` (ID 1)
+  - `Xvfb`: Sanal ekran `:99` (1920x1080)
+  - `Chromium`: Kiosk modunda arka planda küreyi render ediyor
+- **Merkezi Veri & Arşiv Dosyası:**
+  `/home/ubuntu/lightning-globe/.cache/lightning_24h.json` (26MB+ 24h gerçek veri)
+- **Yerel Eşzamanlama (Sync) Komutu:**
+  `npm run sync:vps`
+- **Yerel Port:** `http://localhost:3005`
+
+
