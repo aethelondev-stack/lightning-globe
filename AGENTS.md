@@ -201,6 +201,12 @@ Features:
 
 ## 14. Altyapı, Sunucu ve API Bilgileri (Kalıcı Hafıza)
 
+- **Oracle Cloud Web Konsolu Girişi:**
+  - **Giriş URL:** `https://cloud.oracle.com`
+  - **Tenancy / Cloud Account Name:** `aethelondev`
+  - **Kullanıcı Adı / E-posta:** `aethelondev@gmail.com`
+  - **Web Konsolu Şifresi:** `kX9#vQ7$mP2!wL4@zR8*`
+  - **Bölge:** `eu-frankfurt-1` (Frankfurt)
 - **Oracle Cloud VPS IP:** `130.61.53.100`
 - **Kullanıcı Adı:** `ubuntu`
 - **SSH Anahtar Dosyası (Proje Kök Dizini):** `ssh-key-2026-09-10.key`
@@ -288,5 +294,19 @@ Features:
 - **VPS Veri Senkronizasyonu:** `npm run sync:vps`
 - **VPS PM2 Durumu:** `ssh -i "ssh-key-2026-09-10.key" ubuntu@130.61.53.100 "pm2 status"`
 - **VPS Yeniden Başlatma:** `ssh -i "ssh-key-2026-09-10.key" ubuntu@130.61.53.100 "pm2 restart lightning-vite"`
+
+## 21. Proje Durumu ve Sürüm Onayı: Beta_v1 (Tamamlandı)
+
+- **Durum:** **BAŞARIYLA TAMAMLANDI & KULLANICI ONAYLI (GEÇER PUAN ALDI)**
+- **Sürüm:** `Beta_v1`
+- **Arşiv Tarihi:** 14 Eylül 2026
+- **Konum:** `C:\Users\Korhan\Desktop\AG Korhan\Tamamlanan projeler\Lightning_Beta_v1`
+- **Tamamlanan & Doğrulanan Temel Yetenekler:**
+  1. **Gerçek Zamanlı Küresel Telemetri:** GOES-16/18 GLM NetCDF-4 uydu flaşları, EUMETSAT MTG-LI ve Blitzortung RF istasyonlarının 0ms - kademeli hibrit entegrasyonu.
+  2. **540.000+ Kalıcı 24 Saatlik İz Katmanı (`FulguriteTraceLayer`):** `NormalBlending` ile parlama/beyaz patlama (blowout) yapmayan, 4 kademeli zamansal yaş haritası ve küresel gezegen belleği.
+  3. **Meteorolojik Fırtına Radarı (`StormCellRadar`):** 7 sınıflı tek konturlu petekler, SPM bazlı Süper Hücre/MCS frekans tespiti ve 7-rosette alt-çekirdek mikro petekler.
+  4. **Otonom Sinematik Reji (`CameraDirector`):** 6 çekim ölçeği, kıtasal çeşitlilik kuralı ve her 4 fırtınada bir devreye giren küresel yörünge devriyesi (Interleaved Planetary Patrol).
+  5. **Ses & Müzik Motoru:** Uzaklık ve enerjiye göre fiziksel gecikmeli 3D akustik gök gürültüsü (`SoundDirector`) ve telifsiz (CC BY) ambiyans müzik çalar (`BackgroundMusicPlayer`).
+  6. **Üretim Kararlılığı:** 109/109 birim test yeşil, 0 TypeScript derleme hatası, Oracle VPS'te 7/24 kesintisiz çalışan arka plan havuzu.
 
 
