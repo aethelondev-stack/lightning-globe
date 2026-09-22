@@ -349,3 +349,73 @@ test('UnifiedLightningHub: Cross-Sensor Deduplication (Blitzortung RF vs Satelli
   hub.stop();
   try { if (fs.existsSync(TEST_DEDUP_CACHE)) fs.unlinkSync(TEST_DEDUP_CACHE); } catch {}
 });
+
+test('UnifiedLightningHub: Satellite Optical Energy Filter and Anti-Bloat Dynamic Pacing', async () => {
+  const TEST_ENERGY_CACHE = path.resolve(process.cwd(), '.cache', 'test_energy_cache.json');
+  try { if (fs.existsSync(TEST_ENERGY_CACHE)) fs.unlinkSync(TEST_ENERGY_CACHE); } catch {}
+
+  const hub = new UnifiedLightningHub({
+    cacheFilePath: TEST_ENERGY_CACHE,
+    enableAutoStart: false,
+    enableNetwork: false,
+    satellitePacingIntervalMs: 25,
+    backfillOnStart: false
+  });
+
+  const now = Date.now();
+  // Disk cache loading test with mixed optical energies:
+  // Strikes below 5.0e-14 J must be rejected to prevent 24h archive bloat
+  const initialStrikes: LightningEvent[] = [
+    {
+      id: 'weak_spark_1',
+      latitude: -12.0,
+      longitude: -60.0,
+      timestamp: now - 3600000,
+      peakCurrent: 15,
+      type: 'IC',
+      source: 'goes19_glm',
+      opticalEnergy: 1.2e-15 // Weak intra-cloud noise
+    },
+    {
+      id: 'strong_cg_strike_2',
+      latitude: -12.5,
+      longitude: -60.5,
+      timestamp: now - 3600000,
+      peakCurrent: 45,
+      type: 'CG',
+      source: 'goes19_glm',
+      opticalEnergy: 1.5e-13 // Strong convective core CG
+    }
+  ];
+
+  const merged = hub.mergeStrikesIntoHistory(initialStrikes);
+  assert.equal(merged, 1, 'Only high-energy satellite strike must be merged into 24h history');
+  assert.equal(hub.getStats().cached24hCount, 1);
+
+  // Dynamic anti-bloat pacing test:
+  // A batch of 30 flashes should be cleanly paced without artificial 3-item bottleneck
+  const batch: LightningEvent[] = [];
+  for (let i = 0; i < 30; i++) {
+    batch.push({
+      id: `energy_pacing_${i}_${now}`,
+      latitude: -5.0 + i * 0.05,
+      longitude: -65.0 + i * 0.05,
+      timestamp: now,
+      peakCurrent: 35,
+      type: 'IC',
+      source: 'goes16_glm',
+      opticalEnergy: 8.0e-14
+    });
+  }
+
+  hub.ingestSatelliteBatch(batch, 150); // 150ms total pacing window (6 ticks of 25ms)
+  assert.equal(hub.getStats().pacingQueueSize, 30);
+
+  // Wait for pacing timer to exhaust queue (150ms + margin = 300ms)
+  await new Promise(r => setTimeout(r, 350));
+  assert.equal(hub.getStats().pacingQueueSize, 0, 'Queue must be completely drained without backlog');
+  assert.equal(hub.getStats().satellitePacedCount, 30);
+
+  hub.stop();
+  try { if (fs.existsSync(TEST_ENERGY_CACHE)) fs.unlinkSync(TEST_ENERGY_CACHE); } catch {}
+});

@@ -291,7 +291,7 @@ export class UnifiedStreamProvider implements ILightningProvider {
           lat: e.latitude || e.lat || 0,
           lon: e.longitude || e.lon || 0
         }));
-        this.pacingQueue.enqueueBatch(batch);
+        this.pacingQueue.enqueueBatch(batch, 1200);
         return;
       }
 
@@ -302,7 +302,7 @@ export class UnifiedStreamProvider implements ILightningProvider {
           lat: e.latitude || e.lat || 0,
           lon: e.longitude || e.lon || 0
         }));
-        this.pacingQueue.enqueueBatch(batch);
+        this.pacingQueue.enqueueBatch(batch, 1200);
         return;
       }
 

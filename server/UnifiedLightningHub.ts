@@ -362,13 +362,28 @@ export class UnifiedLightningHub {
 
     // Dynamically calculate micropacket chunk size to smoothly exhaust queue
     // across the target pacing window (e.g. ~20 seconds in live, or custom in tests)
-    // Dynamic rate smoothing: ensures the queue is drained steadily over the full 20-second S3 poll cycle,
-    // avoiding the "flood for 10s then dead silence for 10s" behavior.
     const targetDuration = Math.max(this.pacingIntervalMs, this.targetPacingDurationMs || 20000);
     const ticksInCycle = Math.max(1, Math.floor(targetDuration / this.pacingIntervalMs));
-    const targetChunk = Math.ceil(this.satelliteQueue.length / ticksInCycle);
-    // Micro-batch size: smooth stream of 1 to 3 flashes per tick (prevents burst packets and bridges the 20s gap)
-    const chunkSize = Math.max(1, Math.min(3, targetChunk));
+    const baseChunk = Math.ceil(this.satelliteQueue.length / ticksInCycle);
+
+    // Dynamic Rate Smoothing & Anti-Bloat:
+    // Drains queue smoothly across the pacing cycle without artificial 3-item ceiling.
+    // If queue experienced an extreme burst, scales up smoothly (up to 16/tick) to prevent buffer bloat.
+    let dynamicChunk = baseChunk;
+
+    // Organic Non-Metronome Jitter:
+    // In live production (targetDuration >= 5000ms), introduce +/- 35% stochastic variation
+    // and natural calm lulls (10% chance of 0-burst pause when queue is healthy).
+    if (targetDuration >= 5000) {
+      if (baseChunk <= 3 && Math.random() < 0.10) {
+        // Natural calm pause between thunderstorm bursts
+        return;
+      }
+      const jitterFactor = 0.65 + Math.random() * 0.70; // 0.65 to 1.35
+      dynamicChunk = Math.round(baseChunk * jitterFactor);
+    }
+
+    const chunkSize = Math.max(1, Math.min(16, dynamicChunk));
 
     const micropacket = this.satelliteQueue.splice(0, chunkSize);
     if (micropacket.length === 0) return;
@@ -596,6 +611,10 @@ export class UnifiedLightningHub {
     for (let i = 0; i < strikes.length; i++) {
       const s = strikes[i];
       if (s && s.id && s.timestamp >= cutoff && this.isValidStrike(s)) {
+        // Prune weak optical noise (< 5.0e-14 J) for satellite sources
+        if (s.opticalEnergy != null && s.opticalEnergy < 5.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
+          continue;
+        }
         if (!this.historyMap.has(s.id)) {
           this.historyMap.set(s.id, s);
           added++;
@@ -649,6 +668,11 @@ export class UnifiedLightningHub {
           // NOAA Sector Partitioning: GOES-18 covers West (< -105°), GOES-19 covers East (>= -105°)
           if (s.source === 'goes18_glm' && s.longitude >= -105) continue;
           if ((s.source === 'goes19_glm' || s.source === 'goes16_glm') && s.longitude < -105) continue;
+
+          // Prune weak optical noise (< 5.0e-14 J) for satellite sources
+          if (s.opticalEnergy != null && s.opticalEnergy < 5.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
+            continue;
+          }
 
           if (!this.historyMap.has(s.id)) {
             this.historyMap.set(s.id, s);
@@ -1041,6 +1065,12 @@ export class UnifiedLightningHub {
         if ((source === 'goes19_glm' || source === 'goes16_glm') && lon < -105) continue;
 
         const energyJ = rawEnergies ? Number(rawEnergies[i]) * 1e-15 : 1e-14;
+
+        // Satellite Optical Energy & Convective Core Filter:
+        // Filter out weak intra-cloud (IC) optical noise (< 5.0e-14 J) to prioritize
+        // impactful cloud-to-ground / convective core lightning discharges.
+        if (energyJ < 5.0e-14) continue;
+
         const area = rawAreas ? Math.max(15, Math.round((Number(rawAreas[i]) * 152601) / 1e6)) : 50;
         const calculatedCurrent = Math.max(8, Math.min(65, Math.round(15 + Math.log10(energyJ * 1e15 + 1) * 8)));
 
@@ -1052,7 +1082,7 @@ export class UnifiedLightningHub {
           longitude: Math.round(lon * 10000) / 10000,
           timestamp: now - (lats.length - i) * 100,
           peakCurrent: calculatedCurrent,
-          type: 'IC',
+          type: energyJ >= 1.0e-13 ? 'CG' : 'IC',
           source,
           opticalEnergy: energyJ,
           opticalArea: area

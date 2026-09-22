@@ -160,6 +160,11 @@ export function viteMtgLiPlugin(): Plugin {
         const rawRad = rads ? Number(rads[i]) : 1;
         const radiance = Math.max(1e-15, rawRad * radScale + radOffset);
 
+        // Satellite Optical Energy Filter: prioritize convective core / CG discharges (>= 5.0e-14 J)
+        if (radiance < 5.0e-14) {
+          continue;
+        }
+
         const rawArea = areas ? Number(areas[i]) : 50;
         const areaKm2 = Math.min(1000, Math.max(15, Math.round(rawArea)));
 
