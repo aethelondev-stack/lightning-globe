@@ -3956,3 +3956,214 @@ html, body {
   box-shadow: 0 4px 18px rgba(14, 165, 233, 0.5);
   transform: translateY(-1px);
 }
+
+/* =========================================================================
+   Stacked Satellite Telemetry Cards (Minimalist & Clean)
+   ========================================================================= */
+
+.admin-sat-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-sat-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-sat-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.admin-sat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.admin-sat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-sat-icon {
+  font-size: 18px;
+}
+
+.admin-sat-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.3px;
+}
+
+.admin-sat-region {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.admin-sat-period-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.admin-sat-period-badge strong {
+  color: #fbbf24;
+}
+
+.admin-sat-progress-bar {
+  width: 50px;
+  height: 4px;
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.admin-sat-progress-fill {
+  height: 100%;
+  width: 50%;
+  background: #38bdf8;
+  transition: width 0.1s linear;
+}
+
+.admin-sat-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-sat-metric {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.admin-sat-m-lbl {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.admin-sat-m-val {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.metric-filtered .admin-sat-m-val {
+  color: #f43f5e;
+}
+
+.metric-passed .admin-sat-m-val {
+  color: #00e5ff;
+}
+
+.admin-sat-chart-container {
+  position: relative;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  padding: 2px 4px;
+}
+
+.admin-sat-bars {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.admin-sat-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.15s ease, background-color 0.15s ease;
+}
+
+.admin-sat-bar.bar-filtered {
+  background: rgba(244, 63, 94, 0.35);
+  border-top: 1px solid rgba(244, 63, 94, 0.7);
+}
+
+.admin-sat-bar.bar-passed {
+  background: rgba(0, 229, 255, 0.65);
+  border-top: 1px solid #00e5ff;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
+}
+
+.admin-sat-threshold-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #f43f5e;
+  box-shadow: 0 0 6px #f43f5e;
+  pointer-events: none;
+  transition: left 0.05s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.admin-sat-thresh-tag {
+  background: #e11d48;
+  color: #ffffff;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 1px 3px;
+  border-radius: 0 0 3px 3px;
+  font-family: monospace;
+}
+
+.admin-sat-slider-wrap {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.admin-sat-slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #cbd5e1;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.admin-sat-thresh-val {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.admin-sat-slider {
+  width: 100%;
+  accent-color: #38bdf8;
+}

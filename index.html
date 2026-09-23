@@ -800,6 +800,156 @@
                 </div>
               </div>
             </div>
+
+            <!-- 4. Bölüm: Uydular ve Gerçek Zamanlı Filtre/Eşik Kontrolü (Alt Alta) -->
+            <div class="admin-section">
+              <div class="admin-section-title">🛰️ UYDU TELEMETRİSİ & CANLI EŞİK FİLTRELERİ (ALT ALTA)</div>
+              <div class="admin-sat-cards-stack">
+                
+                <!-- Uydu 1: NOAA GOES-19 GLM (Güney Amerika Amazon & Doğu Amerika) -->
+                <div class="admin-sat-card" id="sat-card-goes19">
+                  <div class="admin-sat-card-header">
+                    <div class="admin-sat-info">
+                      <span class="admin-sat-icon">🌎</span>
+                      <div>
+                        <div class="admin-sat-name">NOAA GOES-19 GLM</div>
+                        <div class="admin-sat-region">Güney Amerika (Amazon) & Doğu Amerika</div>
+                      </div>
+                    </div>
+                    <div class="admin-sat-period-badge">
+                      <span>Periyot: <strong>20 sn</strong></span>
+                      <div class="admin-sat-progress-bar"><div class="admin-sat-progress-fill" id="sat-prog-goes19"></div></div>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-metrics-row">
+                    <div class="admin-sat-metric">
+                      <span class="admin-sat-m-lbl">Ham Veri (20s)</span>
+                      <span class="admin-sat-m-val" id="sat-raw-goes19">-- flaş</span>
+                    </div>
+                    <div class="admin-sat-metric metric-filtered">
+                      <span class="admin-sat-m-lbl">Elenen (Çöpe)</span>
+                      <span class="admin-sat-m-val" id="sat-filtered-goes19">-- (%--)</span>
+                    </div>
+                    <div class="admin-sat-metric metric-passed">
+                      <span class="admin-sat-m-lbl">Kürede Gösterilen</span>
+                      <span class="admin-sat-m-val" id="sat-passed-goes19">-- şimşek</span>
+                    </div>
+                  </div>
+
+                  <!-- Minimal Canlı Spektrum -->
+                  <div class="admin-sat-chart-container">
+                    <div class="admin-sat-bars" id="sat-bars-goes19"></div>
+                    <div class="admin-sat-threshold-line" id="sat-line-goes19" style="left: 40%;">
+                      <span class="admin-sat-thresh-tag">EŞİK</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-slider-wrap">
+                    <div class="admin-sat-slider-head">
+                      <span>Optik Enerji Eşiği:</span>
+                      <span class="admin-sat-thresh-val" id="sat-val-goes19">2.8 × 10⁻¹⁴ J</span>
+                    </div>
+                    <input type="range" id="admin-sat-thresh-goes19" min="0.8" max="6.0" step="0.1" value="2.8" class="admin-range-slider admin-sat-slider" />
+                  </div>
+                </div>
+
+                <!-- Uydu 2: NOAA GOES-18 GLM (Pasifik Okyanusu & Batı Amerika) -->
+                <div class="admin-sat-card" id="sat-card-goes18">
+                  <div class="admin-sat-card-header">
+                    <div class="admin-sat-info">
+                      <span class="admin-sat-icon">🌊</span>
+                      <div>
+                        <div class="admin-sat-name">NOAA GOES-18 GLM</div>
+                        <div class="admin-sat-region">Pasifik Okyanusu & Batı Amerika / Hawaii</div>
+                      </div>
+                    </div>
+                    <div class="admin-sat-period-badge">
+                      <span>Periyot: <strong>20 sn</strong></span>
+                      <div class="admin-sat-progress-bar"><div class="admin-sat-progress-fill" id="sat-prog-goes18"></div></div>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-metrics-row">
+                    <div class="admin-sat-metric">
+                      <span class="admin-sat-m-lbl">Ham Veri (20s)</span>
+                      <span class="admin-sat-m-val" id="sat-raw-goes18">-- flaş</span>
+                    </div>
+                    <div class="admin-sat-metric metric-filtered">
+                      <span class="admin-sat-m-lbl">Elenen (Çöpe)</span>
+                      <span class="admin-sat-m-val" id="sat-filtered-goes18">-- (%--)</span>
+                    </div>
+                    <div class="admin-sat-metric metric-passed">
+                      <span class="admin-sat-m-lbl">Kürede Gösterilen</span>
+                      <span class="admin-sat-m-val" id="sat-passed-goes18">-- şimşek</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-chart-container">
+                    <div class="admin-sat-bars" id="sat-bars-goes18"></div>
+                    <div class="admin-sat-threshold-line" id="sat-line-goes18" style="left: 40%;">
+                      <span class="admin-sat-thresh-tag">EŞİK</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-slider-wrap">
+                    <div class="admin-sat-slider-head">
+                      <span>Optik Enerji Eşiği:</span>
+                      <span class="admin-sat-thresh-val" id="sat-val-goes18">2.8 × 10⁻¹⁴ J</span>
+                    </div>
+                    <input type="range" id="admin-sat-thresh-goes18" min="0.8" max="6.0" step="0.1" value="2.8" class="admin-range-slider admin-sat-slider" />
+                  </div>
+                </div>
+
+                <!-- Uydu 3: EUMETSAT MTG-LI (Afrika Kongo & Akdeniz/Avrupa) -->
+                <div class="admin-sat-card" id="sat-card-mtg">
+                  <div class="admin-sat-card-header">
+                    <div class="admin-sat-info">
+                      <span class="admin-sat-icon">🌍</span>
+                      <div>
+                        <div class="admin-sat-name">EUMETSAT MTG-LI</div>
+                        <div class="admin-sat-region">Afrika (Kongo) & Akdeniz / Avrupa</div>
+                      </div>
+                    </div>
+                    <div class="admin-sat-period-badge">
+                      <span>Periyot: <strong>30 sn</strong></span>
+                      <div class="admin-sat-progress-bar"><div class="admin-sat-progress-fill" id="sat-prog-mtg"></div></div>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-metrics-row">
+                    <div class="admin-sat-metric">
+                      <span class="admin-sat-m-lbl">Ham Veri (30s)</span>
+                      <span class="admin-sat-m-val" id="sat-raw-mtg">-- flaş</span>
+                    </div>
+                    <div class="admin-sat-metric metric-filtered">
+                      <span class="admin-sat-m-lbl">Elenen (Çöpe)</span>
+                      <span class="admin-sat-m-val" id="sat-filtered-mtg">-- (%--)</span>
+                    </div>
+                    <div class="admin-sat-metric metric-passed">
+                      <span class="admin-sat-m-lbl">Kürede Gösterilen</span>
+                      <span class="admin-sat-m-val" id="sat-passed-mtg">-- şimşek</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-chart-container">
+                    <div class="admin-sat-bars" id="sat-bars-mtg"></div>
+                    <div class="admin-sat-threshold-line" id="sat-line-mtg" style="left: 40%;">
+                      <span class="admin-sat-thresh-tag">EŞİK</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-slider-wrap">
+                    <div class="admin-sat-slider-head">
+                      <span>Optik Enerji Eşiği:</span>
+                      <span class="admin-sat-thresh-val" id="sat-val-mtg">2.8 × 10⁻¹⁴ J</span>
+                    </div>
+                    <input type="range" id="admin-sat-thresh-mtg" min="0.8" max="6.0" step="0.1" value="2.8" class="admin-range-slider admin-sat-slider" />
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
 
           <div class="admin-modal-footer">

@@ -74,6 +74,24 @@ export function viteUnifiedHubPlugin(): Plugin {
       res.end(JSON.stringify(stats));
     });
 
+    // 3b. Satellite Real-time Telemetry endpoint (for Admin Panel charts)
+    middlewares.use('/api/admin/satellite-telemetry', (_req: any, res: any) => {
+      const satTelemetry = hub.getSatelliteTelemetry();
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(satTelemetry));
+    });
+
+    // 3c. Fast-Boot Snapshot endpoint (<100ms instant spatially balanced startup)
+    middlewares.use('/api/lightning/recent-quick', (_req: any, res: any) => {
+      const quickData = hub.getRecentQuick(600);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(JSON.stringify(quickData));
+    });
+
     // 4. On-demand VPS Cache Sync endpoint (for local machine when PC was powered off)
     middlewares.use('/api/lightning/sync-vps', (_req: any, res: any) => {
       let synced = false;
@@ -108,7 +126,7 @@ export function viteUnifiedHubPlugin(): Plugin {
       res.end(JSON.stringify({ status: 'RELOADED', cachedCount: hub.getStats().cached24hCount }));
     });
 
-    // 6. Global Admin Config Endpoint (Panel toggles & master volume)
+    // 6. Global Admin Config Endpoint (Panel toggles, master volume, satellite thresholds)
     const adminConfigPath = path.resolve(process.cwd(), '.cache', 'admin_config.json');
     middlewares.use('/api/admin/config', (req: any, res: any) => {
       res.setHeader('Content-Type', 'application/json');
@@ -131,6 +149,12 @@ export function viteUnifiedHubPlugin(): Plugin {
             const dir = path.dirname(adminConfigPath);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(adminConfigPath, JSON.stringify(data, null, 2), 'utf8');
+
+            // Apply dynamic satellite thresholds immediately in UnifiedLightningHub
+            if (data.satelliteThresholds) {
+              hub.setSatelliteThresholds(data.satelliteThresholds);
+            }
+
             res.end(JSON.stringify({ status: 'OK', config: data }));
           } catch (e: any) {
             res.writeHead(400);
@@ -148,6 +172,11 @@ export function viteUnifiedHubPlugin(): Plugin {
             const defaults = {
               sfxVolume: 80,
               musicVolume: 50,
+              satelliteThresholds: {
+                goes19: 2.8,
+                goes18: 2.8,
+                mtg: 2.8
+              },
               panels: {
                 hud: true,
                 liveFeed: true,

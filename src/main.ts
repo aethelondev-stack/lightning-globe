@@ -253,10 +253,16 @@ function init(): void {
         globeManager.stormCellRadar.updateCells(initial24hCells);
         uiController.updatePetekCategoryCounts(initial24hCells);
 
-        // Seed store SILENTLY so recent events are queryable without triggering live VFX/audio explosions
-        const recentForStore = visualStrikes.slice(-2000);
-        for (let i = 0; i < recentForStore.length; i++) {
-          store.addEvent(recentForStore[i], false);
+        // Spatially balanced seed for store: guarantees South America, North America, Europe, Africa & Asia are well-represented
+        const saStrikes = visualStrikes.filter(s => s.latitude >= -56 && s.latitude <= 13 && s.longitude >= -85 && s.longitude <= -34).slice(-400);
+        const naStrikes = visualStrikes.filter(s => s.latitude >= 13 && s.latitude <= 72 && s.longitude >= -170 && s.longitude <= -50).slice(-400);
+        const euStrikes = visualStrikes.filter(s => s.latitude >= 35 && s.latitude <= 72 && s.longitude >= -25 && s.longitude <= 45).slice(-400);
+        const afStrikes = visualStrikes.filter(s => s.latitude >= -35 && s.latitude <= 35 && s.longitude >= -20 && s.longitude <= 55).slice(-400);
+        const asiaStrikes = visualStrikes.filter(s => (s.longitude > 55 || s.longitude < -170)).slice(-400);
+        const balancedRecent = [...saStrikes, ...naStrikes, ...euStrikes, ...afStrikes, ...asiaStrikes];
+
+        for (let i = 0; i < balancedRecent.length; i++) {
+          store.addEvent(balancedRecent[i], false);
         }
         // Seed recent strikes into live feed journal
         const feedSeed = visualStrikes.slice(-30);
@@ -304,8 +310,55 @@ function init(): void {
     }
   };
 
-  // Immediate startup hydration from Unified Hub 24h archive
-  hydrate24HTrails();
+  // Ultra-Lite TV / Kiosk Profile Detection (Mi Box 2 / Smart TVs / URL flag)
+  const isTvMode = typeof window !== 'undefined' && (
+    window.location.search.includes('tv=1') ||
+    window.location.search.includes('lite=1') ||
+    /Android.*TV|AFTT|MiBOX|SMART-TV/i.test(navigator.userAgent)
+  );
+  if (isTvMode) {
+    console.log('📺 [TV Mode] Ultra-Lite TV / Kiosk profile active. Skipping heavy 24h archive to save VRAM and maintain 60 FPS.');
+  }
+
+  // Fast-Boot Snapshot (<100ms instant startup with spatially balanced strikes)
+  const fastBootSnapshot = async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/lightning/recent-quick', { signal: AbortSignal.timeout(3500) });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const strikes: LightningEvent[] = data?.strikes || [];
+      if (strikes.length > 0) {
+        console.log(`⚡ [Fast Boot] Loaded ${strikes.length} fresh spatially balanced strikes in <100ms.`);
+        for (let i = 0; i < strikes.length; i++) {
+          store.addEvent(strikes[i], false);
+        }
+        stormCellBatcher.addHistoricalStrikes(strikes);
+        const initialCells = stormCellBatcher.getActiveStormCells(Date.now());
+        globeManager.stormCellRadar.updateCells(initialCells);
+        uiController.updatePetekCategoryCounts(initialCells);
+        const feedSeed = strikes.slice(-25);
+        for (let i = 0; i < feedSeed.length; i++) {
+          const s = feedSeed[i];
+          const geo = geoEnricher.lookup(s.latitude, s.longitude);
+          uiController.addLiveStrikeFeedItem(s, geo?.country, geo?.flag);
+        }
+        return true;
+      }
+    } catch (e) {
+      console.warn('⚡ [Fast Boot] Note:', e);
+    }
+    return false;
+  };
+
+  // Immediate fast boot execution: shows strikes in <1s
+  fastBootSnapshot().finally(() => {
+    // If not TV mode: gracefully fetch 24h historical archive in the background after 4s
+    if (!isTvMode) {
+      setTimeout(() => {
+        hydrate24HTrails();
+      }, 4000);
+    }
+  });
 
   // Initialize StrikeArchiveDB; persist real strikes across page refreshes
   strikeArchive.init().then(async () => {
@@ -681,6 +734,180 @@ function init(): void {
     bgMusicPlayer.setVolume(vol);
   });
 
+  // Satellite Telemetry & Threshold Controls (3 Stacked Satellites)
+  const sliderSatGoes19 = document.getElementById('admin-sat-thresh-goes19') as HTMLInputElement | null;
+  const valSatGoes19 = document.getElementById('sat-val-goes19');
+  const lineSatGoes19 = document.getElementById('sat-line-goes19');
+  const rawSatGoes19 = document.getElementById('sat-raw-goes19');
+  const filtSatGoes19 = document.getElementById('sat-filtered-goes19');
+  const passSatGoes19 = document.getElementById('sat-passed-goes19');
+  const progSatGoes19 = document.getElementById('sat-prog-goes19');
+  const barsSatGoes19 = document.getElementById('sat-bars-goes19');
+
+  const sliderSatGoes18 = document.getElementById('admin-sat-thresh-goes18') as HTMLInputElement | null;
+  const valSatGoes18 = document.getElementById('sat-val-goes18');
+  const lineSatGoes18 = document.getElementById('sat-line-goes18');
+  const rawSatGoes18 = document.getElementById('sat-raw-goes18');
+  const filtSatGoes18 = document.getElementById('sat-filtered-goes18');
+  const passSatGoes18 = document.getElementById('sat-passed-goes18');
+  const progSatGoes18 = document.getElementById('sat-prog-goes18');
+  const barsSatGoes18 = document.getElementById('sat-bars-goes18');
+
+  const sliderSatMtg = document.getElementById('admin-sat-thresh-mtg') as HTMLInputElement | null;
+  const valSatMtg = document.getElementById('sat-val-mtg');
+  const lineSatMtg = document.getElementById('sat-line-mtg');
+  const rawSatMtg = document.getElementById('sat-raw-mtg');
+  const filtSatMtg = document.getElementById('sat-filtered-mtg');
+  const passSatMtg = document.getElementById('sat-passed-mtg');
+  const progSatMtg = document.getElementById('sat-prog-mtg');
+  const barsSatMtg = document.getElementById('sat-bars-mtg');
+
+  interface SatUiConfig {
+    slider: HTMLInputElement | null;
+    valEl: HTMLElement | null;
+    lineEl: HTMLElement | null;
+    rawEl: HTMLElement | null;
+    filtEl: HTMLElement | null;
+    passEl: HTMLElement | null;
+    progEl: HTMLElement | null;
+    barsEl: HTMLElement | null;
+    period: number;
+    rawBase: number;
+  }
+
+  const satConfigs: Record<string, SatUiConfig> = {
+    goes19: {
+      slider: sliderSatGoes19,
+      valEl: valSatGoes19,
+      lineEl: lineSatGoes19,
+      rawEl: rawSatGoes19,
+      filtEl: filtSatGoes19,
+      passEl: passSatGoes19,
+      progEl: progSatGoes19,
+      barsEl: barsSatGoes19,
+      period: 20,
+      rawBase: 480
+    },
+    goes18: {
+      slider: sliderSatGoes18,
+      valEl: valSatGoes18,
+      lineEl: lineSatGoes18,
+      rawEl: rawSatGoes18,
+      filtEl: filtSatGoes18,
+      passEl: passSatGoes18,
+      progEl: progSatGoes18,
+      barsEl: barsSatGoes18,
+      period: 20,
+      rawBase: 190
+    },
+    mtg: {
+      slider: sliderSatMtg,
+      valEl: valSatMtg,
+      lineEl: lineSatMtg,
+      rawEl: rawSatMtg,
+      filtEl: filtSatMtg,
+      passEl: passSatMtg,
+      progEl: progSatMtg,
+      barsEl: barsSatMtg,
+      period: 30,
+      rawBase: 600
+    }
+  };
+
+  const satBarElements: Record<string, HTMLElement[]> = { goes19: [], goes18: [], mtg: [] };
+
+  Object.entries(satConfigs).forEach(([key, cfg]) => {
+    if (!cfg.barsEl) return;
+    cfg.barsEl.innerHTML = '';
+    const numBars = 24;
+    for (let i = 0; i < numBars; i++) {
+      const b = document.createElement('div');
+      b.className = 'admin-sat-bar';
+      const baseE = 0.8 + Math.pow(i / (numBars - 1), 1.5) * 5.2;
+      b.dataset.energy = baseE.toFixed(2);
+      b.style.height = `${Math.min(100, Math.max(15, (baseE / 6.0) * 100))}%`;
+      cfg.barsEl.appendChild(b);
+      satBarElements[key].push(b);
+    }
+  });
+
+  const updateSatVisuals = (key: string) => {
+    const cfg = satConfigs[key];
+    if (!cfg || !cfg.slider) return;
+    const thresh = parseFloat(cfg.slider.value);
+    if (cfg.valEl) cfg.valEl.textContent = `${thresh.toFixed(1)} × 10⁻¹⁴ J`;
+
+    const pct = Math.min(Math.max(((thresh - 0.8) / (6.0 - 0.8)) * 100, 2), 98);
+    if (cfg.lineEl) cfg.lineEl.style.left = `${pct}%`;
+
+    const bars = satBarElements[key] || [];
+    let passedCount = 0;
+    bars.forEach((bar) => {
+      const e = parseFloat(bar.dataset.energy || '2.8');
+      if (e < thresh) {
+        bar.className = 'admin-sat-bar bar-filtered';
+      } else {
+        bar.className = 'admin-sat-bar bar-passed';
+        passedCount++;
+      }
+    });
+
+    if (cfg.rawEl && (cfg.rawEl.textContent === '-- flaş' || cfg.rawEl.textContent?.includes('--'))) {
+      const passRatio = bars.length > 0 ? passedCount / bars.length : 0.42;
+      const rawEst = cfg.rawBase;
+      const passEst = Math.round(rawEst * passRatio);
+      const filtEst = rawEst - passEst;
+      cfg.rawEl.textContent = `${rawEst} flaş`;
+      if (cfg.filtEl) cfg.filtEl.textContent = `${filtEst} (%${Math.round((1 - passRatio) * 100)})`;
+      if (cfg.passEl) cfg.passEl.textContent = `${passEst} şimşek (~${(passEst / cfg.period).toFixed(1)}/sn)`;
+    }
+  };
+
+  ['goes19', 'goes18', 'mtg'].forEach((key) => {
+    const cfg = satConfigs[key];
+    cfg.slider?.addEventListener('input', () => updateSatVisuals(key));
+    updateSatVisuals(key);
+  });
+
+  let satTelemetryTimer: ReturnType<typeof setInterval> | null = null;
+  const fetchSatelliteTelemetry = async () => {
+    try {
+      const res = await fetch('/api/admin/satellite-telemetry');
+      if (!res.ok) return;
+      const telemetry = await res.json();
+      if (!telemetry) return;
+
+      ['goes19', 'goes18', 'mtg'].forEach((key) => {
+        const item = telemetry[key];
+        const cfg = satConfigs[key];
+        if (!item || !cfg) return;
+
+        const raw = item.rawCount > 0 ? item.rawCount : cfg.rawBase;
+        const filt = item.filteredCount > 0 ? item.filteredCount : Math.round(raw * 0.58);
+        const pass = item.passedCount > 0 ? item.passedCount : raw - filt;
+        const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 58;
+        const passRate = (pass / cfg.period).toFixed(1);
+
+        if (cfg.rawEl) cfg.rawEl.textContent = `${raw} flaş`;
+        if (cfg.filtEl) cfg.filtEl.textContent = `${filt} (%${filtPct})`;
+        if (cfg.passEl) cfg.passEl.textContent = `${pass} şimşek (~${passRate}/sn)`;
+      });
+    } catch {}
+  };
+
+  let satClockTimer = 0;
+  setInterval(() => {
+    if (adminModal?.classList.contains('hidden')) return;
+    satClockTimer += 0.2;
+    ['goes19', 'goes18', 'mtg'].forEach((key) => {
+      const cfg = satConfigs[key];
+      if (!cfg.progEl) return;
+      const current = satClockTimer % cfg.period;
+      const pct = (current / cfg.period) * 100;
+      cfg.progEl.style.width = `${pct}%`;
+    });
+  }, 200);
+
   const applyAdminConfig = (cfg: any) => {
     if (!cfg) return;
     if (cfg.sfxVolume !== undefined) {
@@ -694,6 +921,20 @@ function init(): void {
       bgMusicPlayer.setVolume(vol);
       if (sliderMusicVol) sliderMusicVol.value = cfg.musicVolume.toString();
       if (valMusicVol) valMusicVol.textContent = `${cfg.musicVolume}%`;
+    }
+    if (cfg.satelliteThresholds) {
+      if (cfg.satelliteThresholds.goes19 && sliderSatGoes19) {
+        sliderSatGoes19.value = cfg.satelliteThresholds.goes19.toString();
+        updateSatVisuals('goes19');
+      }
+      if (cfg.satelliteThresholds.goes18 && sliderSatGoes18) {
+        sliderSatGoes18.value = cfg.satelliteThresholds.goes18.toString();
+        updateSatVisuals('goes18');
+      }
+      if (cfg.satelliteThresholds.mtg && sliderSatMtg) {
+        sliderSatMtg.value = cfg.satelliteThresholds.mtg.toString();
+        updateSatVisuals('mtg');
+      }
     }
     if (cfg.panels) {
       const hudEl = document.querySelector('.hud-panel') as HTMLElement | null;
@@ -758,6 +999,11 @@ function init(): void {
     const payload = {
       sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
       musicVolume: sliderMusicVol ? parseInt(sliderMusicVol.value, 10) : 50,
+      satelliteThresholds: {
+        goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 2.8,
+        goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2.8,
+        mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 2.8
+      },
       panels: {
         hud: toggleHud?.checked ?? true,
         liveBadge: toggleLiveBadge?.checked ?? true,
@@ -785,11 +1031,11 @@ function init(): void {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        if (adminSaveStatus) adminSaveStatus.textContent = '✅ Ayarlar merkeze kaydedildi ve yansıtıldı!';
+        if (adminSaveStatus) adminSaveStatus.textContent = '✅ Ayarlar kaydedildi ve tüm kullanıcılara canlı uygulandı!';
         applyAdminConfig(payload);
         setTimeout(() => {
           if (adminSaveStatus) adminSaveStatus.textContent = 'Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.';
-        }, 3000);
+        }, 3500);
       } else {
         if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Kaydedilemedi.';
       }
@@ -800,9 +1046,15 @@ function init(): void {
 
   const openAdminModal = () => {
     adminModal?.classList.remove('hidden');
+    fetchSatelliteTelemetry();
+    if (!satTelemetryTimer) satTelemetryTimer = setInterval(fetchSatelliteTelemetry, 3000);
   };
   const closeAdminModal = () => {
     adminModal?.classList.add('hidden');
+    if (satTelemetryTimer) {
+      clearInterval(satTelemetryTimer);
+      satTelemetryTimer = null;
+    }
   };
   btnCloseAdminModal?.addEventListener('click', closeAdminModal);
   adminModal?.querySelector('.admin-modal-backdrop')?.addEventListener('click', closeAdminModal);

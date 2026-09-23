@@ -276,6 +276,10 @@ export function viteMtgLiPlugin(): Plugin {
         console.log(`⚡ [EUMETSAT MTG-LI] Decoded ${newFlashes.length} flashes across Africa & Europe`);
         cachedFlashes = [...cachedFlashes, ...newFlashes].slice(-3000);
         lastPollSuccessTime = Date.now();
+        try {
+          const { UnifiedLightningHub } = await import('./UnifiedLightningHub');
+          UnifiedLightningHub.getInstance().ingestMtgFlashes(newFlashes);
+        } catch {}
       }
 
       lastProcessedFile = ncEntry.href;

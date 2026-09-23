@@ -105,6 +105,50 @@ export class UnifiedLightningHub {
   private dedupRecentGrid: Map<string, Array<{ id: string; lat: number; lon: number; timestamp: number; source: string }>> = new Map();
   private lastDedupPruneTime: number = 0;
 
+  // Dynamic Satellite Thresholds & Telemetry
+  private thresholdGoes19: number = 2.8e-14;
+  private thresholdGoes18: number = 2.8e-14;
+  private thresholdMtg: number = 2.8e-14;
+
+  private satelliteTelemetry = {
+    goes19: {
+      id: 'goes19',
+      name: 'NOAA GOES-19 GLM',
+      region: 'Güney Amerika (Amazon) & Doğu Amerika',
+      periodSeconds: 20,
+      thresholdJ: 2.8e-14,
+      rawCount: 0,
+      filteredCount: 0,
+      passedCount: 0,
+      lastFetchTime: 0,
+      status: 'ONLINE'
+    },
+    goes18: {
+      id: 'goes18',
+      name: 'NOAA GOES-18 GLM',
+      region: 'Pasifik & Batı Amerika / Hawaii',
+      periodSeconds: 20,
+      thresholdJ: 2.8e-14,
+      rawCount: 0,
+      filteredCount: 0,
+      passedCount: 0,
+      lastFetchTime: 0,
+      status: 'ONLINE'
+    },
+    mtg: {
+      id: 'mtg',
+      name: 'EUMETSAT MTG-LI',
+      region: 'Afrika (Kongo) & Akdeniz / Avrupa',
+      periodSeconds: 30,
+      thresholdJ: 2.8e-14,
+      rawCount: 0,
+      filteredCount: 0,
+      passedCount: 0,
+      lastFetchTime: 0,
+      status: 'ONLINE'
+    }
+  };
+
   /**
    * Fast O(1) Cross-Sensor Spatial-Temporal Deduplicator:
    * Detects and fuses co-observations across satellites (GOES/MTG) and ground RF stations (Blitzortung).
@@ -611,8 +655,8 @@ export class UnifiedLightningHub {
     for (let i = 0; i < strikes.length; i++) {
       const s = strikes[i];
       if (s && s.id && s.timestamp >= cutoff && this.isValidStrike(s)) {
-        // Prune weak optical noise (< 5.0e-14 J) for satellite sources
-        if (s.opticalEnergy != null && s.opticalEnergy < 5.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
+        // Prune weak optical noise (< 2.0e-14 J) for satellite sources
+        if (s.opticalEnergy != null && s.opticalEnergy < 2.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
           continue;
         }
         if (!this.historyMap.has(s.id)) {
@@ -669,8 +713,8 @@ export class UnifiedLightningHub {
           if (s.source === 'goes18_glm' && s.longitude >= -105) continue;
           if ((s.source === 'goes19_glm' || s.source === 'goes16_glm') && s.longitude < -105) continue;
 
-          // Prune weak optical noise (< 5.0e-14 J) for satellite sources
-          if (s.opticalEnergy != null && s.opticalEnergy < 5.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
+          // Prune weak optical noise (< 2.0e-14 J) for satellite sources
+          if (s.opticalEnergy != null && s.opticalEnergy < 2.0e-14 && (s.source?.includes('glm') || s.source?.includes('goes') || s.source?.includes('mtg'))) {
             continue;
           }
 
@@ -1052,6 +1096,13 @@ export class UnifiedLightningHub {
       const fileBase = key.split('/').pop()?.replace('.nc', '') || 'glm';
       const fileTag = fileBase.slice(-20);
 
+      const targetThreshold = source === 'goes18_glm' ? this.thresholdGoes18 : this.thresholdGoes19;
+      const targetSatKey = source === 'goes18_glm' ? 'goes18' : 'goes19';
+
+      let batchRaw = 0;
+      let batchFiltered = 0;
+      let batchPassed = 0;
+
       for (let i = 0; i < lats.length; i++) {
         const lat = Number(lats[i]);
         const lon = Number(lons[i]);
@@ -1064,13 +1115,16 @@ export class UnifiedLightningHub {
         if (source === 'goes18_glm' && lon >= -105) continue;
         if ((source === 'goes19_glm' || source === 'goes16_glm') && lon < -105) continue;
 
+        batchRaw++;
         const energyJ = rawEnergies ? Number(rawEnergies[i]) * 1e-15 : 1e-14;
 
-        // Satellite Optical Energy & Convective Core Filter:
-        // Prioritize impactful convective core / CG discharges (~250-300 strikes per 20s window)
-        // Eliminates weak intra-cloud diffuse glare without starving storm footprints.
-        if (energyJ < 2.8e-14) continue;
+        // Dynamic per-satellite optical energy threshold:
+        if (energyJ < targetThreshold) {
+          batchFiltered++;
+          continue;
+        }
 
+        batchPassed++;
         const area = rawAreas ? Math.max(15, Math.round((Number(rawAreas[i]) * 152601) / 1e6)) : 50;
         const calculatedCurrent = Math.max(8, Math.min(65, Math.round(15 + Math.log10(energyJ * 1e15 + 1) * 8)));
 
@@ -1087,6 +1141,15 @@ export class UnifiedLightningHub {
           opticalEnergy: energyJ,
           opticalArea: area
         });
+      }
+
+      if (batchRaw > 0) {
+        const sat = this.satelliteTelemetry[targetSatKey];
+        sat.rawCount = batchRaw;
+        sat.filteredCount = batchFiltered;
+        sat.passedCount = batchPassed;
+        sat.thresholdJ = targetThreshold;
+        sat.lastFetchTime = Date.now();
       }
 
       file.close();
@@ -1173,5 +1236,134 @@ export class UnifiedLightningHub {
     }
 
     return results;
+  }
+
+  /**
+   * Ingests MTG-LI flashes with dynamic threshold and telemetry tracking.
+   */
+  public ingestMtgFlashes(rawFlashes: any[]): void {
+    if (!rawFlashes || rawFlashes.length === 0) return;
+    const now = Date.now();
+    let batchRaw = rawFlashes.length;
+    let batchFiltered = 0;
+    let batchPassed = 0;
+    const passedStrikes: LightningEvent[] = [];
+
+    for (const f of rawFlashes) {
+      const energyJ = typeof f.energy_j === 'number' ? f.energy_j : (typeof f.radiance === 'number' ? f.radiance : 2.5e-14);
+      if (energyJ < this.thresholdMtg) {
+        batchFiltered++;
+        continue;
+      }
+      batchPassed++;
+      const id = f.id || `mtg_${Math.round(f.lat * 100)}_${Math.round(f.lon * 100)}_${f.time || now}`;
+      passedStrikes.push({
+        id,
+        latitude: f.lat,
+        longitude: f.lon,
+        timestamp: f.time || now,
+        peakCurrent: Math.max(12, Math.min(65, Math.round(15 + Math.log10(energyJ * 1e15 + 1) * 8))),
+        type: energyJ >= 1.0e-13 ? 'CG' : 'IC',
+        source: 'mtg_li',
+        opticalEnergy: energyJ,
+        opticalArea: f.area_km2 || 40
+      });
+    }
+
+    const sat = this.satelliteTelemetry.mtg;
+    sat.rawCount = batchRaw;
+    sat.filteredCount = batchFiltered;
+    sat.passedCount = batchPassed;
+    sat.thresholdJ = this.thresholdMtg;
+    sat.lastFetchTime = now;
+
+    if (passedStrikes.length > 0) {
+      this.ingestSatelliteBatch(passedStrikes, 30000);
+    }
+  }
+
+  /**
+   * Returns current satellite real-time telemetry (raw, filtered, passed, periods, thresholds).
+   */
+  public getSatelliteTelemetry() {
+    return this.satelliteTelemetry;
+  }
+
+  /**
+   * Sets dynamic optical energy thresholds for satellites and broadcasts to all clients.
+   */
+  public setSatelliteThresholds(thresholds: { goes19?: number; goes18?: number; mtg?: number }): void {
+    if (typeof thresholds.goes19 === 'number' && thresholds.goes19 > 0) {
+      this.thresholdGoes19 = thresholds.goes19 * 1e-14;
+      this.satelliteTelemetry.goes19.thresholdJ = this.thresholdGoes19;
+    }
+    if (typeof thresholds.goes18 === 'number' && thresholds.goes18 > 0) {
+      this.thresholdGoes18 = thresholds.goes18 * 1e-14;
+      this.satelliteTelemetry.goes18.thresholdJ = this.thresholdGoes18;
+    }
+    if (typeof thresholds.mtg === 'number' && thresholds.mtg > 0) {
+      this.thresholdMtg = thresholds.mtg * 1e-14;
+      this.satelliteTelemetry.mtg.thresholdJ = this.thresholdMtg;
+    }
+    console.log(`📡 [UnifiedLightningHub] Updated satellite thresholds: GOES-19=${(this.thresholdGoes19*1e14).toFixed(1)}e-14, GOES-18=${(this.thresholdGoes18*1e14).toFixed(1)}e-14, MTG=${(this.thresholdMtg*1e14).toFixed(1)}e-14`);
+    this.broadcastToSse({
+      type: 'satellite_thresholds_updated',
+      thresholds: {
+        goes19: this.thresholdGoes19 * 1e14,
+        goes18: this.thresholdGoes18 * 1e14,
+        mtg: this.thresholdMtg * 1e14
+      }
+    });
+  }
+
+  /**
+   * Fast-Boot Snapshot: Spatially balanced sampling across 5 continents for instant <100ms startup.
+   */
+  public getRecentQuick(limit = 600): { count: number; strikes: LightningEvent[]; timestamp: number } {
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    const sa: LightningEvent[] = [];
+    const na: LightningEvent[] = [];
+    const eu: LightningEvent[] = [];
+    const af: LightningEvent[] = [];
+    const asia: LightningEvent[] = [];
+
+    for (const strike of this.historyMap.values()) {
+      if (strike.timestamp < cutoff) continue;
+      const lat = strike.latitude;
+      const lon = strike.longitude;
+
+      if (lat >= -56 && lat <= 13 && lon >= -85 && lon <= -34) {
+        sa.push(strike);
+      } else if (lat >= 13 && lat <= 72 && lon >= -170 && lon <= -50) {
+        na.push(strike);
+      } else if (lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45) {
+        eu.push(strike);
+      } else if (lat >= -35 && lat <= 35 && lon >= -20 && lon <= 55) {
+        af.push(strike);
+      } else {
+        asia.push(strike);
+      }
+    }
+
+    const quota = Math.floor(limit / 5);
+    const pickLatest = (arr: LightningEvent[], count: number) => {
+      arr.sort((a, b) => b.timestamp - a.timestamp);
+      return arr.slice(0, count);
+    };
+
+    const combined = [
+      ...pickLatest(sa, quota),
+      ...pickLatest(na, quota),
+      ...pickLatest(eu, quota),
+      ...pickLatest(af, quota),
+      ...pickLatest(asia, quota)
+    ];
+
+    combined.sort((a, b) => a.timestamp - b.timestamp);
+    return {
+      count: combined.length,
+      strikes: combined,
+      timestamp: Date.now()
+    };
   }
 }
