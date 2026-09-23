@@ -291,12 +291,9 @@ export class UnifiedStreamProvider implements ILightningProvider {
       }
 
       if ((parsed.type === 'batch' || parsed.type === 'micropacket') && Array.isArray(parsed.events)) {
-        const batch = parsed.events.map((e: any) => ({
-          data: e,
-          lat: e.latitude || e.lat || 0,
-          lon: e.longitude || e.lon || 0
-        }));
-        this.pacingQueue.enqueueBatch(batch, 1200);
+        for (let i = 0; i < parsed.events.length; i++) {
+          this.emitNormalized(parsed.events[i]);
+        }
         return;
       }
 

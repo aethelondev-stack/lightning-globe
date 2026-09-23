@@ -62,8 +62,8 @@ function init(): void {
   // 5b. Initialize 120 FPS Presentation Queue with Burst-Guard (Zero-Allocation Ring Buffer)
   const presentationQueue = new StochasticRingBufferQueue({
     capacity: 10000,
-    maxSatellitePerFrame: 2,
-    maxRfPerFrame: 1
+    maxSatellitePerFrame: 6,
+    maxRfPerFrame: 6
   });
 
   // 6. Initialize real-time clustering engine (Phase 5)
@@ -912,6 +912,8 @@ function init(): void {
 
   const satBarElements: Record<string, HTMLElement[]> = { goes19: [], goes18: [], mtg: [] };
 
+  const userInteractingKeys: Record<string, number> = {};
+
   Object.entries(satConfigs).forEach(([key, cfg]) => {
     if (!cfg.barsEl) return;
     cfg.barsEl.innerHTML = '';
@@ -919,9 +921,22 @@ function init(): void {
     for (let i = 0; i < numBars; i++) {
       const b = document.createElement('div');
       b.className = 'admin-sat-bar';
-      const baseE = 0.8 + Math.pow(i / (numBars - 1), 1.5) * 5.2;
-      b.dataset.energy = baseE.toFixed(2);
-      b.style.height = `${Math.min(100, Math.max(15, (baseE / 6.0) * 100))}%`;
+      const h = Math.round(18 + (i / (numBars - 1)) * 82);
+      b.style.height = `${h}%`;
+      b.dataset.index = i.toString();
+
+      // Click directly on any bar to set threshold to this exact bar
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!cfg.slider) return;
+        const targetK = i + 1; // filter through bar i
+        const newThresh = 0.8 + (targetK / 24) * 5.2;
+        cfg.slider.value = newThresh.toFixed(1);
+        userInteractingKeys[key] = Date.now();
+        updateSatVisuals(key);
+        saveSatelliteThresholdsDebounced();
+      });
+
       cfg.barsEl.appendChild(b);
       satBarElements[key].push(b);
     }
@@ -960,26 +975,31 @@ function init(): void {
     const thresh = parseFloat(cfg.slider.value);
     if (cfg.valEl) cfg.valEl.textContent = `${thresh.toFixed(1)} × 10⁻¹⁴ J`;
 
-    const pct = Math.min(Math.max(((thresh - 0.8) / (6.0 - 0.8)) * 100, 2), 98);
-    if (cfg.lineEl) cfg.lineEl.style.left = `${pct}%`;
+    // Linear ratio between 0.8 and 6.0
+    const ratio = Math.max(0, Math.min(1, (thresh - 0.8) / (6.0 - 0.8)));
+    // How many bars are filtered out (0 to 24)
+    const filteredBarsCount = Math.round(ratio * 24);
 
+    // Position red EŞİK line EXACTLY at the boundary of filteredBarsCount
+    const linePct = (filteredBarsCount / 24) * 100;
+    if (cfg.lineEl) {
+      cfg.lineEl.style.left = `${Math.min(Math.max(linePct, 0), 100)}%`;
+    }
+
+    // Color bars: 0 to filteredBarsCount - 1 are RED, rest are CYAN
     const bars = satBarElements[key] || [];
-    let passedCount = 0;
-    bars.forEach((bar) => {
-      const e = parseFloat(bar.dataset.energy || '2.8');
-      if (e < thresh) {
+    bars.forEach((bar, idx) => {
+      if (idx < filteredBarsCount) {
         bar.className = 'admin-sat-bar bar-filtered';
       } else {
         bar.className = 'admin-sat-bar bar-passed';
-        passedCount++;
       }
     });
 
     const raw = lastRawCounts[key] || cfg.rawBase;
-    const passRatio = bars.length > 0 ? passedCount / bars.length : 0.42;
-    const pass = Math.round(raw * passRatio);
-    const filt = raw - pass;
-    const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 0;
+    const filt = Math.round(raw * (filteredBarsCount / 24));
+    const pass = raw - filt;
+    const filtPct = Math.round((filteredBarsCount / 24) * 100);
     const passRate = (pass / cfg.period).toFixed(1);
 
     if (cfg.rawEl) cfg.rawEl.textContent = `${raw} flaş`;
@@ -991,6 +1011,7 @@ function init(): void {
     const cfg = satConfigs[key];
     if (cfg.slider) {
       cfg.slider.addEventListener('input', () => {
+        userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
         saveSatelliteThresholdsDebounced();
       });
@@ -1005,8 +1026,10 @@ function init(): void {
         const rect = chartContainer.getBoundingClientRect();
         if (rect.width <= 0) return;
         const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const val = 0.8 + ratio * (6.0 - 0.8);
-        cfg.slider!.value = (Math.round(val * 10) / 10).toFixed(1);
+        const k = Math.round(ratio * 24);
+        const val = 0.8 + (k / 24) * 5.2;
+        cfg.slider!.value = val.toFixed(1);
+        userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
       };
 
@@ -1055,15 +1078,16 @@ function init(): void {
   window.addEventListener('satellite_thresholds_updated', (e: any) => {
     const thresholds = e.detail;
     if (!thresholds) return;
-    if (thresholds.goes19 && sliderSatGoes19) {
+    const now = Date.now();
+    if (thresholds.goes19 && sliderSatGoes19 && (now - (userInteractingKeys.goes19 || 0) > 2000)) {
       sliderSatGoes19.value = (thresholds.goes19 / 1e14).toFixed(1);
       updateSatVisuals('goes19');
     }
-    if (thresholds.goes18 && sliderSatGoes18) {
+    if (thresholds.goes18 && sliderSatGoes18 && (now - (userInteractingKeys.goes18 || 0) > 2000)) {
       sliderSatGoes18.value = (thresholds.goes18 / 1e14).toFixed(1);
       updateSatVisuals('goes18');
     }
-    if (thresholds.mtg && sliderSatMtg) {
+    if (thresholds.mtg && sliderSatMtg && (now - (userInteractingKeys.mtg || 0) > 2000)) {
       sliderSatMtg.value = (thresholds.mtg / 1e14).toFixed(1);
       updateSatVisuals('mtg');
     }
@@ -1562,14 +1586,14 @@ function init(): void {
         return;
       }
 
-      if (event.source === 'blitzortung') {
-        // Instant RF: zero delay bypass directly to instant queue
+      if (event.source === 'blitzortung' || !isFromFallback) {
+        // Single Unified Pacing Architecture:
+        // Server (UnifiedLightningHub) already paces satellite flashes smoothly across the 20s / 30s cadence.
+        // Render immediately on the next animation frame with zero delay heap!
         presentationQueue.enqueueInstantRf(event);
       } else {
-        // Continuous Pacing for Satellites & Regional Radar:
-        // Distribute smoothly across the satellite observation period (GOES: 20s, MTG: 30s)
+        // Fallback browser poller only:
         const periodMs = event.source === 'mtg_li' ? 30000 : 20000;
-        // Jitter evenly across the upcoming period so strikes arrive organically one-by-one
         const jitterTime = Date.now() + Math.random() * periodMs;
         presentationQueue.enqueue(event, jitterTime, false);
       }
