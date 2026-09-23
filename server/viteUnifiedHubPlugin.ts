@@ -150,7 +150,10 @@ export function viteUnifiedHubPlugin(): Plugin {
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(adminConfigPath, JSON.stringify(data, null, 2), 'utf8');
 
-            // Apply dynamic satellite thresholds immediately in UnifiedLightningHub
+            // Apply dynamic satellite rates and thresholds immediately in UnifiedLightningHub
+            if (data.satelliteRates) {
+              hub.setSatelliteRates(data.satelliteRates);
+            }
             if (data.satelliteThresholds) {
               hub.setSatelliteThresholds(data.satelliteThresholds);
             }
@@ -172,6 +175,11 @@ export function viteUnifiedHubPlugin(): Plugin {
             const defaults = {
               sfxVolume: 80,
               musicVolume: 50,
+              satelliteRates: {
+                goes19: 8,
+                goes18: 2,
+                mtg: 20
+              },
               satelliteThresholds: {
                 goes19: 2.8,
                 goes18: 2.8,

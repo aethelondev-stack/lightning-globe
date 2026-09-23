@@ -83,13 +83,14 @@ export class UnifiedLightningHub {
     periodMs: number;
     allCycleFlashes: LightningEvent[];
     passedQueue: LightningEvent[];
+    emittedIds: Set<string>;
     cycleStartTime: number;
     totalScheduled: number;
     emittedCount: number;
   }> = {
-    goes19: { id: 'goes19', periodMs: 20000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
-    goes18: { id: 'goes18', periodMs: 20000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
-    mtg: { id: 'mtg', periodMs: 30000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 }
+    goes19: { id: 'goes19', periodMs: 20000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    goes18: { id: 'goes18', periodMs: 20000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    mtg: { id: 'mtg', periodMs: 600000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 }
   };
   private pacingTimer: ReturnType<typeof setInterval> | null = null;
   private diskSaveTimer: ReturnType<typeof setInterval> | null = null;
@@ -118,7 +119,11 @@ export class UnifiedLightningHub {
   private dedupRecentGrid: Map<string, Array<{ id: string; lat: number; lon: number; timestamp: number; source: string }>> = new Map();
   private lastDedupPruneTime: number = 0;
 
-  // Dynamic Satellite Thresholds & Telemetry
+  // Dynamic Satellite Presentation Rates (Strikes Per Second) & Legacy Thresholds
+  private rateGoes19: number = 8;
+  private rateGoes18: number = 2;
+  private rateMtg: number = 20;
+
   private thresholdGoes19: number = 2.8e-14;
   private thresholdGoes18: number = 2.8e-14;
   private thresholdMtg: number = 2.8e-14;
@@ -129,6 +134,7 @@ export class UnifiedLightningHub {
       name: 'NOAA GOES-19 GLM',
       region: 'Güney Amerika (Amazon) & Doğu Amerika',
       periodSeconds: 20,
+      ratePerSec: 8,
       thresholdJ: 2.8e-14,
       rawCount: 0,
       filteredCount: 0,
@@ -141,6 +147,7 @@ export class UnifiedLightningHub {
       name: 'NOAA GOES-18 GLM',
       region: 'Pasifik & Batı Amerika / Hawaii',
       periodSeconds: 20,
+      ratePerSec: 2,
       thresholdJ: 2.8e-14,
       rawCount: 0,
       filteredCount: 0,
@@ -152,7 +159,8 @@ export class UnifiedLightningHub {
       id: 'mtg',
       name: 'EUMETSAT MTG-LI',
       region: 'Afrika (Kongo) & Akdeniz / Avrupa',
-      periodSeconds: 30,
+      periodSeconds: 600,
+      ratePerSec: 20,
       thresholdJ: 2.8e-14,
       rawCount: 0,
       filteredCount: 0,
@@ -260,6 +268,20 @@ export class UnifiedLightningHub {
           if (typeof parsed.satelliteThresholds.mtg === 'number' && parsed.satelliteThresholds.mtg > 0) {
             this.thresholdMtg = parsed.satelliteThresholds.mtg * 1e-14;
             this.satelliteTelemetry.mtg.thresholdJ = this.thresholdMtg;
+          }
+        }
+        if (parsed.satelliteRates) {
+          if (typeof parsed.satelliteRates.goes19 === 'number' && parsed.satelliteRates.goes19 > 0) {
+            this.rateGoes19 = parsed.satelliteRates.goes19;
+            this.satelliteTelemetry.goes19.ratePerSec = this.rateGoes19;
+          }
+          if (typeof parsed.satelliteRates.goes18 === 'number' && parsed.satelliteRates.goes18 > 0) {
+            this.rateGoes18 = parsed.satelliteRates.goes18;
+            this.satelliteTelemetry.goes18.ratePerSec = this.rateGoes18;
+          }
+          if (typeof parsed.satelliteRates.mtg === 'number' && parsed.satelliteRates.mtg > 0) {
+            this.rateMtg = parsed.satelliteRates.mtg;
+            this.satelliteTelemetry.mtg.ratePerSec = this.rateMtg;
           }
         }
       }
@@ -401,7 +423,12 @@ export class UnifiedLightningHub {
    * (20s for GOES-19/18, 30s for MTG-LI).
    * Zero clumping, zero random pauses, exact strike-by-strike presentation.
    */
-  public ingestSatelliteBatch(flashes: LightningEvent[], targetDurationMs?: number, explicitSatKey?: 'goes19' | 'goes18' | 'mtg'): void {
+  public ingestSatelliteBatch(
+    flashes: LightningEvent[],
+    targetDurationMs?: number,
+    explicitSatKey?: 'goes19' | 'goes18' | 'mtg',
+    allCycleSectorFlashes?: LightningEvent[]
+  ): void {
     if (!flashes || flashes.length === 0) return;
 
     let satKey: 'goes19' | 'goes18' | 'mtg' = explicitSatKey || 'goes19';
@@ -417,7 +444,7 @@ export class UnifiedLightningHub {
     }
 
     const pacer = this.satellitePacers[satKey];
-    const duration = targetDurationMs || pacer.periodMs || (satKey === 'mtg' ? 30000 : 20000);
+    const duration = targetDurationMs || pacer.periodMs || (satKey === 'mtg' ? 600000 : 20000);
     pacer.periodMs = duration;
 
     // Filter valid strikes (excluding past duplicates)
@@ -430,7 +457,8 @@ export class UnifiedLightningHub {
       }
     }
 
-    pacer.allCycleFlashes = validFlashes;
+    pacer.allCycleFlashes = allCycleSectorFlashes && allCycleSectorFlashes.length > 0 ? allCycleSectorFlashes : validFlashes;
+    pacer.emittedIds.clear();
 
     // Fisher-Yates spatial shuffle to prevent sensor raster-scan order
     for (let i = validFlashes.length - 1; i > 0; i--) {
@@ -496,6 +524,7 @@ export class UnifiedLightningHub {
         pacer.emittedCount += strikesToEmit.length;
 
         for (let i = 0; i < strikesToEmit.length; i++) {
+          pacer.emittedIds.add(strikesToEmit[i].id);
           this.emitPacedSatelliteStrike(strikesToEmit[i]);
         }
 
@@ -1164,13 +1193,10 @@ export class UnifiedLightningHub {
       const fileBase = key.split('/').pop()?.replace('.nc', '') || 'glm';
       const fileTag = fileBase.slice(-20);
 
-      const targetThreshold = source === 'goes18_glm' ? this.thresholdGoes18 : this.thresholdGoes19;
       const targetSatKey = source === 'goes18_glm' ? 'goes18' : 'goes19';
+      const rate = targetSatKey === 'goes18' ? this.rateGoes18 : this.rateGoes19;
 
       let batchRaw = 0;
-      let batchFiltered = 0;
-      let batchPassed = 0;
-
       const allSectorFlashes: LightningEvent[] = [];
 
       for (let i = 0; i < lats.length; i++) {
@@ -1205,30 +1231,29 @@ export class UnifiedLightningHub {
         };
 
         allSectorFlashes.push(flashItem);
-
-        // Dynamic per-satellite optical energy threshold:
-        if (energyJ < targetThreshold) {
-          batchFiltered++;
-          continue;
-        }
-
-        batchPassed++;
-        results.push(flashItem);
       }
+
+      // Sort descending by optical energy so highest energy flashes are selected
+      allSectorFlashes.sort((a, b) => (b.opticalEnergy || 0) - (a.opticalEnergy || 0));
+
+      const targetCount = Math.min(allSectorFlashes.length, Math.max(1, Math.round(rate * 20)));
+      const passedStrikes = allSectorFlashes.slice(0, targetCount);
 
       if (batchRaw > 0) {
         const sat = this.satelliteTelemetry[targetSatKey];
         sat.rawCount = batchRaw;
-        sat.filteredCount = batchFiltered;
-        sat.passedCount = batchPassed;
-        sat.thresholdJ = targetThreshold;
+        sat.filteredCount = batchRaw - passedStrikes.length;
+        sat.passedCount = passedStrikes.length;
+        sat.ratePerSec = rate;
+        sat.periodSeconds = 20;
+        sat.thresholdJ = passedStrikes.length > 0 ? (passedStrikes[passedStrikes.length - 1].opticalEnergy || 2.8e-14) : 2.8e-14;
         sat.lastFetchTime = Date.now();
         this.satellitePacers[targetSatKey].allCycleFlashes = allSectorFlashes;
       }
 
       file.close();
       try { this.h5wasmModule.FS.unlink(vfileName); } catch {}
-      return results;
+      return passedStrikes;
     } catch {
       try { this.h5wasmModule.FS.unlink(vfileName); } catch {}
       return [];
@@ -1313,25 +1338,21 @@ export class UnifiedLightningHub {
   }
 
   /**
-   * Ingests MTG-LI flashes with dynamic threshold and telemetry tracking.
+   * Ingests MTG-LI flashes with continuous 10-minute linear pacing and zero data loss.
    */
   public ingestMtgFlashes(rawFlashes: any[]): void {
     if (!rawFlashes || rawFlashes.length === 0) return;
     const now = Date.now();
-    let batchRaw = rawFlashes.length;
-    let batchFiltered = 0;
-    let batchPassed = 0;
-    const passedStrikes: LightningEvent[] = [];
+    const sat = this.satelliteTelemetry.mtg;
+    sat.periodSeconds = 600;
+    sat.ratePerSec = this.rateMtg;
+    sat.lastFetchTime = now;
 
+    const allEvents: LightningEvent[] = [];
     for (const f of rawFlashes) {
       const energyJ = typeof f.energy_j === 'number' ? f.energy_j : (typeof f.radiance === 'number' ? f.radiance : 2.5e-14);
-      if (energyJ < this.thresholdMtg) {
-        batchFiltered++;
-        continue;
-      }
-      batchPassed++;
       const id = f.id || `mtg_${Math.round(f.lat * 100)}_${Math.round(f.lon * 100)}_${f.time || now}`;
-      passedStrikes.push({
+      allEvents.push({
         id,
         latitude: f.lat,
         longitude: f.lon,
@@ -1344,51 +1365,126 @@ export class UnifiedLightningHub {
       });
     }
 
-    const sat = this.satelliteTelemetry.mtg;
-    sat.thresholdJ = this.thresholdMtg;
-    sat.lastFetchTime = now;
+    // Sort descending by optical energy so highest energy flashes are prioritized
+    allEvents.sort((a, b) => (b.opticalEnergy || 0) - (a.opticalEnergy || 0));
 
-    // EUMETSAT MTG-LI files are 10-minute (600s) bulk NetCDF accumulations (~25k-30k flashes).
-    // Normalize telemetry to the 30-second polling cadence: (30 / 600) = 0.05
-    if (batchRaw > 2500) {
-      const estimatedSpanSec = 600; // 10 minutes nominal EUMETSAT repeat cycle
-      const cadenceFactor = 30 / estimatedSpanSec;
-      sat.rawCount = Math.round(batchRaw * cadenceFactor);
-      sat.filteredCount = Math.round(batchFiltered * cadenceFactor);
-      sat.passedCount = Math.round(batchPassed * cadenceFactor);
+    // Target count based on user-configured rate per second over full 10-minute (600s) period
+    // If incoming flashes < targetCount, 100% of real flashes pass without fake data
+    const targetCount = Math.min(allEvents.length, Math.max(1, Math.round(this.rateMtg * 600)));
+    const passedStrikes = allEvents.slice(0, targetCount);
 
-      // Ingest a uniform spatial sample representing the 30-second cadence window (~1,200 - 1,500 flashes)
-      const targetSampleCount = sat.passedCount;
-      if (passedStrikes.length > targetSampleCount && targetSampleCount > 0) {
-        const step = passedStrikes.length / targetSampleCount;
-        const sampled: LightningEvent[] = [];
-        for (let i = 0; i < targetSampleCount; i++) {
-          sampled.push(passedStrikes[Math.floor(i * step)]);
-        }
-        this.ingestSatelliteBatch(sampled, 30000, 'mtg');
-      } else if (passedStrikes.length > 0) {
-        this.ingestSatelliteBatch(passedStrikes, 30000, 'mtg');
-      }
-    } else {
-      sat.rawCount = batchRaw;
-      sat.filteredCount = batchFiltered;
-      sat.passedCount = batchPassed;
+    sat.rawCount = allEvents.length;
+    sat.passedCount = passedStrikes.length;
+    sat.filteredCount = allEvents.length - passedStrikes.length;
+    sat.thresholdJ = passedStrikes.length > 0 ? (passedStrikes[passedStrikes.length - 1].opticalEnergy || 2.8e-14) : 2.8e-14;
 
-      if (passedStrikes.length > 0) {
-        this.ingestSatelliteBatch(passedStrikes, 30000, 'mtg');
-      }
+    this.satellitePacers.mtg.allCycleFlashes = allEvents;
+
+    // Ingest into satellite batch pacer with full 10-minute (600s = 600,000ms) window
+    if (passedStrikes.length > 0) {
+      this.ingestSatelliteBatch(passedStrikes, 600000, 'mtg', allEvents);
     }
   }
 
   /**
-   * Returns current satellite real-time telemetry (raw, filtered, passed, periods, thresholds).
+   * Returns current satellite real-time telemetry (raw, filtered, passed, periods, rates, thresholds).
    */
   public getSatelliteTelemetry() {
     return this.satelliteTelemetry;
   }
 
   /**
-   * Sets dynamic optical energy thresholds for satellites and broadcasts to all clients.
+   * Sets dynamic presentation rates (strikes per second) for satellites and broadcasts to all clients.
+   */
+  public setSatelliteRates(rates: { goes19?: number; goes18?: number; mtg?: number }): void {
+    if (typeof rates.goes19 === 'number' && rates.goes19 > 0) {
+      this.rateGoes19 = rates.goes19;
+      this.satelliteTelemetry.goes19.ratePerSec = this.rateGoes19;
+      this.applyRateToPacer('goes19', this.rateGoes19);
+    }
+    if (typeof rates.goes18 === 'number' && rates.goes18 > 0) {
+      this.rateGoes18 = rates.goes18;
+      this.satelliteTelemetry.goes18.ratePerSec = this.rateGoes18;
+      this.applyRateToPacer('goes18', this.rateGoes18);
+    }
+    if (typeof rates.mtg === 'number' && rates.mtg > 0) {
+      this.rateMtg = rates.mtg;
+      this.satelliteTelemetry.mtg.ratePerSec = this.rateMtg;
+      this.applyRateToPacer('mtg', this.rateMtg);
+    }
+
+    console.log(`📡 [UnifiedLightningHub] Updated satellite rates: GOES-19=${this.rateGoes19}/s, GOES-18=${this.rateGoes18}/s, MTG=${this.rateMtg}/s`);
+
+    this.broadcastToSse({
+      type: 'satellite_rates_updated',
+      rates: {
+        goes19: this.rateGoes19,
+        goes18: this.rateGoes18,
+        mtg: this.rateMtg
+      }
+    });
+
+    // Also persist to .cache/admin_config.json
+    try {
+      const cfgPath = path.resolve(process.cwd(), '.cache', 'admin_config.json');
+      let currentCfg: any = {};
+      if (fs.existsSync(cfgPath)) {
+        currentCfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      }
+      currentCfg.satelliteRates = {
+        goes19: this.rateGoes19,
+        goes18: this.rateGoes18,
+        mtg: this.rateMtg
+      };
+      fs.writeFileSync(cfgPath, JSON.stringify(currentCfg, null, 2), 'utf8');
+    } catch {}
+  }
+
+  public getSatelliteRates(): { goes19: number; goes18: number; mtg: number } {
+    return {
+      goes19: this.rateGoes19,
+      goes18: this.rateGoes18,
+      mtg: this.rateMtg
+    };
+  }
+
+  private applyRateToPacer(key: 'goes19' | 'goes18' | 'mtg', newRate: number): void {
+    const pacer = this.satellitePacers[key];
+    const sat = this.satelliteTelemetry[key];
+    if (!pacer.allCycleFlashes || pacer.allCycleFlashes.length === 0) return;
+
+    const periodSec = pacer.periodMs / 1000;
+    const targetTotal = Math.min(pacer.allCycleFlashes.length, Math.max(1, Math.round(newRate * periodSec)));
+    const remainingNeeded = Math.max(0, targetTotal - pacer.emittedCount);
+
+    // Candidates: allCycleFlashes that have not been emitted yet
+    const candidates = pacer.allCycleFlashes
+      .filter(f => !pacer.emittedIds.has(f.id))
+      .sort((a, b) => (b.opticalEnergy || 0) - (a.opticalEnergy || 0));
+
+    const newPassed = candidates.slice(0, remainingNeeded);
+
+    // Fisher-Yates spatial shuffle
+    for (let i = newPassed.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = newPassed[i];
+      newPassed[i] = newPassed[j];
+      newPassed[j] = tmp;
+    }
+
+    pacer.passedQueue = newPassed;
+    pacer.totalScheduled = pacer.emittedCount + newPassed.length;
+    sat.rawCount = pacer.allCycleFlashes.length;
+    sat.passedCount = pacer.totalScheduled;
+    sat.filteredCount = sat.rawCount - sat.passedCount;
+    sat.ratePerSec = newRate;
+    if (newPassed.length > 0) {
+      sat.thresholdJ = newPassed[newPassed.length - 1].opticalEnergy || 2.8e-14;
+    }
+  }
+
+  /**
+   * Sets dynamic optical energy thresholds for satellites and broadcasts to all clients (Legacy support).
    */
   public setSatelliteThresholds(thresholds: { goes19?: number; goes18?: number; mtg?: number }): void {
     if (typeof thresholds.goes19 === 'number' && thresholds.goes19 > 0) {

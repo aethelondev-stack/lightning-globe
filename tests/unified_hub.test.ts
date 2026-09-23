@@ -421,3 +421,60 @@ test('UnifiedLightningHub: Satellite Optical Energy Filter and Anti-Bloat Dynami
     try { if (fs.existsSync(TEST_ENERGY_CACHE)) fs.unlinkSync(TEST_ENERGY_CACHE); } catch {}
   }
 });
+
+test('UnifiedLightningHub: Continuous 10-Minute MTG Ingestion and Dynamic Strikes/Sec Rate Control', async () => {
+  const TEST_RATE_CACHE = path.resolve(process.cwd(), '.cache', 'test_rate_cache.json');
+  try { if (fs.existsSync(TEST_RATE_CACHE)) fs.unlinkSync(TEST_RATE_CACHE); } catch {}
+
+  const hub = new UnifiedLightningHub({
+    cacheFilePath: TEST_RATE_CACHE,
+    enableAutoStart: false,
+    enableNetwork: false,
+    satellitePacingIntervalMs: 25,
+    backfillOnStart: false
+  });
+
+  try {
+    // 1. Simulate 200 raw MTG flashes from Africa
+    const now = Date.now();
+    const rawMtgFlashes: any[] = [];
+    for (let i = 0; i < 200; i++) {
+      rawMtgFlashes.push({
+        id: `mtg_raw_${i}`,
+        lat: 0.5 + (i % 20) * 0.1,
+        lon: 22.0 + (i % 20) * 0.1,
+        time: now,
+        energy_j: 1.0e-14 + i * 1.0e-15,
+        area_km2: 45
+      });
+    }
+
+    // Set initial rate: 0.2 strikes/sec over 600s = 120 target strikes
+    hub.setSatelliteRates({ mtg: 0.2 });
+    assert.equal(hub.getSatelliteRates().mtg, 0.2);
+
+    hub.ingestMtgFlashes(rawMtgFlashes);
+
+    const telemetry = hub.getSatelliteTelemetry();
+    assert.equal(telemetry.mtg.periodSeconds, 600, 'MTG period must be 600s (10 min)');
+    assert.equal(telemetry.mtg.rawCount, 200, 'Raw count must equal 200');
+    assert.equal(telemetry.mtg.passedCount, 120, 'Passed count should be min(200, 0.2 * 600) = 120');
+    assert.equal(telemetry.mtg.filteredCount, 80, 'Filtered count should be 200 - 120 = 80');
+
+    // 2. Mid-cycle rate adjustment: increase to 0.5 strikes/sec (target = 300, capped at 200 raw)
+    hub.setSatelliteRates({ mtg: 0.5 });
+    const updatedTelemetry = hub.getSatelliteTelemetry();
+    assert.equal(updatedTelemetry.mtg.ratePerSec, 0.5);
+    assert.equal(updatedTelemetry.mtg.passedCount, 200, 'All 200 real strikes should now pass without fake data');
+    assert.equal(updatedTelemetry.mtg.filteredCount, 0);
+
+    // 3. Mid-cycle rate adjustment: decrease to 0.1 strikes/sec (target = 60)
+    hub.setSatelliteRates({ mtg: 0.1 });
+    const trimmedTelemetry = hub.getSatelliteTelemetry();
+    assert.equal(trimmedTelemetry.mtg.passedCount, 60);
+    assert.equal(trimmedTelemetry.mtg.filteredCount, 140);
+  } finally {
+    hub.stop();
+    try { if (fs.existsSync(TEST_RATE_CACHE)) fs.unlinkSync(TEST_RATE_CACHE); } catch {}
+  }
+});

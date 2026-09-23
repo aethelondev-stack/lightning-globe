@@ -280,6 +280,11 @@ export class UnifiedStreamProvider implements ILightningProvider {
         return;
       }
 
+      if (parsed.type === 'satellite_rates_updated' && parsed.rates && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('satellite_rates_updated', { detail: parsed.rates }));
+        return;
+      }
+
       if (parsed.type === 'satellite_thresholds_updated' && parsed.thresholds && typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('satellite_thresholds_updated', { detail: parsed.thresholds }));
         return;

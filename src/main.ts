@@ -868,6 +868,9 @@ function init(): void {
     progEl: HTMLElement | null;
     barsEl: HTMLElement | null;
     period: number;
+    minRate: number;
+    maxRate: number;
+    defaultRate: number;
     rawBase: number;
   }
 
@@ -882,7 +885,10 @@ function init(): void {
       progEl: progSatGoes19,
       barsEl: barsSatGoes19,
       period: 20,
-      rawBase: 480
+      minRate: 1,
+      maxRate: 25,
+      defaultRate: 8,
+      rawBase: 240
     },
     goes18: {
       slider: sliderSatGoes18,
@@ -894,7 +900,10 @@ function init(): void {
       progEl: progSatGoes18,
       barsEl: barsSatGoes18,
       period: 20,
-      rawBase: 190
+      minRate: 0.5,
+      maxRate: 15,
+      defaultRate: 2,
+      rawBase: 40
     },
     mtg: {
       slider: sliderSatMtg,
@@ -905,8 +914,11 @@ function init(): void {
       passEl: passSatMtg,
       progEl: progSatMtg,
       barsEl: barsSatMtg,
-      period: 30,
-      rawBase: 600
+      period: 600,
+      minRate: 1,
+      maxRate: 60,
+      defaultRate: 20,
+      rawBase: 25000
     }
   };
 
@@ -925,16 +937,17 @@ function init(): void {
       b.style.height = `${h}%`;
       b.dataset.index = i.toString();
 
-      // Click directly on any bar to set threshold to this exact bar
+      // Click directly on any bar to set threshold/rate
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!cfg.slider) return;
-        const targetK = i + 1; // filter through bar i
-        const newThresh = 0.8 + (targetK / 24) * 5.2;
-        cfg.slider.value = newThresh.toFixed(1);
+        const targetK = i + 1;
+        const targetPassRatio = 1 - (targetK / 24);
+        const newRate = cfg.minRate + targetPassRatio * (cfg.maxRate - cfg.minRate);
+        cfg.slider.value = (cfg.minRate < 1 ? Math.round(newRate * 2) / 2 : Math.round(newRate)).toString();
         userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
-        saveSatelliteThresholdsDebounced();
+        saveSatelliteRatesDebounced();
       });
 
       cfg.barsEl.appendChild(b);
@@ -943,21 +956,21 @@ function init(): void {
   });
 
   const lastRawCounts: Record<string, number> = {
-    goes19: 86,
-    goes18: 26,
-    mtg: 1460
+    goes19: 220,
+    goes18: 35,
+    mtg: 24500
   };
 
   let satThresholdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const saveSatelliteThresholdsDebounced = () => {
+  const saveSatelliteRatesDebounced = () => {
     if (satThresholdDebounceTimer) clearTimeout(satThresholdDebounceTimer);
     satThresholdDebounceTimer = setTimeout(async () => {
       try {
         const payload = {
-          satelliteThresholds: {
-            goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 2.8,
-            goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2.8,
-            mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 2.8
+          satelliteRates: {
+            goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 8,
+            goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2,
+            mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 20
           }
         };
         await fetch('/api/admin/config', {
@@ -972,13 +985,24 @@ function init(): void {
   const updateSatVisuals = (key: string) => {
     const cfg = satConfigs[key];
     if (!cfg || !cfg.slider) return;
-    const thresh = parseFloat(cfg.slider.value);
-    if (cfg.valEl) cfg.valEl.textContent = `${thresh.toFixed(1)} × 10⁻¹⁴ J`;
+    const rate = parseFloat(cfg.slider.value);
+    const spm = Math.round(rate * 60);
+    const targetCount = Math.round(rate * cfg.period);
+    const periodLabel = cfg.period >= 60 ? `${Math.round(cfg.period / 60)}dk` : `${cfg.period}s`;
 
-    // Linear ratio between 0.8 and 6.0
-    const ratio = Math.max(0, Math.min(1, (thresh - 0.8) / (6.0 - 0.8)));
-    // How many bars are filtered out (0 to 24)
-    const filteredBarsCount = Math.round(ratio * 24);
+    if (cfg.valEl) {
+      cfg.valEl.textContent = `⚡ ${rate} vuruş/sn (${spm} SPM | ${periodLabel}: ${targetCount} Şimşek)`;
+    }
+
+    const raw = lastRawCounts[key] || cfg.rawBase;
+    const pass = Math.min(raw, targetCount);
+    const filt = Math.max(0, raw - pass);
+    const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 0;
+
+    // Linear ratio between filtered and total
+    const passRatio = raw > 0 ? Math.min(1, pass / raw) : 1;
+    const filtRatio = 1 - passRatio;
+    const filteredBarsCount = Math.round(filtRatio * 24);
 
     // Position red EŞİK line EXACTLY at the boundary of filteredBarsCount
     const linePct = (filteredBarsCount / 24) * 100;
@@ -996,15 +1020,9 @@ function init(): void {
       }
     });
 
-    const raw = lastRawCounts[key] || cfg.rawBase;
-    const filt = Math.round(raw * (filteredBarsCount / 24));
-    const pass = raw - filt;
-    const filtPct = Math.round((filteredBarsCount / 24) * 100);
-    const passRate = (pass / cfg.period).toFixed(1);
-
-    if (cfg.rawEl) cfg.rawEl.textContent = `${raw} flaş`;
-    if (cfg.filtEl) cfg.filtEl.textContent = `${filt} (%${filtPct})`;
-    if (cfg.passEl) cfg.passEl.textContent = `${pass} şimşek (~${passRate}/sn)`;
+    if (cfg.rawEl) cfg.rawEl.textContent = `${raw.toLocaleString()} flaş`;
+    if (cfg.filtEl) cfg.filtEl.textContent = `${filt.toLocaleString()} (%${filtPct})`;
+    if (cfg.passEl) cfg.passEl.textContent = `${pass.toLocaleString()} şimşek (${rate}/sn)`;
   };
 
   ['goes19', 'goes18', 'mtg'].forEach((key) => {
@@ -1013,7 +1031,7 @@ function init(): void {
       cfg.slider.addEventListener('input', () => {
         userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
-        saveSatelliteThresholdsDebounced();
+        saveSatelliteRatesDebounced();
       });
     }
 
@@ -1022,29 +1040,29 @@ function init(): void {
     if (chartContainer && cfg.slider) {
       let isDragging = false;
 
-      const setThresholdFromPointer = (clientX: number) => {
+      const setRateFromPointer = (clientX: number) => {
         const rect = chartContainer.getBoundingClientRect();
         if (rect.width <= 0) return;
         const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const k = Math.round(ratio * 24);
-        const val = 0.8 + (k / 24) * 5.2;
-        cfg.slider!.value = val.toFixed(1);
+        const targetPassRatio = 1 - ratio;
+        const newRate = cfg.minRate + targetPassRatio * (cfg.maxRate - cfg.minRate);
+        cfg.slider!.value = (cfg.minRate < 1 ? Math.round(newRate * 2) / 2 : Math.round(newRate)).toString();
         userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
       };
 
       chartContainer.addEventListener('mousedown', (e) => {
         isDragging = true;
-        setThresholdFromPointer(e.clientX);
+        setRateFromPointer(e.clientX);
 
         const onMouseMove = (ev: MouseEvent) => {
           if (!isDragging) return;
-          setThresholdFromPointer(ev.clientX);
+          setRateFromPointer(ev.clientX);
         };
         const onMouseUp = () => {
           if (isDragging) {
             isDragging = false;
-            saveSatelliteThresholdsDebounced();
+            saveSatelliteRatesDebounced();
           }
           window.removeEventListener('mousemove', onMouseMove);
           window.removeEventListener('mouseup', onMouseUp);
@@ -1056,18 +1074,18 @@ function init(): void {
       chartContainer.addEventListener('touchstart', (e) => {
         if (!e.touches[0]) return;
         isDragging = true;
-        setThresholdFromPointer(e.touches[0].clientX);
+        setRateFromPointer(e.touches[0].clientX);
       }, { passive: true });
 
       chartContainer.addEventListener('touchmove', (e) => {
         if (!isDragging || !e.touches[0]) return;
-        setThresholdFromPointer(e.touches[0].clientX);
+        setRateFromPointer(e.touches[0].clientX);
       }, { passive: true });
 
       chartContainer.addEventListener('touchend', () => {
         if (isDragging) {
           isDragging = false;
-          saveSatelliteThresholdsDebounced();
+          saveSatelliteRatesDebounced();
         }
       });
     }
@@ -1075,22 +1093,27 @@ function init(): void {
     updateSatVisuals(key);
   });
 
+  window.addEventListener('satellite_rates_updated', (e: any) => {
+    const rates = e.detail;
+    if (!rates) return;
+    const now = Date.now();
+    if (rates.goes19 && sliderSatGoes19 && (now - (userInteractingKeys.goes19 || 0) > 2000)) {
+      sliderSatGoes19.value = rates.goes19.toString();
+      updateSatVisuals('goes19');
+    }
+    if (rates.goes18 && sliderSatGoes18 && (now - (userInteractingKeys.goes18 || 0) > 2000)) {
+      sliderSatGoes18.value = rates.goes18.toString();
+      updateSatVisuals('goes18');
+    }
+    if (rates.mtg && sliderSatMtg && (now - (userInteractingKeys.mtg || 0) > 2000)) {
+      sliderSatMtg.value = rates.mtg.toString();
+      updateSatVisuals('mtg');
+    }
+  });
+
   window.addEventListener('satellite_thresholds_updated', (e: any) => {
     const thresholds = e.detail;
     if (!thresholds) return;
-    const now = Date.now();
-    if (thresholds.goes19 && sliderSatGoes19 && (now - (userInteractingKeys.goes19 || 0) > 2000)) {
-      sliderSatGoes19.value = (thresholds.goes19 / 1e14).toFixed(1);
-      updateSatVisuals('goes19');
-    }
-    if (thresholds.goes18 && sliderSatGoes18 && (now - (userInteractingKeys.goes18 || 0) > 2000)) {
-      sliderSatGoes18.value = (thresholds.goes18 / 1e14).toFixed(1);
-      updateSatVisuals('goes18');
-    }
-    if (thresholds.mtg && sliderSatMtg && (now - (userInteractingKeys.mtg || 0) > 2000)) {
-      sliderSatMtg.value = (thresholds.mtg / 1e14).toFixed(1);
-      updateSatVisuals('mtg');
-    }
   });
 
   let satTelemetryTimer: ReturnType<typeof setInterval> | null = null;
@@ -1142,7 +1165,20 @@ function init(): void {
       if (sliderMusicVol) sliderMusicVol.value = cfg.musicVolume.toString();
       if (valMusicVol) valMusicVol.textContent = `${cfg.musicVolume}%`;
     }
-    if (cfg.satelliteThresholds) {
+    if (cfg.satelliteRates) {
+      if (cfg.satelliteRates.goes19 && sliderSatGoes19) {
+        sliderSatGoes19.value = cfg.satelliteRates.goes19.toString();
+        updateSatVisuals('goes19');
+      }
+      if (cfg.satelliteRates.goes18 && sliderSatGoes18) {
+        sliderSatGoes18.value = cfg.satelliteRates.goes18.toString();
+        updateSatVisuals('goes18');
+      }
+      if (cfg.satelliteRates.mtg && sliderSatMtg) {
+        sliderSatMtg.value = cfg.satelliteRates.mtg.toString();
+        updateSatVisuals('mtg');
+      }
+    } else if (cfg.satelliteThresholds) {
       if (cfg.satelliteThresholds.goes19 && sliderSatGoes19) {
         sliderSatGoes19.value = cfg.satelliteThresholds.goes19.toString();
         updateSatVisuals('goes19');
@@ -1219,6 +1255,11 @@ function init(): void {
     const payload = {
       sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
       musicVolume: sliderMusicVol ? parseInt(sliderMusicVol.value, 10) : 50,
+      satelliteRates: {
+        goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 8,
+        goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2,
+        mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 20
+      },
       satelliteThresholds: {
         goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 2.8,
         goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2.8,

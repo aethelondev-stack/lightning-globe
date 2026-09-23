@@ -212,7 +212,7 @@ export function viteMtgLiPlugin(): Plugin {
       const searchUrl = 'https://api.eumetsat.int/data/search-products/1.0.0/os?pi=EO:EUM:DAT:0691&format=json';
       const sRes = await fetch(searchUrl, {
         headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(20000)
+        signal: AbortSignal.timeout(35000)
       });
 
       if (!sRes.ok) {
@@ -260,7 +260,7 @@ export function viteMtgLiPlugin(): Plugin {
       console.log(`📡 [EUMETSAT MTG-LI] Ingesting Africa & Europe satellite file: ${feature.id?.slice(0, 45)}...`);
       const dlRes = await fetch(ncEntry.href, {
         headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(45000)
       });
 
       if (!dlRes.ok) {
