@@ -942,8 +942,8 @@ function init(): void {
         e.stopPropagation();
         if (!cfg.slider) return;
         const targetK = i + 1;
-        const targetPassRatio = 1 - (targetK / 24);
-        const newRate = cfg.minRate + targetPassRatio * (cfg.maxRate - cfg.minRate);
+        const ratio = targetK / 24;
+        const newRate = cfg.minRate + ratio * (cfg.maxRate - cfg.minRate);
         cfg.slider.value = (cfg.minRate < 1 ? Math.round(newRate * 2) / 2 : Math.round(newRate)).toString();
         userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
@@ -999,24 +999,25 @@ function init(): void {
     const filt = Math.max(0, raw - pass);
     const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 0;
 
-    // Linear ratio between filtered and total
-    const passRatio = raw > 0 ? Math.min(1, pass / raw) : 1;
-    const filtRatio = 1 - passRatio;
-    const filteredBarsCount = Math.round(filtRatio * 24);
+    // Linear ratio of selected rate within [minRate, maxRate]
+    const rateRatio = Math.max(0, Math.min(1, (rate - cfg.minRate) / (cfg.maxRate - cfg.minRate)));
+    const activeBarsCount = Math.round(rateRatio * 24);
 
-    // Position red EŞİK line EXACTLY at the boundary of filteredBarsCount
-    const linePct = (filteredBarsCount / 24) * 100;
+    // Position HIZ line EXACTLY matching the slider position (left to right)
+    const linePct = (activeBarsCount / 24) * 100;
     if (cfg.lineEl) {
       cfg.lineEl.style.left = `${Math.min(Math.max(linePct, 0), 100)}%`;
     }
 
-    // Color bars: 0 to filteredBarsCount - 1 are RED, rest are CYAN
+    // Color bars:
+    // 0 to activeBarsCount - 1 are CYAN (passed / active speed level)
+    // activeBarsCount to 23 are RED (filtered / beyond current speed cap)
     const bars = satBarElements[key] || [];
     bars.forEach((bar, idx) => {
-      if (idx < filteredBarsCount) {
-        bar.className = 'admin-sat-bar bar-filtered';
-      } else {
+      if (idx < activeBarsCount) {
         bar.className = 'admin-sat-bar bar-passed';
+      } else {
+        bar.className = 'admin-sat-bar bar-filtered';
       }
     });
 
@@ -1044,8 +1045,7 @@ function init(): void {
         const rect = chartContainer.getBoundingClientRect();
         if (rect.width <= 0) return;
         const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const targetPassRatio = 1 - ratio;
-        const newRate = cfg.minRate + targetPassRatio * (cfg.maxRate - cfg.minRate);
+        const newRate = cfg.minRate + ratio * (cfg.maxRate - cfg.minRate);
         cfg.slider!.value = (cfg.minRate < 1 ? Math.round(newRate * 2) / 2 : Math.round(newRate)).toString();
         userInteractingKeys[key] = Date.now();
         updateSatVisuals(key);
