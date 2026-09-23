@@ -1475,8 +1475,8 @@ export class UnifiedLightningHub {
     pacer.passedQueue = newPassed;
     pacer.totalScheduled = pacer.emittedCount + newPassed.length;
     sat.rawCount = pacer.allCycleFlashes.length;
-    sat.passedCount = pacer.totalScheduled;
-    sat.filteredCount = sat.rawCount - sat.passedCount;
+    sat.passedCount = Math.min(sat.rawCount, pacer.totalScheduled);
+    sat.filteredCount = Math.max(0, sat.rawCount - sat.passedCount);
     sat.ratePerSec = newRate;
     if (newPassed.length > 0) {
       sat.thresholdJ = newPassed[newPassed.length - 1].opticalEnergy || 2.8e-14;
