@@ -145,7 +145,8 @@ export function viteUnifiedHubPlugin(): Plugin {
         req.on('data', (chunk: any) => { body += chunk; });
         req.on('end', () => {
           try {
-            const data = JSON.parse(body || '{}');
+            const sanitized = (body || '{}').replace(/^\uFEFF/, '').trim();
+            const data = JSON.parse(sanitized);
             const dir = path.dirname(adminConfigPath);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(adminConfigPath, JSON.stringify(data, null, 2), 'utf8');
