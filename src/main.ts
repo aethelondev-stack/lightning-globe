@@ -927,6 +927,33 @@ function init(): void {
     }
   });
 
+  const lastRawCounts: Record<string, number> = {
+    goes19: 86,
+    goes18: 26,
+    mtg: 1460
+  };
+
+  let satThresholdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const saveSatelliteThresholdsDebounced = () => {
+    if (satThresholdDebounceTimer) clearTimeout(satThresholdDebounceTimer);
+    satThresholdDebounceTimer = setTimeout(async () => {
+      try {
+        const payload = {
+          satelliteThresholds: {
+            goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 2.8,
+            goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2.8,
+            mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 2.8
+          }
+        };
+        await fetch('/api/admin/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch {}
+    }, 400);
+  };
+
   const updateSatVisuals = (key: string) => {
     const cfg = satConfigs[key];
     if (!cfg || !cfg.slider) return;
@@ -948,21 +975,98 @@ function init(): void {
       }
     });
 
-    if (cfg.rawEl && (cfg.rawEl.textContent === '-- flaş' || cfg.rawEl.textContent?.includes('--'))) {
-      const passRatio = bars.length > 0 ? passedCount / bars.length : 0.42;
-      const rawEst = cfg.rawBase;
-      const passEst = Math.round(rawEst * passRatio);
-      const filtEst = rawEst - passEst;
-      cfg.rawEl.textContent = `${rawEst} flaş`;
-      if (cfg.filtEl) cfg.filtEl.textContent = `${filtEst} (%${Math.round((1 - passRatio) * 100)})`;
-      if (cfg.passEl) cfg.passEl.textContent = `${passEst} şimşek (~${(passEst / cfg.period).toFixed(1)}/sn)`;
-    }
+    const raw = lastRawCounts[key] || cfg.rawBase;
+    const passRatio = bars.length > 0 ? passedCount / bars.length : 0.42;
+    const pass = Math.round(raw * passRatio);
+    const filt = raw - pass;
+    const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 0;
+    const passRate = (pass / cfg.period).toFixed(1);
+
+    if (cfg.rawEl) cfg.rawEl.textContent = `${raw} flaş`;
+    if (cfg.filtEl) cfg.filtEl.textContent = `${filt} (%${filtPct})`;
+    if (cfg.passEl) cfg.passEl.textContent = `${pass} şimşek (~${passRate}/sn)`;
   };
 
   ['goes19', 'goes18', 'mtg'].forEach((key) => {
     const cfg = satConfigs[key];
-    cfg.slider?.addEventListener('input', () => updateSatVisuals(key));
+    if (cfg.slider) {
+      cfg.slider.addEventListener('input', () => {
+        updateSatVisuals(key);
+        saveSatelliteThresholdsDebounced();
+      });
+    }
+
+    // Direct Mouse & Touch dragging on the Spectrum Chart Container & EŞİK Line
+    const chartContainer = cfg.barsEl?.parentElement as HTMLElement | null;
+    if (chartContainer && cfg.slider) {
+      let isDragging = false;
+
+      const setThresholdFromPointer = (clientX: number) => {
+        const rect = chartContainer.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const val = 0.8 + ratio * (6.0 - 0.8);
+        cfg.slider!.value = (Math.round(val * 10) / 10).toFixed(1);
+        updateSatVisuals(key);
+      };
+
+      chartContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        setThresholdFromPointer(e.clientX);
+
+        const onMouseMove = (ev: MouseEvent) => {
+          if (!isDragging) return;
+          setThresholdFromPointer(ev.clientX);
+        };
+        const onMouseUp = () => {
+          if (isDragging) {
+            isDragging = false;
+            saveSatelliteThresholdsDebounced();
+          }
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+
+      chartContainer.addEventListener('touchstart', (e) => {
+        if (!e.touches[0]) return;
+        isDragging = true;
+        setThresholdFromPointer(e.touches[0].clientX);
+      }, { passive: true });
+
+      chartContainer.addEventListener('touchmove', (e) => {
+        if (!isDragging || !e.touches[0]) return;
+        setThresholdFromPointer(e.touches[0].clientX);
+      }, { passive: true });
+
+      chartContainer.addEventListener('touchend', () => {
+        if (isDragging) {
+          isDragging = false;
+          saveSatelliteThresholdsDebounced();
+        }
+      });
+    }
+
     updateSatVisuals(key);
+  });
+
+  window.addEventListener('satellite_thresholds_updated', (e: any) => {
+    const thresholds = e.detail;
+    if (!thresholds) return;
+    if (thresholds.goes19 && sliderSatGoes19) {
+      sliderSatGoes19.value = (thresholds.goes19 / 1e14).toFixed(1);
+      updateSatVisuals('goes19');
+    }
+    if (thresholds.goes18 && sliderSatGoes18) {
+      sliderSatGoes18.value = (thresholds.goes18 / 1e14).toFixed(1);
+      updateSatVisuals('goes18');
+    }
+    if (thresholds.mtg && sliderSatMtg) {
+      sliderSatMtg.value = (thresholds.mtg / 1e14).toFixed(1);
+      updateSatVisuals('mtg');
+    }
   });
 
   let satTelemetryTimer: ReturnType<typeof setInterval> | null = null;
@@ -978,15 +1082,11 @@ function init(): void {
         const cfg = satConfigs[key];
         if (!item || !cfg) return;
 
-        const raw = item.rawCount > 0 ? item.rawCount : cfg.rawBase;
-        const filt = item.filteredCount > 0 ? item.filteredCount : Math.round(raw * 0.58);
-        const pass = item.passedCount > 0 ? item.passedCount : raw - filt;
-        const filtPct = raw > 0 ? Math.round((filt / raw) * 100) : 58;
-        const passRate = (pass / cfg.period).toFixed(1);
+        if (item.rawCount > 0) {
+          lastRawCounts[key] = item.rawCount;
+        }
 
-        if (cfg.rawEl) cfg.rawEl.textContent = `${raw} flaş`;
-        if (cfg.filtEl) cfg.filtEl.textContent = `${filt} (%${filtPct})`;
-        if (cfg.passEl) cfg.passEl.textContent = `${pass} şimşek (~${passRate}/sn)`;
+        updateSatVisuals(key);
       });
     } catch {}
   };

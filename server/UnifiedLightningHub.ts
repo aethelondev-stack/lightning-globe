@@ -224,10 +224,34 @@ export class UnifiedLightningHub {
 
     // Load initial cache from disk if available
     this.loadFromDiskCache();
+    this.loadSavedAdminThresholds();
 
     if (options?.enableAutoStart !== false) {
       this.start(options?.backfillOnStart ?? true);
     }
+  }
+
+  private loadSavedAdminThresholds(): void {
+    try {
+      const cfgPath = path.resolve(process.cwd(), '.cache', 'admin_config.json');
+      if (fs.existsSync(cfgPath)) {
+        const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (parsed.satelliteThresholds) {
+          if (typeof parsed.satelliteThresholds.goes19 === 'number' && parsed.satelliteThresholds.goes19 > 0) {
+            this.thresholdGoes19 = parsed.satelliteThresholds.goes19 * 1e-14;
+            this.satelliteTelemetry.goes19.thresholdJ = this.thresholdGoes19;
+          }
+          if (typeof parsed.satelliteThresholds.goes18 === 'number' && parsed.satelliteThresholds.goes18 > 0) {
+            this.thresholdGoes18 = parsed.satelliteThresholds.goes18 * 1e-14;
+            this.satelliteTelemetry.goes18.thresholdJ = this.thresholdGoes18;
+          }
+          if (typeof parsed.satelliteThresholds.mtg === 'number' && parsed.satelliteThresholds.mtg > 0) {
+            this.thresholdMtg = parsed.satelliteThresholds.mtg * 1e-14;
+            this.satelliteTelemetry.mtg.thresholdJ = this.thresholdMtg;
+          }
+        }
+      }
+    } catch {}
   }
 
   /**
@@ -1275,14 +1299,38 @@ export class UnifiedLightningHub {
     }
 
     const sat = this.satelliteTelemetry.mtg;
-    sat.rawCount = batchRaw;
-    sat.filteredCount = batchFiltered;
-    sat.passedCount = batchPassed;
     sat.thresholdJ = this.thresholdMtg;
     sat.lastFetchTime = now;
 
-    if (passedStrikes.length > 0) {
-      this.ingestSatelliteBatch(passedStrikes, 30000);
+    // EUMETSAT MTG-LI files are 10-minute (600s) bulk NetCDF accumulations (~25k-30k flashes).
+    // Normalize telemetry to the 30-second polling cadence: (30 / 600) = 0.05
+    if (batchRaw > 2500) {
+      const estimatedSpanSec = 600; // 10 minutes nominal EUMETSAT repeat cycle
+      const cadenceFactor = 30 / estimatedSpanSec;
+      sat.rawCount = Math.round(batchRaw * cadenceFactor);
+      sat.filteredCount = Math.round(batchFiltered * cadenceFactor);
+      sat.passedCount = Math.round(batchPassed * cadenceFactor);
+
+      // Ingest a uniform spatial sample representing the 30-second cadence window (~1,200 - 1,500 flashes)
+      const targetSampleCount = sat.passedCount;
+      if (passedStrikes.length > targetSampleCount && targetSampleCount > 0) {
+        const step = passedStrikes.length / targetSampleCount;
+        const sampled: LightningEvent[] = [];
+        for (let i = 0; i < targetSampleCount; i++) {
+          sampled.push(passedStrikes[Math.floor(i * step)]);
+        }
+        this.ingestSatelliteBatch(sampled, 30000);
+      } else if (passedStrikes.length > 0) {
+        this.ingestSatelliteBatch(passedStrikes, 30000);
+      }
+    } else {
+      sat.rawCount = batchRaw;
+      sat.filteredCount = batchFiltered;
+      sat.passedCount = batchPassed;
+
+      if (passedStrikes.length > 0) {
+        this.ingestSatelliteBatch(passedStrikes, 30000);
+      }
     }
   }
 

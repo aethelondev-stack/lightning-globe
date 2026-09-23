@@ -3914,13 +3914,64 @@ html, body {
 
 .admin-range-slider {
   width: 100%;
-  height: 6px;
+  height: 8px;
+  -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
   outline: none;
   cursor: pointer;
-  accent-color: #38bdf8;
+  margin: 6px 0;
+}
+
+.admin-range-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.35) 0%, rgba(56, 189, 248, 0.5) 100%);
+  border-radius: 4px;
+}
+
+.admin-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 2px 6px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.admin-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 1), 0 0 4px #ffffff;
+}
+
+.admin-range-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+  background: #00e5ff;
+}
+
+.admin-range-slider::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.35) 0%, rgba(56, 189, 248, 0.5) 100%);
+  border-radius: 4px;
+}
+
+.admin-range-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  cursor: grab;
 }
 
 .admin-modal-footer {
@@ -4080,13 +4131,21 @@ html, body {
 
 .admin-sat-chart-container {
   position: relative;
-  height: 44px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  height: 48px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 8px;
   padding: 2px 4px;
+  cursor: ew-resize;
+  user-select: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-sat-chart-container:hover {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
 }
 
 .admin-sat-bars {
@@ -4095,6 +4154,7 @@ html, body {
   align-items: flex-end;
   justify-content: space-between;
   gap: 2px;
+  pointer-events: none;
 }
 
 .admin-sat-bar {
@@ -4118,25 +4178,29 @@ html, body {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 3px;
   background: #f43f5e;
-  box-shadow: 0 0 6px #f43f5e;
-  pointer-events: none;
-  transition: left 0.05s ease;
+  box-shadow: 0 0 8px #f43f5e, 0 0 2px #ffffff;
+  pointer-events: auto;
+  cursor: ew-resize;
+  transition: left 0.04s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  z-index: 10;
 }
 
 .admin-sat-thresh-tag {
-  background: #e11d48;
+  background: #f43f5e;
   color: #ffffff;
-  font-size: 7px;
-  font-weight: 800;
-  padding: 1px 3px;
-  border-radius: 0 0 3px 3px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: 0 0 4px 4px;
   font-family: monospace;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 .admin-sat-slider-wrap {
