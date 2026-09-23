@@ -77,8 +77,20 @@ export class UnifiedLightningHub {
   private isCacheDirty: boolean = false;
   private isSavingDiskCache: boolean = false;
 
-  // Pacing Queue for Satellite Flashes
-  private satelliteQueue: LightningEvent[] = [];
+  // Deterministic Per-Satellite Pacing Streams (Single Unified Pacing Engine)
+  private satellitePacers: Record<'goes19' | 'goes18' | 'mtg', {
+    id: 'goes19' | 'goes18' | 'mtg';
+    periodMs: number;
+    allCycleFlashes: LightningEvent[];
+    passedQueue: LightningEvent[];
+    cycleStartTime: number;
+    totalScheduled: number;
+    emittedCount: number;
+  }> = {
+    goes19: { id: 'goes19', periodMs: 20000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    goes18: { id: 'goes18', periodMs: 20000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    mtg: { id: 'mtg', periodMs: 30000, allCycleFlashes: [], passedQueue: [], cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 }
+  };
   private pacingTimer: ReturnType<typeof setInterval> | null = null;
   private diskSaveTimer: ReturnType<typeof setInterval> | null = null;
   private satellitePollTimer: ReturnType<typeof setInterval> | null = null;
@@ -303,6 +315,13 @@ export class UnifiedLightningHub {
       this.pacingTimer = null;
     }
 
+    for (const key of ['goes19', 'goes18', 'mtg'] as const) {
+      this.satellitePacers[key].passedQueue = [];
+      this.satellitePacers[key].allCycleFlashes = [];
+      this.satellitePacers[key].totalScheduled = 0;
+      this.satellitePacers[key].emittedCount = 0;
+    }
+
     if (this.diskSaveTimer) {
       clearInterval(this.diskSaveTimer);
       this.diskSaveTimer = null;
@@ -373,19 +392,35 @@ export class UnifiedLightningHub {
   }
 
   // =========================================================================
-  // 2. PACED SATELLITE DISTRIBUTION (KADEMELİ UYDU PACING)
+  // 2. DETERMINISTIC PER-SATELLITE PACING ENGINE (ZAMAN YAYILIMI)
   // =========================================================================
 
   /**
-   * Ingests a raw batch of satellite flashes (NOAA GOES / MTG-LI).
-   * Spreads them smoothly across the expected interval (e.g. 20 seconds)
-   * in micro-packets (100-200ms) with ZERO data cropping or dropping.
+   * Ingests a batch of satellite flashes for a specific satellite stream.
+   * Spreads passed flashes linearly and deterministically across the cycle period
+   * (20s for GOES-19/18, 30s for MTG-LI).
+   * Zero clumping, zero random pauses, exact strike-by-strike presentation.
    */
-  public ingestSatelliteBatch(flashes: LightningEvent[], targetDurationMs = 20000): void {
+  public ingestSatelliteBatch(flashes: LightningEvent[], targetDurationMs?: number, explicitSatKey?: 'goes19' | 'goes18' | 'mtg'): void {
     if (!flashes || flashes.length === 0) return;
-    this.targetPacingDurationMs = targetDurationMs;
-    this.pacingCycleStartMs = Date.now();
 
+    let satKey: 'goes19' | 'goes18' | 'mtg' = explicitSatKey || 'goes19';
+    if (!explicitSatKey) {
+      const src = flashes[0]?.source;
+      if (src === 'goes18_glm') {
+        satKey = 'goes18';
+      } else if (src === 'mtg_li') {
+        satKey = 'mtg';
+      } else {
+        satKey = 'goes19';
+      }
+    }
+
+    const pacer = this.satellitePacers[satKey];
+    const duration = targetDurationMs || pacer.periodMs || (satKey === 'mtg' ? 30000 : 20000);
+    pacer.periodMs = duration;
+
+    // Filter valid strikes (excluding past duplicates)
     const validFlashes: LightningEvent[] = [];
     for (let i = 0; i < flashes.length; i++) {
       const f = flashes[i];
@@ -395,9 +430,9 @@ export class UnifiedLightningHub {
       }
     }
 
-    if (validFlashes.length === 0) return;
+    pacer.allCycleFlashes = validFlashes;
 
-    // Fisher-Yates spatial shuffle to eliminate raw S3 file coordinate clumping
+    // Fisher-Yates spatial shuffle to prevent sensor raster-scan order
     for (let i = validFlashes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = validFlashes[i];
@@ -405,16 +440,24 @@ export class UnifiedLightningHub {
       validFlashes[j] = tmp;
     }
 
-    // Append to satellite pacing queue (ZERO CROPPING)
-    this.satelliteQueue.push(...validFlashes);
+    pacer.passedQueue = validFlashes;
+    pacer.cycleStartTime = Date.now();
+    pacer.totalScheduled = validFlashes.length;
+    pacer.emittedCount = 0;
 
     this.ensurePacingTimerActive();
+  }
+
+  public getThresholdFor(satKey: 'goes19' | 'goes18' | 'mtg'): number {
+    if (satKey === 'goes18') return this.thresholdGoes18;
+    if (satKey === 'mtg') return this.thresholdMtg;
+    return this.thresholdGoes19;
   }
 
   private startPacingTimer(): void {
     if (this.pacingTimer) return;
     this.pacingTimer = setInterval(() => {
-      this.dispatchNextSatelliteMicropacket();
+      this.dispatchSatellitePacers();
     }, this.pacingIntervalMs);
   }
 
@@ -425,64 +468,58 @@ export class UnifiedLightningHub {
   }
 
   /**
-   * Dispatches a calibrated micro-packet of satellite flashes every 100-200ms.
+   * Deterministic Pacing Tick:
+   * Emits strikes for each satellite smoothly and linearly across its period window.
    */
-  private dispatchNextSatelliteMicropacket(): void {
-    if (this.satelliteQueue.length === 0) return;
+  private dispatchSatellitePacers(): void {
+    const now = Date.now();
+    const satKeys: Array<'goes19' | 'goes18' | 'mtg'> = ['goes19', 'goes18', 'mtg'];
 
-    // Dynamically calculate micropacket chunk size to smoothly exhaust queue
-    // across the target pacing window (e.g. ~20 seconds in live, or custom in tests)
-    const targetDuration = Math.max(this.pacingIntervalMs, this.targetPacingDurationMs || 20000);
-    const elapsed = Date.now() - (this.pacingCycleStartMs || Date.now());
-    const remainingMs = Math.max(this.pacingIntervalMs, targetDuration - elapsed);
-    const remainingTicks = Math.max(1, Math.ceil(remainingMs / this.pacingIntervalMs));
-    const baseChunk = Math.ceil(this.satelliteQueue.length / remainingTicks);
+    for (const key of satKeys) {
+      const pacer = this.satellitePacers[key];
+      if (pacer.totalScheduled === 0 || pacer.passedQueue.length === 0) continue;
 
-    // Dynamic Rate Smoothing & Anti-Bloat:
-    // Drains queue smoothly across the pacing cycle without artificial 3-item ceiling.
-    // If queue experienced an extreme burst, scales up smoothly (up to 16/tick) to prevent buffer bloat.
-    let dynamicChunk = baseChunk;
+      const elapsed = now - pacer.cycleStartTime;
+      const progress = Math.min(1.0, elapsed / Math.max(100, pacer.periodMs));
 
-    // Organic Non-Metronome Jitter:
-    // In live production (targetDuration >= 5000ms), introduce +/- 35% stochastic variation
-    // and natural calm lulls (10% chance of 0-burst pause when queue is healthy).
-    if (targetDuration >= 5000) {
-      if (baseChunk <= 3 && Math.random() < 0.10) {
-        // Natural calm pause between thunderstorm bursts
-        return;
+      // Strictly linear progress: exactly how many should be emitted by this point in time
+      let targetEmitted = Math.min(pacer.totalScheduled, Math.floor(progress * pacer.totalScheduled));
+
+      // End of period guard: drain all remaining strikes when period has elapsed
+      if (elapsed >= pacer.periodMs) {
+        targetEmitted = pacer.totalScheduled;
       }
-      const jitterFactor = 0.65 + Math.random() * 0.70; // 0.65 to 1.35
-      dynamicChunk = Math.round(baseChunk * jitterFactor);
+
+      const dueCount = targetEmitted - pacer.emittedCount;
+      if (dueCount > 0) {
+        const strikesToEmit = pacer.passedQueue.splice(0, dueCount);
+        pacer.emittedCount += strikesToEmit.length;
+
+        for (let i = 0; i < strikesToEmit.length; i++) {
+          this.emitPacedSatelliteStrike(strikesToEmit[i]);
+        }
+
+        // Notify micropacket listeners for batch/test consumers
+        for (const listener of this.micropacketListeners) {
+          try {
+            listener(strikesToEmit);
+          } catch {}
+        }
+      }
     }
+  }
 
-    const chunkSize = Math.max(1, Math.min(16, dynamicChunk));
+  private emitPacedSatelliteStrike(strike: LightningEvent): void {
+    this.satellitePacedCount++;
+    this.totalEventsProcessed++;
+    this.lastEventTimestamp = strike.timestamp;
 
-    const micropacket = this.satelliteQueue.splice(0, chunkSize);
-    if (micropacket.length === 0) return;
+    this.broadcastToSse({ type: 'strike', event: strike });
 
-    this.satellitePacedCount += micropacket.length;
-    this.totalEventsProcessed += micropacket.length;
-    this.lastEventTimestamp = micropacket[micropacket.length - 1].timestamp;
-
-    // Broadcast micropacket via SSE
-    this.broadcastToSse({ type: 'batch', events: micropacket });
-
-    // Notify internal listeners
-    for (const listener of this.micropacketListeners) {
+    for (const listener of this.strikeListeners) {
       try {
-        listener(micropacket);
-      } catch (err) {
-        console.error('Error in micropacket listener:', err);
-      }
-    }
-
-    for (let i = 0; i < micropacket.length; i++) {
-      const item = micropacket[i];
-      for (const listener of this.strikeListeners) {
-        try {
-          listener(item);
-        } catch {}
-      }
+        listener(strike);
+      } catch {}
     }
   }
 
@@ -794,7 +831,10 @@ export class UnifiedLightningHub {
       rfInstantCount: this.rfInstantCount,
       satellitePacedCount: this.satellitePacedCount,
       regionalCount: this.regionalCount,
-      pacingQueueSize: this.satelliteQueue.length,
+      pacingQueueSize:
+        this.satellitePacers.goes19.passedQueue.length +
+        this.satellitePacers.goes18.passedQueue.length +
+        this.satellitePacers.mtg.passedQueue.length,
       cached24hCount: this.historyMap.size,
       activeSseClients: this.sseClients.size,
       lastEventTimestamp: this.lastEventTimestamp
@@ -1016,11 +1056,11 @@ export class UnifiedLightningHub {
         if (this.isH5Ready) {
           const g19 = await this.fetchRecentGoesS3Flashes('https://noaa-goes19.s3.amazonaws.com', 'goes19_glm', 1);
           if (g19.length > 0) {
-            this.ingestSatelliteBatch(g19, 20000);
+            this.ingestSatelliteBatch(g19, 20000, 'goes19');
           }
           const g18 = await this.fetchRecentGoesS3Flashes('https://noaa-goes18.s3.amazonaws.com', 'goes18_glm', 1);
           if (g18.length > 0) {
-            this.ingestSatelliteBatch(g18, 20000);
+            this.ingestSatelliteBatch(g18, 20000, 'goes18');
           }
         }
       } catch {}
@@ -1131,6 +1171,8 @@ export class UnifiedLightningHub {
       let batchFiltered = 0;
       let batchPassed = 0;
 
+      const allSectorFlashes: LightningEvent[] = [];
+
       for (let i = 0; i < lats.length; i++) {
         const lat = Number(lats[i]);
         const lon = Number(lons[i]);
@@ -1145,20 +1187,12 @@ export class UnifiedLightningHub {
 
         batchRaw++;
         const energyJ = rawEnergies ? Number(rawEnergies[i]) * 1e-15 : 1e-14;
-
-        // Dynamic per-satellite optical energy threshold:
-        if (energyJ < targetThreshold) {
-          batchFiltered++;
-          continue;
-        }
-
-        batchPassed++;
         const area = rawAreas ? Math.max(15, Math.round((Number(rawAreas[i]) * 152601) / 1e6)) : 50;
         const calculatedCurrent = Math.max(8, Math.min(65, Math.round(15 + Math.log10(energyJ * 1e15 + 1) * 8)));
 
         // Deterministic ID bound to NetCDF file tag and flash index
         const id = `${source}_${fileTag}_${i}_${Math.round(lat * 100)}_${Math.round(lon * 100)}`;
-        results.push({
+        const flashItem: LightningEvent = {
           id,
           latitude: Math.round(lat * 10000) / 10000,
           longitude: Math.round(lon * 10000) / 10000,
@@ -1168,7 +1202,18 @@ export class UnifiedLightningHub {
           source,
           opticalEnergy: energyJ,
           opticalArea: area
-        });
+        };
+
+        allSectorFlashes.push(flashItem);
+
+        // Dynamic per-satellite optical energy threshold:
+        if (energyJ < targetThreshold) {
+          batchFiltered++;
+          continue;
+        }
+
+        batchPassed++;
+        results.push(flashItem);
       }
 
       if (batchRaw > 0) {
@@ -1178,6 +1223,7 @@ export class UnifiedLightningHub {
         sat.passedCount = batchPassed;
         sat.thresholdJ = targetThreshold;
         sat.lastFetchTime = Date.now();
+        this.satellitePacers[targetSatKey].allCycleFlashes = allSectorFlashes;
       }
 
       file.close();
@@ -1319,9 +1365,9 @@ export class UnifiedLightningHub {
         for (let i = 0; i < targetSampleCount; i++) {
           sampled.push(passedStrikes[Math.floor(i * step)]);
         }
-        this.ingestSatelliteBatch(sampled, 30000);
+        this.ingestSatelliteBatch(sampled, 30000, 'mtg');
       } else if (passedStrikes.length > 0) {
-        this.ingestSatelliteBatch(passedStrikes, 30000);
+        this.ingestSatelliteBatch(passedStrikes, 30000, 'mtg');
       }
     } else {
       sat.rawCount = batchRaw;
@@ -1329,7 +1375,7 @@ export class UnifiedLightningHub {
       sat.passedCount = batchPassed;
 
       if (passedStrikes.length > 0) {
-        this.ingestSatelliteBatch(passedStrikes, 30000);
+        this.ingestSatelliteBatch(passedStrikes, 30000, 'mtg');
       }
     }
   }
@@ -1348,14 +1394,17 @@ export class UnifiedLightningHub {
     if (typeof thresholds.goes19 === 'number' && thresholds.goes19 > 0) {
       this.thresholdGoes19 = thresholds.goes19 * 1e-14;
       this.satelliteTelemetry.goes19.thresholdJ = this.thresholdGoes19;
+      this.applyThresholdToPacer('goes19', this.thresholdGoes19);
     }
     if (typeof thresholds.goes18 === 'number' && thresholds.goes18 > 0) {
       this.thresholdGoes18 = thresholds.goes18 * 1e-14;
       this.satelliteTelemetry.goes18.thresholdJ = this.thresholdGoes18;
+      this.applyThresholdToPacer('goes18', this.thresholdGoes18);
     }
     if (typeof thresholds.mtg === 'number' && thresholds.mtg > 0) {
       this.thresholdMtg = thresholds.mtg * 1e-14;
       this.satelliteTelemetry.mtg.thresholdJ = this.thresholdMtg;
+      this.applyThresholdToPacer('mtg', this.thresholdMtg);
     }
     console.log(`📡 [UnifiedLightningHub] Updated satellite thresholds: GOES-19=${(this.thresholdGoes19*1e14).toFixed(1)}e-14, GOES-18=${(this.thresholdGoes18*1e14).toFixed(1)}e-14, MTG=${(this.thresholdMtg*1e14).toFixed(1)}e-14`);
     this.broadcastToSse({
@@ -1366,6 +1415,22 @@ export class UnifiedLightningHub {
         mtg: this.thresholdMtg * 1e14
       }
     });
+  }
+
+  private applyThresholdToPacer(key: 'goes19' | 'goes18' | 'mtg', newThreshold: number): void {
+    const pacer = this.satellitePacers[key];
+    const sat = this.satelliteTelemetry[key];
+
+    // Immediately filter pending strikes in the queue
+    pacer.passedQueue = pacer.passedQueue.filter(f => f.opticalEnergy == null || f.opticalEnergy >= newThreshold);
+
+    if (pacer.allCycleFlashes.length > 0) {
+      const allPassed = pacer.allCycleFlashes.filter(f => f.opticalEnergy == null || f.opticalEnergy >= newThreshold);
+      sat.rawCount = pacer.allCycleFlashes.length;
+      sat.filteredCount = sat.rawCount - allPassed.length;
+      sat.passedCount = allPassed.length;
+      pacer.totalScheduled = pacer.emittedCount + pacer.passedQueue.length;
+    }
   }
 
   /**
