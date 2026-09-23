@@ -39,9 +39,9 @@ function init(): void {
     throw new Error('Canvas element "#webgl-canvas" not found in DOM.');
   }
 
-  // 1. Initialize core rendering engine with static global vantage
+  // 1. Initialize core rendering engine with static global vantage (380u wide orbit)
   const engine = new Engine({ canvas });
-  engine.camera.position.set(0, 20, 340);
+  engine.camera.position.set(0, 30, 380);
   engine.camera.lookAt(0, 0, 0);
 
   // 2. Initialize interactive orbit controls (centered at 0,0,0, minDistance 145)
@@ -77,6 +77,9 @@ function init(): void {
     enableIntroOrbit: false,
     idleDistance: 260
   });
+  // Boot sequence: start in manual mode at wide orbit before autonomous director activates at 6.5s
+  cameraDirector.setFilterMatrix({ cameraMode: 'MANUAL', autoFollow: false });
+  cameraDirector.setManualMode(true);
 
   // 9. Initialize autonomous event director & presentation queue (Phase 9)
   const eventDirector = new EventDirector();
@@ -121,6 +124,41 @@ function init(): void {
 
   // 16. Initialize Chronological IndexedDB Strike Archive (Phase 23)
   const strikeArchive = new StrikeArchiveDB();
+
+  // Sol Alt Görev ve Başlatma Paneli (Mission Boot HUD)
+  const missionBootHud = document.getElementById('mission-boot-hud');
+  const btnMbhToggle = document.getElementById('btn-mbh-toggle');
+  const mbhLogList = document.getElementById('mbh-log-list');
+  const mbhProgressContainer = document.getElementById('mbh-progress-container');
+  const mbhBarFill = document.getElementById('mbh-bar-fill');
+  const mbhProgressPercent = document.getElementById('mbh-progress-percent');
+
+  btnMbhToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    missionBootHud?.classList.toggle('minimized');
+    if (btnMbhToggle) {
+      btnMbhToggle.textContent = missionBootHud?.classList.contains('minimized') ? '▴' : '▾';
+    }
+  });
+  missionBootHud?.querySelector('.mbh-header')?.addEventListener('click', () => {
+    missionBootHud?.classList.toggle('minimized');
+    if (btnMbhToggle) {
+      btnMbhToggle.textContent = missionBootHud?.classList.contains('minimized') ? '▴' : '▾';
+    }
+  });
+
+  const addBootLog = (timeLabel: string, text: string, status: 'ok' | 'sync' | 'info' = 'ok') => {
+    if (!mbhLogList) return;
+    const item = document.createElement('div');
+    const dotClass = status === 'ok' ? 'live' : status === 'sync' ? 'active' : 'completed';
+    item.className = `mbh-log-item ${dotClass}`;
+    item.innerHTML = `<span class="mbh-log-icon">[${timeLabel}]</span> <span class="mbh-log-text">${text}</span>`;
+    mbhLogList.appendChild(item);
+    mbhLogList.scrollTop = mbhLogList.scrollHeight;
+  };
+
+  let bootTimeStart = Date.now();
+  let introPanActive = true;
 
   /**
    * Centralized 24H trace and storm batcher hydration.
@@ -243,7 +281,15 @@ function init(): void {
           : strikesToRender;
 
         // Progressive Trace Layer Hydration: uploads in 10,000-strike slices across frames without freezing GPU
-        await globeManager.fulguriteTraceLayer.hydrateHistoricalStrikesProgressive(visualStrikes, 10000);
+        await globeManager.fulguriteTraceLayer.hydrateHistoricalStrikesProgressive(
+          visualStrikes,
+          10000,
+          (loaded, total) => {
+            const pct = Math.min(100, Math.round((loaded / total) * 100));
+            if (mbhBarFill) mbhBarFill.style.width = `${pct}%`;
+            if (mbhProgressPercent) mbhProgressPercent.textContent = `${pct}%`;
+          }
+        );
 
         // Pre-compute 24h storm cell honeycombs
         stormCellBatcher.addHistoricalStrikes(visualStrikes);
@@ -350,14 +396,56 @@ function init(): void {
     return false;
   };
 
+  // Staged Boot Sequence (0-24s Timeline) & Telemetry HUD Logging
+  addBootLog('0-3s', '🌐 3D Gezegen Çekirdeği Yüklendi', 'ok');
+
   // Immediate fast boot execution: shows strikes in <1s
   fastBootSnapshot().finally(() => {
-    // If not TV mode: gracefully fetch 24h historical archive in the background after 4s
+    // 3s: Panoramic Wide Orbit Vantage
+    setTimeout(() => {
+      addBootLog('3s', '🛰️ Geniş Yörünge Panoramik İnceleme (380u)', 'info');
+    }, 3000);
+
+    // 4s: Real-time Ground RF Network
+    setTimeout(() => {
+      addBootLog('4s', '⚡ Yerel RF Sensörleri Canlı Yayında (0ms)', 'ok');
+    }, 4000);
+
+    // 6-19s: 24h Historical Archive Progressive Hydration
     if (!isTvMode) {
       setTimeout(() => {
-        hydrate24HTrails();
-      }, 4000);
+        if (mbhProgressContainer) mbhProgressContainer.classList.remove('hidden');
+        addBootLog('6s', '📂 24 Saatlik Kalıcı İnceleme Arşivi Yükleniyor...', 'sync');
+        hydrate24HTrails().then(() => {
+          addBootLog('19s', '✅ 500.000+ Fulgurit İzi Tamamlandı', 'ok');
+          setTimeout(() => {
+            if (mbhProgressContainer) mbhProgressContainer.classList.add('hidden');
+          }, 2500);
+        });
+      }, 6000);
     }
+
+    // 6.5s: Autonomous Cinematic Camera Directing Kicks In
+    setTimeout(() => {
+      introPanActive = false;
+      cameraDirector.setManualMode(false);
+      cameraDirector.setFilterMatrix({ cameraMode: 'AUTO', autoFollow: true });
+      addBootLog('6.5s', '🎥 Otonom Sinematik Reji Aktif', 'ok');
+    }, 6500);
+
+    // 8.5s: Storm Cells Clustered & Petekler Activated
+    setTimeout(() => {
+      addBootLog('7-12s', '⬡ Fırtına Hücreleri ve Petekler Kümelendi', 'ok');
+    }, 8500);
+
+    // 24s: Satellite Sync Complete Milestone & Auto-Collapse
+    setTimeout(() => {
+      addBootLog('24s', '🛰️ Uydu Akışları Senkronize (GOES & MTG)', 'ok');
+      setTimeout(() => {
+        missionBootHud?.classList.add('minimized');
+        if (btnMbhToggle) btnMbhToggle.textContent = '▴';
+      }, 3500);
+    }, 24000);
   });
 
   // Initialize StrikeArchiveDB; persist real strikes across page refreshes
@@ -703,6 +791,14 @@ function init(): void {
   const btnAdminSaveAll = document.getElementById('btn-admin-save-all');
   const adminSaveStatus = document.getElementById('admin-save-status');
 
+  const adminLoginView = document.getElementById('admin-login-view');
+  const adminDashboardView = document.getElementById('admin-dashboard-view');
+  const adminInputUser = document.getElementById('admin-input-user') as HTMLInputElement | null;
+  const adminInputPass = document.getElementById('admin-input-pass') as HTMLInputElement | null;
+  const adminLoginError = document.getElementById('admin-login-error');
+  const btnAdminLogin = document.getElementById('btn-admin-login');
+  const btnAdminLogout = document.getElementById('btn-admin-logout');
+
   const toggleHud = document.getElementById('admin-toggle-hud') as HTMLInputElement | null;
   const toggleLiveBadge = document.getElementById('admin-toggle-live-badge') as HTMLInputElement | null;
   const toggleLiveFeed = document.getElementById('admin-toggle-live-feed') as HTMLInputElement | null;
@@ -1044,10 +1140,72 @@ function init(): void {
     }
   });
 
-  const openAdminModal = () => {
-    adminModal?.classList.remove('hidden');
+  const isAdminAuthenticated = (): boolean => {
+    try {
+      return sessionStorage.getItem('ag_admin_auth') === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  const showAdminDashboard = () => {
+    adminLoginView?.classList.add('hidden');
+    adminDashboardView?.classList.remove('hidden');
+    btnAdminLogout?.classList.remove('hidden');
+    adminLoginError?.classList.add('hidden');
     fetchSatelliteTelemetry();
     if (!satTelemetryTimer) satTelemetryTimer = setInterval(fetchSatelliteTelemetry, 3000);
+  };
+
+  const showAdminLogin = () => {
+    adminDashboardView?.classList.add('hidden');
+    adminLoginView?.classList.remove('hidden');
+    btnAdminLogout?.classList.add('hidden');
+    adminLoginError?.classList.add('hidden');
+    if (adminInputUser) adminInputUser.value = '';
+    if (adminInputPass) adminInputPass.value = '';
+    if (satTelemetryTimer) {
+      clearInterval(satTelemetryTimer);
+      satTelemetryTimer = null;
+    }
+    setTimeout(() => adminInputUser?.focus(), 80);
+  };
+
+  const handleAdminLoginSubmit = () => {
+    const user = adminInputUser?.value.trim() || '';
+    const pass = adminInputPass?.value || '';
+    if (user === 'aethelon' && pass === 'Aeth#92!LgtX') {
+      try {
+        sessionStorage.setItem('ag_admin_auth', 'true');
+      } catch {}
+      showAdminDashboard();
+    } else {
+      adminLoginError?.classList.remove('hidden');
+    }
+  };
+
+  btnAdminLogin?.addEventListener('click', handleAdminLoginSubmit);
+  adminInputUser?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') adminInputPass?.focus();
+  });
+  adminInputPass?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleAdminLoginSubmit();
+  });
+
+  btnAdminLogout?.addEventListener('click', () => {
+    try {
+      sessionStorage.removeItem('ag_admin_auth');
+    } catch {}
+    showAdminLogin();
+  });
+
+  const openAdminModal = () => {
+    adminModal?.classList.remove('hidden');
+    if (isAdminAuthenticated()) {
+      showAdminDashboard();
+    } else {
+      showAdminLogin();
+    }
   };
   const closeAdminModal = () => {
     adminModal?.classList.add('hidden');
@@ -1275,18 +1433,44 @@ function init(): void {
     }
   });
 
+  // Tab Inactivity / Sleep Guard (Prevents strike pile-up when user is in another window/tab)
+  let isTabHidden = false;
+  let tabHiddenTime = 0;
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      isTabHidden = true;
+      tabHiddenTime = Date.now();
+    } else {
+      isTabHidden = false;
+      const hiddenDuration = Date.now() - tabHiddenTime;
+      // If tab was away for more than 2.5s, clear presentation queue to prevent a burst flood on return
+      if (hiddenDuration > 2500) {
+        presentationQueue.clear();
+      }
+    }
+  });
+
   const enqueueStrike = (event: LightningEvent, isFromFallback: boolean = false) => {
     if (currentSourceMode === 'LIVE') {
       // Strict Single Ingest Guard: If unifiedStreamProvider is LIVE, ignore events from fallback harmonizer
       if (isFromFallback && unifiedStreamProvider.status === 'LIVE') {
         return;
       }
+      // Tab Sleep Guard: If tab is currently hidden/sleeping, do not accumulate visual presentation queue
+      if (isTabHidden) {
+        return;
+      }
+
       if (event.source === 'blitzortung') {
         // Instant RF: zero delay bypass directly to instant queue
         presentationQueue.enqueueInstantRf(event);
       } else {
-        // Satellite & regional radar: smooth stochastic distribution over 1.5s window to prevent abrupt floods and gaps
-        const jitterTime = Date.now() + Math.random() * 1500;
+        // Continuous Pacing for Satellites & Regional Radar:
+        // Distribute smoothly across the satellite observation period (GOES: 20s, MTG: 30s)
+        const periodMs = event.source === 'mtg_li' ? 30000 : 20000;
+        // Jitter evenly across the upcoming period so strikes arrive organically one-by-one
+        const jitterTime = Date.now() + Math.random() * periodMs;
         presentationQueue.enqueue(event, jitterTime, false);
       }
     }
@@ -1382,6 +1566,19 @@ function init(): void {
     presentationQueue.update(Date.now(), (event) => {
       store.addEvent(event);
     });
+
+    // Gentle intro panoramic orbit during the first 6.5s before autonomous director kicks in
+    if (introPanActive) {
+      const elapsedBootSec = (Date.now() - bootTimeStart) / 1000;
+      if (elapsedBootSec < 6.5) {
+        const angle = elapsedBootSec * 0.05;
+        const dist = 380;
+        engine.camera.position.set(Math.sin(angle) * dist, 30, Math.cos(angle) * dist);
+        engine.camera.lookAt(0, 0, 0);
+      } else {
+        introPanActive = false;
+      }
+    }
 
     cameraDirector.update(delta);
     controlsManager.update(delta);

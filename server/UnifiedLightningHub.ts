@@ -100,6 +100,7 @@ export class UnifiedLightningHub {
   private h5wasmModule: any = null;
   private isH5Ready = false;
   private readonly processedNetCdfKeys: Set<string> = new Set();
+  private pacingCycleStartMs: number = 0;
 
   // Cross-sensor spatial-temporal deduplication ring buffer (0.20° grid, 2s window)
   private dedupRecentGrid: Map<string, Array<{ id: string; lat: number; lon: number; timestamp: number; source: string }>> = new Map();
@@ -359,6 +360,7 @@ export class UnifiedLightningHub {
   public ingestSatelliteBatch(flashes: LightningEvent[], targetDurationMs = 20000): void {
     if (!flashes || flashes.length === 0) return;
     this.targetPacingDurationMs = targetDurationMs;
+    this.pacingCycleStartMs = Date.now();
 
     const validFlashes: LightningEvent[] = [];
     for (let i = 0; i < flashes.length; i++) {
@@ -407,8 +409,10 @@ export class UnifiedLightningHub {
     // Dynamically calculate micropacket chunk size to smoothly exhaust queue
     // across the target pacing window (e.g. ~20 seconds in live, or custom in tests)
     const targetDuration = Math.max(this.pacingIntervalMs, this.targetPacingDurationMs || 20000);
-    const ticksInCycle = Math.max(1, Math.floor(targetDuration / this.pacingIntervalMs));
-    const baseChunk = Math.ceil(this.satelliteQueue.length / ticksInCycle);
+    const elapsed = Date.now() - (this.pacingCycleStartMs || Date.now());
+    const remainingMs = Math.max(this.pacingIntervalMs, targetDuration - elapsed);
+    const remainingTicks = Math.max(1, Math.ceil(remainingMs / this.pacingIntervalMs));
+    const baseChunk = Math.ceil(this.satelliteQueue.length / remainingTicks);
 
     // Dynamic Rate Smoothing & Anti-Bloat:
     // Drains queue smoothly across the pacing cycle without artificial 3-item ceiling.

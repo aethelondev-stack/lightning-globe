@@ -705,6 +705,32 @@
         </div>
       </footer>
 
+      <!-- Sol Alt Görev ve Başlatma Paneli (Mission Boot HUD) -->
+      <div id="mission-boot-hud" class="mission-boot-hud">
+        <div class="mbh-header">
+          <div class="mbh-title-row">
+            <span class="mbh-pulse-dot"></span>
+            <span class="mbh-title">OBSERVATORY MISSION TELEMETRY</span>
+          </div>
+          <button id="btn-mbh-toggle" class="mbh-toggle-btn" title="Paneli Küçült / Büyüt">▾</button>
+        </div>
+        <div id="mbh-body" class="mbh-body">
+          <div id="mbh-log-list" class="mbh-log-list">
+            <!-- Zaman çizelgesi adımları JS ile dinamik yönetilir -->
+          </div>
+          <!-- 6-19s Fulgurit Arşiv Progress Bar -->
+          <div id="mbh-progress-container" class="mbh-progress-container hidden">
+            <div class="mbh-progress-labels">
+              <span id="mbh-progress-task">📂 24 Saatlik Fulgurit Arşivi...</span>
+              <span id="mbh-progress-percent" class="mbh-progress-val">0%</span>
+            </div>
+            <div class="mbh-bar-track">
+              <div id="mbh-bar-fill" class="mbh-bar-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Merkezi Yönetici (Admin) Konsolu Modal -->
       <div id="admin-modal" class="admin-modal hidden" aria-modal="true" role="dialog">
         <div class="admin-modal-backdrop"></div>
@@ -714,9 +740,38 @@
               <span class="admin-badge">⚡ ADMIN</span>
               <span>OBSERVATORY CENTRAL CONTROLLER</span>
             </div>
-            <button id="btn-close-admin-modal" class="admin-close-btn" aria-label="Kapat">✕</button>
+            <div class="admin-header-actions">
+              <button id="btn-admin-logout" class="admin-logout-btn hidden" title="Oturumu Kapat">🔒 Çıkış</button>
+              <button id="btn-close-admin-modal" class="admin-close-btn" aria-label="Kapat">✕</button>
+            </div>
           </div>
 
+          <!-- 1. GİRİŞ EKRANI (Oturum Açılmamışsa) -->
+          <div id="admin-login-view" class="admin-login-view">
+            <div class="admin-login-box">
+              <div class="admin-login-icon">🔐</div>
+              <h3 class="admin-login-title">YÖNETİCİ KİMLİK DOĞRULAMA</h3>
+              <p class="admin-login-subtitle">Merkezi uydu telemetrisi ve yayın parametrelerini yönetmek için giriş yapın.</p>
+              
+              <div class="admin-login-fields">
+                <div class="admin-input-group">
+                  <label for="admin-input-user">KULLANICI ADI</label>
+                  <input type="text" id="admin-input-user" placeholder="Kullanıcı adı..." autocomplete="off" />
+                </div>
+                <div class="admin-input-group">
+                  <label for="admin-input-pass">GÜVENLİK ŞİFRESİ</label>
+                  <input type="password" id="admin-input-pass" placeholder="Şifrenizi girin..." />
+                </div>
+              </div>
+
+              <div id="admin-login-error" class="admin-login-error hidden">⚠️ Hatalı kullanıcı adı veya güvenlik şifresi!</div>
+
+              <button id="btn-admin-login" class="admin-login-btn">GİRİŞ YAP VE KİLİDİ AÇ</button>
+            </div>
+          </div>
+
+          <!-- 2. DASHBOARD EKRANI (Doğrulandıktan Sonra) -->
+          <div id="admin-dashboard-view" class="admin-dashboard-view hidden">
           <div class="admin-modal-body">
             <!-- 1. Bölüm: Panel Görünürlükleri (Aktif / Pasif) -->
             <div class="admin-section">
@@ -822,6 +877,11 @@
                     </div>
                   </div>
 
+                  <!-- Kapsama Alanı Açıklaması -->
+                  <div class="admin-sat-coverage">
+                    📍 <strong>Kapsama:</strong> Tüm Güney Amerika (Amazon Havzası, Brezilya, Arjantin, And Dağları), Karayipler, Doğu ABD & Atlantik Okyanusu (Boylam: -105° ile -25°)
+                  </div>
+
                   <div class="admin-sat-metrics-row">
                     <div class="admin-sat-metric">
                       <span class="admin-sat-m-lbl">Ham Veri (20s)</span>
@@ -868,6 +928,11 @@
                       <span>Periyot: <strong>20 sn</strong></span>
                       <div class="admin-sat-progress-bar"><div class="admin-sat-progress-fill" id="sat-prog-goes18"></div></div>
                     </div>
+                  </div>
+
+                  <!-- Kapsama Alanı Açıklaması -->
+                  <div class="admin-sat-coverage">
+                    📍 <strong>Kapsama:</strong> Kuzey Amerika Batı Kıyısı, Pasifik Okyanusu, Alaska & Hawaii (Boylam: &lt; -105°)
                   </div>
 
                   <div class="admin-sat-metrics-row">
@@ -917,6 +982,11 @@
                     </div>
                   </div>
 
+                  <!-- Kapsama Alanı Açıklaması -->
+                  <div class="admin-sat-coverage">
+                    📍 <strong>Kapsama:</strong> Tüm Afrika Kıtası (Kongo Şimşek Havzası), Akdeniz, Orta Doğu & Avrupa (Boylam: -25° ile +60°)
+                  </div>
+
                   <div class="admin-sat-metrics-row">
                     <div class="admin-sat-metric">
                       <span class="admin-sat-m-lbl">Ham Veri (30s)</span>
@@ -955,6 +1025,7 @@
           <div class="admin-modal-footer">
             <span id="admin-save-status" class="admin-save-status">Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.</span>
             <button id="btn-admin-save-all" class="admin-save-btn">💾 AYARLARI MERKEZE KAYDET</button>
+          </div>
           </div>
         </div>
       </div>

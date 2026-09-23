@@ -4167,3 +4167,317 @@ html, body {
   width: 100%;
   accent-color: #38bdf8;
 }
+
+.admin-sat-coverage {
+  font-size: 10.5px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.admin-sat-coverage strong {
+  color: #38bdf8;
+}
+
+/* =========================================================================
+   Admin Login Gate (Security Access)
+   ========================================================================= */
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-logout-btn {
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-logout-btn:hover {
+  background: rgba(244, 63, 94, 0.3);
+  color: #ffffff;
+  border-color: #f43f5e;
+}
+
+.admin-login-view {
+  padding: 40px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.admin-login-box {
+  width: 100%;
+  max-width: 360px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.1);
+  border-radius: 16px;
+  padding: 24px 22px;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.admin-login-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 8px #38bdf8);
+}
+
+.admin-login-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.admin-login-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.admin-login-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.admin-input-group label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.admin-input-group input {
+  width: 100%;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.admin-input-group input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.admin-login-error {
+  font-size: 11px;
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.admin-login-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  padding: 10px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+}
+
+.admin-login-btn:hover {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.6);
+  transform: translateY(-1px);
+}
+
+/* =========================================================================
+   Sol Alt Görev Paneli (Mission Boot HUD)
+   ========================================================================= */
+
+.mission-boot-hud {
+  position: fixed;
+  left: 18px;
+  bottom: 48px;
+  width: 320px;
+  background: rgba(10, 15, 30, 0.82);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 15px rgba(56, 189, 248, 0.08);
+  color: #f1f5f9;
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.mission-boot-hud.minimized {
+  width: auto;
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.mission-boot-hud.minimized .mbh-body {
+  display: none;
+}
+
+.mbh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.mbh-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mbh-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 8px #00e5ff;
+  animation: pulseDot 1.5s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.mbh-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #38bdf8;
+  font-family: monospace;
+}
+
+.mbh-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.mbh-toggle-btn:hover {
+  color: #ffffff;
+}
+
+.mbh-body {
+  padding: 8px 12px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mbh-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.mbh-log-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+.mbh-log-item.completed {
+  color: #64748b;
+}
+
+.mbh-log-item.active {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.mbh-log-item.live {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.mbh-log-icon {
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.mbh-progress-container {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.mbh-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  font-family: monospace;
+}
+
+.mbh-progress-val {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.mbh-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mbh-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7, #00e5ff);
+  box-shadow: 0 0 6px #00e5ff;
+  transition: width 0.15s ease-out;
+}
