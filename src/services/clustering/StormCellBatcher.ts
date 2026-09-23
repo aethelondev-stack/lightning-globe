@@ -626,23 +626,23 @@ export class StormCellBatcher {
         fadeProgress: 0
       };
 
-        if (this.cached24hCells.length < 144) {
+        // Never overwrite or displace genuine 24-hour macro storm cells with short-lived live cells
+        // Live cells are tracked in addition to the 24h baseline (up to 200 total active cells)
+        if (this.cached24hCells.length < 200) {
           this.cached24hCells.push(newCell);
         } else {
-          // Replace the coldest/least active 24h cell that has had NO strikes recently
-          let coldestIdx = -1;
+          // Replace only the oldest LIVE cell, preserving 24h macro clusters permanently
+          let oldestLiveIdx = -1;
           let oldestTime = Infinity;
           for (let i = 0; i < this.cached24hCells.length; i++) {
             const c = this.cached24hCells[i];
-            if (!c.id.startsWith('live-') && c.lastSeen < oldestTime) {
+            if (c.id.startsWith('live-') && c.lastSeen < oldestTime) {
               oldestTime = c.lastSeen;
-              coldestIdx = i;
+              oldestLiveIdx = i;
             }
           }
-          if (coldestIdx !== -1) {
-            this.cached24hCells[coldestIdx] = newCell;
-          } else {
-            this.cached24hCells.push(newCell);
+          if (oldestLiveIdx !== -1) {
+            this.cached24hCells[oldestLiveIdx] = newCell;
           }
         }
       }

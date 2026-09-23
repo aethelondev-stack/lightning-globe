@@ -179,9 +179,7 @@ function init(): void {
 
       const rawStrikes = Array.from(strikeMap.values()).sort((a, b) => a.timestamp - b.timestamp);
 
-      // High-performance O(N) Cross-Sensor Spatial-Temporal Deduplication
-      // Fuses co-observations (e.g. Blitzortung RF ground strike + GOES/MTG optical flash)
-      // Criterion: dt <= 1200ms and dr <= 18km (0.20° spatial grid hash)
+      // Time-Sliced Deduplication to avoid locking the main thread
       const dedupGrid = new Map<string, LightningEvent[]>();
       const strikesToRender: LightningEvent[] = [];
       const binDeg = 0.20;
@@ -230,6 +228,11 @@ function init(): void {
           }
           cell.push(s);
         }
+
+        // Time-slice deduplication every 25,000 strikes
+        if (i > 0 && i % 25000 === 0) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
       }
 
       if (strikesToRender.length > 0) {
@@ -239,7 +242,10 @@ function init(): void {
           ? strikesToRender.slice(-maxCapacity)
           : strikesToRender;
 
-        globeManager.fulguriteTraceLayer.hydrateHistoricalStrikes(visualStrikes);
+        // Progressive Trace Layer Hydration: uploads in 10,000-strike slices across frames without freezing GPU
+        await globeManager.fulguriteTraceLayer.hydrateHistoricalStrikesProgressive(visualStrikes, 10000);
+
+        // Pre-compute 24h storm cell honeycombs
         stormCellBatcher.addHistoricalStrikes(visualStrikes);
 
         // Immediately update stormCellRadar and UI with 24H pre-clustered storm cells
@@ -631,8 +637,194 @@ function init(): void {
   };
 
   // Sync Camera Mode to UI if changed externally (e.g. user touched globe)
+  // Sync Camera Mode to UI if changed externally (e.g. user touched globe)
   cameraDirector.onStateChange((_state, _target) => {
     uiController.syncExternalCameraMode(cameraDirector.isAutoFollow());
+  });
+
+  // =========================================================================
+  // Central Admin Controller (Panel Toggles, Accordions & Master Audio Sync)
+  // =========================================================================
+  const adminModal = document.getElementById('admin-modal');
+  const btnCloseAdminModal = document.getElementById('btn-close-admin-modal');
+  const btnAdminSaveAll = document.getElementById('btn-admin-save-all');
+  const adminSaveStatus = document.getElementById('admin-save-status');
+
+  const toggleHud = document.getElementById('admin-toggle-hud') as HTMLInputElement | null;
+  const toggleLiveBadge = document.getElementById('admin-toggle-live-badge') as HTMLInputElement | null;
+  const toggleLiveFeed = document.getElementById('admin-toggle-live-feed') as HTMLInputElement | null;
+  const toggleCameraQueue = document.getElementById('admin-toggle-camera-queue') as HTMLInputElement | null;
+  const toggleStorms = document.getElementById('admin-toggle-storms') as HTMLInputElement | null;
+  const toggleLeaderboard = document.getElementById('admin-toggle-leaderboard') as HTMLInputElement | null;
+  const toggleAnalytics = document.getElementById('admin-toggle-analytics') as HTMLInputElement | null;
+  const toggleBottomBar = document.getElementById('admin-toggle-bottom-bar') as HTMLInputElement | null;
+
+  const accLiveFeed = document.getElementById('admin-acc-live-feed') as HTMLInputElement | null;
+  const accCameraQueue = document.getElementById('admin-acc-camera-queue') as HTMLInputElement | null;
+  const accStorms = document.getElementById('admin-acc-storms') as HTMLInputElement | null;
+  const accLeaderboard = document.getElementById('admin-acc-leaderboard') as HTMLInputElement | null;
+
+  const sliderSfxVol = document.getElementById('admin-slider-sfx-vol') as HTMLInputElement | null;
+  const valSfxVol = document.getElementById('admin-val-sfx-vol');
+  const sliderMusicVol = document.getElementById('admin-slider-music-vol') as HTMLInputElement | null;
+  const valMusicVol = document.getElementById('admin-val-music-vol');
+
+  // Sliders visual feedback
+  sliderSfxVol?.addEventListener('input', () => {
+    if (valSfxVol) valSfxVol.textContent = `${sliderSfxVol.value}%`;
+    const vol = parseFloat(sliderSfxVol.value) / 100;
+    soundDirector.setVolume(vol);
+  });
+  sliderMusicVol?.addEventListener('input', () => {
+    if (valMusicVol) valMusicVol.textContent = `${sliderMusicVol.value}%`;
+    const vol = parseFloat(sliderMusicVol.value) / 100;
+    bgMusicPlayer.setVolume(vol);
+  });
+
+  const applyAdminConfig = (cfg: any) => {
+    if (!cfg) return;
+    if (cfg.sfxVolume !== undefined) {
+      const vol = cfg.sfxVolume / 100;
+      soundDirector.setVolume(vol);
+      if (sliderSfxVol) sliderSfxVol.value = cfg.sfxVolume.toString();
+      if (valSfxVol) valSfxVol.textContent = `${cfg.sfxVolume}%`;
+    }
+    if (cfg.musicVolume !== undefined) {
+      const vol = cfg.musicVolume / 100;
+      bgMusicPlayer.setVolume(vol);
+      if (sliderMusicVol) sliderMusicVol.value = cfg.musicVolume.toString();
+      if (valMusicVol) valMusicVol.textContent = `${cfg.musicVolume}%`;
+    }
+    if (cfg.panels) {
+      const hudEl = document.querySelector('.hud-panel') as HTMLElement | null;
+      if (hudEl) hudEl.style.display = cfg.panels.hud !== false ? '' : 'none';
+      if (toggleHud) toggleHud.checked = cfg.panels.hud !== false;
+
+      const liveBadgeEl = document.getElementById('live-broadcast-indicator');
+      if (liveBadgeEl) liveBadgeEl.style.display = cfg.panels.liveBadge !== false ? '' : 'none';
+      if (toggleLiveBadge) toggleLiveBadge.checked = cfg.panels.liveBadge !== false;
+
+      const liveFeedEl = document.getElementById('panel-live-feed');
+      if (liveFeedEl) liveFeedEl.style.display = cfg.panels.liveFeed !== false ? '' : 'none';
+      if (toggleLiveFeed) toggleLiveFeed.checked = cfg.panels.liveFeed !== false;
+
+      const queueEl = document.getElementById('panel-camera-queue');
+      if (queueEl) queueEl.style.display = cfg.panels.directorQueue !== false ? '' : 'none';
+      if (toggleCameraQueue) toggleCameraQueue.checked = cfg.panels.directorQueue !== false;
+
+      const stormsEl = document.getElementById('panel-storms');
+      if (stormsEl) stormsEl.style.display = cfg.panels.storms !== false ? '' : 'none';
+      if (toggleStorms) toggleStorms.checked = cfg.panels.storms !== false;
+
+      const leaderboardEl = document.getElementById('panel-leaderboard');
+      if (leaderboardEl) leaderboardEl.style.display = cfg.panels.leaderboard !== false ? '' : 'none';
+      if (toggleLeaderboard) toggleLeaderboard.checked = cfg.panels.leaderboard !== false;
+
+      const analyticsEl = document.getElementById('panel-analytics');
+      if (analyticsEl) analyticsEl.style.display = cfg.panels.analytics !== false ? '' : 'none';
+      if (toggleAnalytics) toggleAnalytics.checked = cfg.panels.analytics !== false;
+
+      const bottomBarEl = document.getElementById('bottom-command-bar');
+      if (bottomBarEl) bottomBarEl.style.display = cfg.panels.bottomBar !== false ? '' : 'none';
+      if (toggleBottomBar) toggleBottomBar.checked = cfg.panels.bottomBar !== false;
+    }
+    if (cfg.accordions) {
+      const liveFeedEl = document.getElementById('panel-live-feed');
+      if (liveFeedEl) liveFeedEl.classList.toggle('collapsed', !cfg.accordions.liveFeed);
+      if (accLiveFeed) accLiveFeed.checked = !!cfg.accordions.liveFeed;
+
+      const queueEl = document.getElementById('panel-camera-queue');
+      if (queueEl) queueEl.classList.toggle('collapsed', !cfg.accordions.directorQueue);
+      if (accCameraQueue) accCameraQueue.checked = !!cfg.accordions.directorQueue;
+
+      const stormsEl = document.getElementById('panel-storms');
+      if (stormsEl) stormsEl.classList.toggle('collapsed', !cfg.accordions.storms);
+      if (accStorms) accStorms.checked = !!cfg.accordions.storms;
+
+      const leaderboardEl = document.getElementById('panel-leaderboard');
+      if (leaderboardEl) leaderboardEl.classList.toggle('collapsed', !cfg.accordions.leaderboard);
+      if (accLeaderboard) accLeaderboard.checked = !!cfg.accordions.leaderboard;
+    }
+  };
+
+  // Fetch initial global admin config from server
+  fetch('/api/admin/config')
+    .then((r) => r.json())
+    .then((cfg) => applyAdminConfig(cfg))
+    .catch(() => {});
+
+  // Save admin config to central backend
+  btnAdminSaveAll?.addEventListener('click', async () => {
+    const payload = {
+      sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
+      musicVolume: sliderMusicVol ? parseInt(sliderMusicVol.value, 10) : 50,
+      panels: {
+        hud: toggleHud?.checked ?? true,
+        liveBadge: toggleLiveBadge?.checked ?? true,
+        liveFeed: toggleLiveFeed?.checked ?? true,
+        directorQueue: toggleCameraQueue?.checked ?? true,
+        storms: toggleStorms?.checked ?? true,
+        leaderboard: toggleLeaderboard?.checked ?? true,
+        analytics: toggleAnalytics?.checked ?? true,
+        bottomBar: toggleBottomBar?.checked ?? true
+      },
+      accordions: {
+        liveFeed: accLiveFeed?.checked ?? false,
+        directorQueue: accCameraQueue?.checked ?? true,
+        storms: accStorms?.checked ?? false,
+        leaderboard: accLeaderboard?.checked ?? false
+      },
+      updatedAt: Date.now()
+    };
+
+    if (adminSaveStatus) adminSaveStatus.textContent = 'Kaydediliyor...';
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        if (adminSaveStatus) adminSaveStatus.textContent = '✅ Ayarlar merkeze kaydedildi ve yansıtıldı!';
+        applyAdminConfig(payload);
+        setTimeout(() => {
+          if (adminSaveStatus) adminSaveStatus.textContent = 'Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.';
+        }, 3000);
+      } else {
+        if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Kaydedilemedi.';
+      }
+    } catch {
+      if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Sunucu bağlantı hatası.';
+    }
+  });
+
+  const openAdminModal = () => {
+    adminModal?.classList.remove('hidden');
+  };
+  const closeAdminModal = () => {
+    adminModal?.classList.add('hidden');
+  };
+  btnCloseAdminModal?.addEventListener('click', closeAdminModal);
+  adminModal?.querySelector('.admin-modal-backdrop')?.addEventListener('click', closeAdminModal);
+
+  // URL query trigger: ?admin=1 or ?admin=aethelon
+  if (typeof window !== 'undefined' && window.location) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('admin')) {
+      openAdminModal();
+    }
+  }
+
+  // Keyboard shortcut trigger: Ctrl + Shift + A
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+      e.preventDefault();
+      if (adminModal?.classList.contains('hidden')) {
+        openAdminModal();
+      } else {
+        closeAdminModal();
+      }
+    }
   });
 
   // Initialize and populate country search list

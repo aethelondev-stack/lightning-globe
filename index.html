@@ -16,7 +16,6 @@
       <div id="live-broadcast-indicator" class="live-broadcast-indicator">
         <span class="lbi-dot"></span>
         <span class="lbi-text">LIVE</span>
-        <span class="lbi-badge">KICK & YT</span>
       </div>
 
       <!-- Glassmorphism Telemetry HUD Panel -->
@@ -705,6 +704,110 @@
           <span>Any country in English (!france, !uk, !italy, etc.)</span>
         </div>
       </footer>
+
+      <!-- Merkezi Yönetici (Admin) Konsolu Modal -->
+      <div id="admin-modal" class="admin-modal hidden" aria-modal="true" role="dialog">
+        <div class="admin-modal-backdrop"></div>
+        <div class="admin-modal-card">
+          <div class="admin-modal-header">
+            <div class="admin-modal-title">
+              <span class="admin-badge">⚡ ADMIN</span>
+              <span>OBSERVATORY CENTRAL CONTROLLER</span>
+            </div>
+            <button id="btn-close-admin-modal" class="admin-close-btn" aria-label="Kapat">✕</button>
+          </div>
+
+          <div class="admin-modal-body">
+            <!-- 1. Bölüm: Panel Görünürlükleri (Aktif / Pasif) -->
+            <div class="admin-section">
+              <div class="admin-section-title">🖥️ PANEL GÖRÜNÜRLÜK YÖNETİMİ (AKTİF / PASİF)</div>
+              <div class="admin-grid-toggles">
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-hud" checked />
+                  <span class="admin-toggle-label">Sol Üst Telemetri (HUD)</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-live-badge" checked />
+                  <span class="admin-toggle-label">Sol Üst LIVE Rozeti</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-live-feed" checked />
+                  <span class="admin-toggle-label">Canlı Şimşek Günlüğü (Feed)</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-camera-queue" checked />
+                  <span class="admin-toggle-label">Kamera Reji Kuyruğu (Queue)</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-storms" checked />
+                  <span class="admin-toggle-label">Aktif Fırtına Hücreleri</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-leaderboard" checked />
+                  <span class="admin-toggle-label">Ülke Yıldırım Sıralaması</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-analytics" checked />
+                  <span class="admin-toggle-label">Gelişmiş Analiz Paneli</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-toggle-bottom-bar" checked />
+                  <span class="admin-toggle-label">Alt Chat Komut Çubuğu</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 2. Bölüm: Akordiyon Açık/Kapalı Başlangıç Durumları -->
+            <div class="admin-section">
+              <div class="admin-section-title">📂 AKORDİYON BAŞLANGIÇ DURUMLARI (AÇIK / KATLI)</div>
+              <div class="admin-grid-toggles">
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-acc-live-feed" />
+                  <span class="admin-toggle-label">Canlı Günlük Açık Başlasın</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-acc-camera-queue" checked />
+                  <span class="admin-toggle-label">Reji Kuyruğu Açık Başlasın</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-acc-storms" />
+                  <span class="admin-toggle-label">Fırtına Hücreleri Açık Başlasın</span>
+                </label>
+                <label class="admin-toggle-item">
+                  <input type="checkbox" id="admin-acc-leaderboard" />
+                  <span class="admin-toggle-label">Liderlik Tablosu Açık Başlasın</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Bölüm: Global Ses & Müzik Seviyesi -->
+            <div class="admin-section">
+              <div class="admin-section-title">🔊 ZİYARETÇİLER İÇİN GENEL SES SEVİYELERİ</div>
+              <div class="admin-sliders-grid">
+                <div class="admin-slider-box">
+                  <div class="admin-slider-header">
+                    <span>⚡ Şimşek / Gök Gürültüsü Sesi:</span>
+                    <span id="admin-val-sfx-vol" class="admin-val-pill">80%</span>
+                  </div>
+                  <input type="range" id="admin-slider-sfx-vol" min="0" max="100" value="80" step="1" class="admin-range-slider" />
+                </div>
+                <div class="admin-slider-box">
+                  <div class="admin-slider-header">
+                    <span>🎵 Arka Plan Ambiyans Müziği:</span>
+                    <span id="admin-val-music-vol" class="admin-val-pill">50%</span>
+                  </div>
+                  <input type="range" id="admin-slider-music-vol" min="0" max="100" value="50" step="1" class="admin-range-slider" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-modal-footer">
+            <span id="admin-save-status" class="admin-save-status">Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.</span>
+            <button id="btn-admin-save-all" class="admin-save-btn">💾 AYARLARI MERKEZE KAYDET</button>
+          </div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

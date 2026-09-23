@@ -160,8 +160,8 @@ export function viteMtgLiPlugin(): Plugin {
         const rawRad = rads ? Number(rads[i]) : 1;
         const radiance = Math.max(1e-15, rawRad * radScale + radOffset);
 
-        // Satellite Optical Energy Filter: prioritize convective core / CG discharges (>= 5.0e-14 J)
-        if (radiance < 5.0e-14) {
+        // Satellite Optical Energy Filter: prioritize convective core / CG discharges (>= 2.8e-14 J)
+        if (radiance < 2.8e-14) {
           continue;
         }
 

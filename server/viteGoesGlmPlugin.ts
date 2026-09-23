@@ -187,8 +187,8 @@ export function viteGoesGlmPlugin(): Plugin {
         const rawEnergy = rawEnergies ? Number(rawEnergies[i]) : 10;
         const energyJ = rawEnergy * energyScale + energyOffset;
 
-        // Satellite Optical Energy Filter: prioritize convective core / CG discharges (>= 5.0e-14 J)
-        if (Number(energyJ) < 5.0e-14) {
+        // Satellite Optical Energy Filter: prioritize convective core / CG discharges (>= 2.8e-14 J)
+        if (Number(energyJ) < 2.8e-14) {
           continue;
         }
 

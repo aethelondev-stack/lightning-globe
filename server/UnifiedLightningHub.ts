@@ -1067,9 +1067,9 @@ export class UnifiedLightningHub {
         const energyJ = rawEnergies ? Number(rawEnergies[i]) * 1e-15 : 1e-14;
 
         // Satellite Optical Energy & Convective Core Filter:
-        // Filter out weak intra-cloud (IC) optical noise (< 5.0e-14 J) to prioritize
-        // impactful cloud-to-ground / convective core lightning discharges.
-        if (energyJ < 5.0e-14) continue;
+        // Prioritize impactful convective core / CG discharges (~250-300 strikes per 20s window)
+        // Eliminates weak intra-cloud diffuse glare without starving storm footprints.
+        if (energyJ < 2.8e-14) continue;
 
         const area = rawAreas ? Math.max(15, Math.round((Number(rawAreas[i]) * 152601) / 1e6)) : 50;
         const calculatedCurrent = Math.max(8, Math.min(65, Math.round(15 + Math.log10(energyJ * 1e15 + 1) * 8)));

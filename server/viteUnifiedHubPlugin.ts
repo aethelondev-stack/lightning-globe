@@ -108,6 +108,72 @@ export function viteUnifiedHubPlugin(): Plugin {
       res.end(JSON.stringify({ status: 'RELOADED', cachedCount: hub.getStats().cached24hCount }));
     });
 
+    // 6. Global Admin Config Endpoint (Panel toggles & master volume)
+    const adminConfigPath = path.resolve(process.cwd(), '.cache', 'admin_config.json');
+    middlewares.use('/api/admin/config', (req: any, res: any) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', (chunk: any) => { body += chunk; });
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body || '{}');
+            const dir = path.dirname(adminConfigPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(adminConfigPath, JSON.stringify(data, null, 2), 'utf8');
+            res.end(JSON.stringify({ status: 'OK', config: data }));
+          } catch (e: any) {
+            res.writeHead(400);
+            res.end(JSON.stringify({ status: 'ERROR', error: e?.message }));
+          }
+        });
+      } else {
+        // GET
+        try {
+          if (fs.existsSync(adminConfigPath)) {
+            const content = fs.readFileSync(adminConfigPath, 'utf8');
+            res.end(content);
+          } else {
+            // Default config
+            const defaults = {
+              sfxVolume: 80,
+              musicVolume: 50,
+              panels: {
+                hud: true,
+                liveFeed: true,
+                directorQueue: true,
+                storms: true,
+                leaderboard: true,
+                analytics: true,
+                bottomBar: true,
+                liveBadge: true
+              },
+              accordions: {
+                liveFeed: false, // collapsed
+                directorQueue: true, // open
+                storms: false, // collapsed
+                leaderboard: false // collapsed
+              },
+              updatedAt: Date.now()
+            };
+            res.end(JSON.stringify(defaults));
+          }
+        } catch {
+          res.end(JSON.stringify({ status: 'ERROR' }));
+        }
+      }
+    });
+
     console.log('⚡ [UNIFIED HUB] SSE stream mounted at /api/lightning/stream');
     console.log('📂 [UNIFIED HUB] 24h History archive mounted at /api/lightning/history-24h');
   };
