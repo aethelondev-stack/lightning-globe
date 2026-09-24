@@ -881,11 +881,63 @@
               </div>
             </div>
 
-            <!-- 4. Bölüm: Uydular ve Gerçek Zamanlı Filtre/Eşik Kontrolü (Alt Alta) -->
+            <!-- 4. Bölüm: Uydular & RF İletim Telemetrisi (Alt Alta) -->
             <div class="admin-section">
-              <div class="admin-section-title">🛰️ UYDU TELEMETRİSİ & CANLI EŞİK FİLTRELERİ (ALT ALTA)</div>
+              <div class="admin-section-title">📡 SENSÖR AĞLARI & UYDU TELEMETRİ KONTROLÜ (ALT ALTA)</div>
               <div class="admin-sat-cards-stack">
                 
+                <!-- Sensör 0: Blitzortung RF Global Yer İstasyonları Ağı (0 ms Latency / Anlık İletim) -->
+                <div class="admin-sat-card" id="sat-card-blitz">
+                  <div class="admin-sat-card-header">
+                    <div class="admin-sat-info">
+                      <span class="admin-sat-icon">⚡</span>
+                      <div>
+                        <div class="admin-sat-name" style="color: #00e5ff;">BLITZORTUNG RF GROUND NETWORK</div>
+                        <div class="admin-sat-region">Küresel Yer İstasyonları Ağı (0 ms Gecikmesiz Canlı İletim)</div>
+                      </div>
+                    </div>
+                    <div class="admin-sat-period-badge" style="background: rgba(0, 229, 255, 0.15); border-color: #00e5ff;">
+                      <span style="color: #00e5ff;">Mod: <strong>ANLIK (0 MS)</strong></span>
+                    </div>
+                  </div>
+
+                  <!-- Kapsama Alanı Açıklaması -->
+                  <div class="admin-sat-coverage">
+                    📍 <strong>Kapsama:</strong> Tüm Dünya (Avrupa, Türkiye, Kuzey/Güney Amerika, Asya, Avustralya) RF Nano-Saniye Sensör Ağı
+                  </div>
+
+                  <div class="admin-sat-metrics-row">
+                    <div class="admin-sat-metric">
+                      <span class="admin-sat-m-lbl">Gelen Anlık Vuruş</span>
+                      <span class="admin-sat-m-val" id="sat-raw-blitz" style="color: #00e5ff;">-- vuruş</span>
+                    </div>
+                    <div class="admin-sat-metric metric-passed">
+                      <span class="admin-sat-m-lbl">Aktarım Gecikmesi</span>
+                      <span class="admin-sat-m-val" id="sat-delay-blitz" style="color: #10b981;">0 ms (Anında Yayında)</span>
+                    </div>
+                    <div class="admin-sat-metric metric-passed">
+                      <span class="admin-sat-m-lbl">Kürede Gösterilen</span>
+                      <span class="admin-sat-m-val" id="sat-passed-blitz" style="color: #38bdf8;">%100 (Sıfır Kayıp)</span>
+                    </div>
+                  </div>
+
+                  <!-- Anlık Canlı Spektrum Bar -->
+                  <div class="admin-sat-chart-container">
+                    <div class="admin-sat-bars" id="sat-bars-blitz"></div>
+                    <div class="admin-sat-threshold-line" id="sat-line-blitz" style="left: 100%; border-color: #00e5ff; background: #00e5ff;">
+                      <span class="admin-sat-thresh-tag" style="background: #00e5ff; color: #020617;">ANLIK</span>
+                    </div>
+                  </div>
+
+                  <div class="admin-sat-slider-wrap">
+                    <div class="admin-sat-slider-head">
+                      <span>Yayın Aktarım Gecikmesi (Delay):</span>
+                      <span class="admin-sat-thresh-val" id="sat-val-blitz" style="color: #00e5ff;">⚡ 0 ms (Anında Canlı Yayında)</span>
+                    </div>
+                    <input type="range" id="admin-sat-thresh-blitz" min="0" max="5000" step="100" value="0" class="admin-range-slider admin-sat-slider" />
+                  </div>
+                </div>
+
                 <!-- Uydu 1: NOAA GOES-19 GLM (Güney Amerika Amazon & Doğu Amerika) -->
                 <div class="admin-sat-card" id="sat-card-goes19">
                   <div class="admin-sat-card-header">

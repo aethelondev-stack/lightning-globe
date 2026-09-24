@@ -862,7 +862,31 @@ function init(): void {
     rawBase: number;
   }
 
+  // Blitzortung RF Instant Live Card Elements
+  const sliderSatBlitz = document.getElementById('admin-sat-thresh-blitz') as HTMLInputElement | null;
+  const valSatBlitz = document.getElementById('sat-val-blitz');
+  const lineSatBlitz = document.getElementById('sat-line-blitz');
+  const rawSatBlitz = document.getElementById('sat-raw-blitz');
+  const delaySatBlitz = document.getElementById('sat-delay-blitz');
+  const passSatBlitz = document.getElementById('sat-passed-blitz');
+  const barsSatBlitz = document.getElementById('sat-bars-blitz');
+
   const satConfigs: Record<string, SatUiConfig> = {
+    blitz: {
+      slider: sliderSatBlitz,
+      valEl: valSatBlitz,
+      lineEl: lineSatBlitz,
+      rawEl: rawSatBlitz,
+      filtEl: delaySatBlitz,
+      passEl: passSatBlitz,
+      progEl: null,
+      barsEl: barsSatBlitz,
+      period: 1,
+      minRate: 0,
+      maxRate: 5000,
+      defaultRate: 0,
+      rawBase: 120
+    },
     goes19: {
       slider: sliderSatGoes19,
       valEl: valSatGoes19,
@@ -910,7 +934,7 @@ function init(): void {
     }
   };
 
-  const satBarElements: Record<string, HTMLElement[]> = { goes19: [], goes18: [], mtg: [] };
+  const satBarElements: Record<string, HTMLElement[]> = { blitz: [], goes19: [], goes18: [], mtg: [] };
 
   const userInteractingKeys: Record<string, number> = {};
 
@@ -977,6 +1001,29 @@ function init(): void {
     const spm = Math.round(rate * 60);
     const targetCount = Math.round(rate * cfg.period);
     const periodLabel = cfg.period >= 60 ? `${Math.round(cfg.period / 60)}dk` : `${cfg.period}s`;
+
+    if (key === 'blitz') {
+      const delayMs = Math.round(rate);
+      if (cfg.valEl) cfg.valEl.textContent = `⚡ ${delayMs} ms Gecikme (${delayMs === 0 ? 'Anında Canlı Yayında' : delayMs + 'ms Sonra Ekranda'})`;
+      if (cfg.rawEl) cfg.rawEl.textContent = `Anlık Canlı Akış`;
+      if (cfg.filtEl) cfg.filtEl.textContent = `${delayMs} ms Gecikmeli`;
+      if (cfg.passEl) cfg.passEl.textContent = `%100 (Sıfır Kayıp)`;
+
+      const delayRatio = Math.max(0, Math.min(1, delayMs / 5000));
+      const linePct = (1 - delayRatio) * 100;
+      if (cfg.lineEl) cfg.lineEl.style.left = `${linePct}%`;
+
+      const activeBarsCount = Math.round((1 - delayRatio) * 24);
+      const bars = satBarElements[key] || [];
+      bars.forEach((bar, idx) => {
+        if (idx < activeBarsCount) {
+          bar.className = 'admin-sat-bar bar-passed';
+        } else {
+          bar.className = 'admin-sat-bar bar-filtered';
+        }
+      });
+      return;
+    }
 
     if (cfg.valEl) {
       cfg.valEl.textContent = `⚡ ${rate} vuruş/sn (${spm} SPM | ${periodLabel}: ${targetCount} Şimşek)`;
