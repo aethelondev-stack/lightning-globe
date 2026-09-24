@@ -1243,13 +1243,15 @@ function init(): void {
       .then((cfg) => applyAdminConfig(cfg))
       .catch(() => {});
 
-    // Save admin config to central backend
+    // Save admin config to central backend (Secured with Bearer Token)
     btnAdminSaveAll?.addEventListener('click', async () => {
       const panelKeys = ['hud', 'liveBadge', 'liveFeed', 'directorQueue', 'storms', 'leaderboard', 'analytics', 'bottomBar'];
       const panelStates: Record<string, 'OPEN' | 'CLOSED' | 'PASSIVE'> = {};
       panelKeys.forEach((k) => {
         panelStates[k] = getTriStateValue(k);
       });
+
+      const token = sessionStorage.getItem('ag_admin_token') || '';
 
       const payload = {
         sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
@@ -1263,30 +1265,38 @@ function init(): void {
         updatedAt: Date.now()
       };
 
-    if (adminSaveStatus) adminSaveStatus.textContent = 'Kaydediliyor...';
-    try {
-      const res = await fetch('/api/admin/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        if (adminSaveStatus) adminSaveStatus.textContent = '✅ Ayarlar kaydedildi ve tüm kullanıcılara canlı uygulandı!';
-        applyAdminConfig(payload);
-        setTimeout(() => {
-          if (adminSaveStatus) adminSaveStatus.textContent = 'Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.';
-        }, 3500);
-      } else {
-        if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Kaydedilemedi.';
+      if (adminSaveStatus) adminSaveStatus.textContent = 'Kaydediliyor...';
+      try {
+        const res = await fetch('/api/admin/config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          if (adminSaveStatus) adminSaveStatus.textContent = '✅ Ayarlar kaydedildi ve tüm kullanıcılara canlı uygulandı!';
+          applyAdminConfig(payload);
+          setTimeout(() => {
+            if (adminSaveStatus) adminSaveStatus.textContent = 'Tüm ziyaretçiler ve yeni bağlananlar için geçerli olur.';
+          }, 3500);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (adminSaveStatus) adminSaveStatus.textContent = `⚠️ Yetkisiz erişim: ${errData.error || 'Oturum süreniz dolmuş.'}`;
+          if (res.status === 401) {
+            sessionStorage.removeItem('ag_admin_token');
+            showAdminLogin();
+          }
+        }
+      } catch {
+        if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Sunucu bağlantı hatası.';
       }
-    } catch {
-      if (adminSaveStatus) adminSaveStatus.textContent = '⚠️ Sunucu bağlantı hatası.';
-    }
-  });
+    });
 
   const isAdminAuthenticated = (): boolean => {
     try {
-      return sessionStorage.getItem('ag_admin_auth') === 'true';
+      return !!sessionStorage.getItem('ag_admin_token');
     } catch {
       return false;
     }
@@ -1315,16 +1325,38 @@ function init(): void {
     setTimeout(() => adminInputUser?.focus(), 80);
   };
 
-  const handleAdminLoginSubmit = () => {
+  const handleAdminLoginSubmit = async () => {
     const user = adminInputUser?.value.trim() || '';
     const pass = adminInputPass?.value || '';
-    if (user === 'aethelon' && pass === 'Aeth#92!LgtX') {
-      try {
-        sessionStorage.setItem('ag_admin_auth', 'true');
-      } catch {}
-      showAdminDashboard();
-    } else {
-      adminLoginError?.classList.remove('hidden');
+
+    if (!user || !pass) return;
+
+    if (btnAdminLogin) btnAdminLogin.textContent = 'DOĞRULANIYOR...';
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user, pass })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.token) {
+        sessionStorage.setItem('ag_admin_token', data.token);
+        showAdminDashboard();
+      } else {
+        if (adminLoginError) {
+          adminLoginError.textContent = data.error || '⚠️ Hatalı kullanıcı adı veya güvenlik şifresi!';
+          adminLoginError.classList.remove('hidden');
+        }
+      }
+    } catch {
+      if (adminLoginError) {
+        adminLoginError.textContent = '⚠️ Güvenlik sunucusuna bağlanılamadı!';
+        adminLoginError.classList.remove('hidden');
+      }
+    } finally {
+      if (btnAdminLogin) btnAdminLogin.textContent = 'GİRİŞ YAP VE KİLİDİ AÇ';
     }
   };
 
@@ -1338,7 +1370,7 @@ function init(): void {
 
   btnAdminLogout?.addEventListener('click', () => {
     try {
-      sessionStorage.removeItem('ag_admin_auth');
+      sessionStorage.removeItem('ag_admin_token');
     } catch {}
     showAdminLogin();
   });
