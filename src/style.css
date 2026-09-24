@@ -4673,29 +4673,31 @@ html, body {
    Universal Auto-Scaling for All Screen Sizes (Mobile / Tablet / TV / 4K)
    ========================================================================== */
 
-/* 1. Large 4K / TV Displays (>= 2200px or TV Aspect) */
+/* Zero-flicker Passive Panel State Enforcer */
+.ag-panel-passive,
+#bottom-command-bar.ag-panel-passive {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 1. Large 4K / TV Displays (>= 2200px) - Natural crisp scaling without disruptive zoom */
 @media screen and (min-width: 2200px) {
   :root {
-    font-size: 19px;
+    font-size: 15px;
   }
   .controls-bar {
-    transform: scale(1.25);
-    transform-origin: top center;
+    padding: 6px 14px;
+    gap: 8px;
   }
   .hud-panel {
-    transform: scale(1.25);
-    transform-origin: top left;
-  }
-  .music-player-widget {
-    transform: scale(1.25);
-    transform-origin: top right;
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
   }
   .bottom-command-bar {
-    transform: translateX(-50%) scale(1.25);
-  }
-  .right-sidebar {
-    transform: scale(1.2);
-    transform-origin: top right;
+    max-width: 86vw;
   }
 }
 

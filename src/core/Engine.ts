@@ -126,7 +126,8 @@ export class Engine {
 
   private isWebGLAvailable(): boolean {
     try {
-      const gl = this.canvas.getContext('webgl2') || this.canvas.getContext('webgl');
+      const probe = document.createElement('canvas');
+      const gl = probe.getContext('webgl2') || probe.getContext('webgl');
       return !!gl;
     } catch {
       return false;
@@ -208,6 +209,9 @@ export class Engine {
 
     // Frame rate throttle guard (e.g. for low-tier hardware / TV boxes)
     if (this.minFrameIntervalMs > 0 && timestamp !== undefined) {
+      if (!this.lastRenderTimestamp) {
+        this.lastRenderTimestamp = timestamp;
+      }
       const elapsedSinceLast = timestamp - this.lastRenderTimestamp;
       if (elapsedSinceLast < this.minFrameIntervalMs) {
         return;

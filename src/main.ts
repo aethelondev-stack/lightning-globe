@@ -59,8 +59,10 @@ function init(): void {
     }
 
     // 3. WebGL GPU Unmasked Renderer Query (Donanım Ekran Kartı Analizi)
+    // ÖNEMLİ: DOM'daki #webgl-canvas yerine bağımsız geçici canvas kullanılır (Three.js WebGL2 context'ini kirletmemesi için)
     try {
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const probeCanvas = document.createElement('canvas');
+      const gl = probeCanvas.getContext('webgl') || probeCanvas.getContext('experimental-webgl');
       if (gl) {
         const debugInfo = (gl as any).getExtension('WEBGL_debug_renderer_info');
         if (debugInfo) {
@@ -68,14 +70,14 @@ function init(): void {
           const vendor = (gl as any).getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
           const fullGpu = `${vendor} ${renderer}`.trim();
 
-          // Intel Dahili Kartlar (Intel HD, UHD, Iris, GMA) veya Yazılımsal Emülasyonlar (SwiftShader, llvmpipe) veya Mobil GPU'lar (Mali, Adreno 5xx/6xx)
-          const isWeakGpu = /Intel.*(HD|UHD|Iris|GMA|Graphics)|SwiftShader|llvmpipe|Software|Mali-4|Mali-T|Adreno.*(3|4|5)/i.test(fullGpu);
+          // TV Box ve aşırı zayıf gömülü çipler (Mali 400/450/T serisi, PowerVR, SwiftShader yazılımsal emülasyonlar)
+          const isTvBoxGpu = /SwiftShader|llvmpipe|Software|Mali-4|Mali-T6|Mali-T7|PowerVR|Adreno\s*(2|30|32|33)/i.test(fullGpu);
           
-          if (isWeakGpu) {
-            return { isLowTier: true, gpuName: fullGpu, reason: 'Dahili GPU / Düşük donanım tespit edildi' };
+          if (isTvBoxGpu) {
+            return { isLowTier: true, gpuName: fullGpu, reason: 'TV Box / Ultra düşük GPU çipi tespit edildi' };
           }
 
-          return { isLowTier: false, gpuName: fullGpu, reason: 'Güçlü GPU (Dedicated / Apple Silicon)' };
+          return { isLowTier: false, gpuName: fullGpu, reason: 'Standart / Güçlü GPU' };
         }
       }
     } catch {}
@@ -1276,9 +1278,11 @@ function init(): void {
     const applyPanelState = (el: HTMLElement | null, state: 'OPEN' | 'CLOSED' | 'PASSIVE', isAccordion: boolean = false) => {
       if (!el) return;
       if (state === 'PASSIVE') {
-        el.style.display = 'none';
+        el.classList.add('ag-panel-passive');
+        el.style.setProperty('display', 'none', 'important');
       } else {
-        el.style.display = '';
+        el.classList.remove('ag-panel-passive');
+        el.style.removeProperty('display');
         if (isAccordion) {
           el.classList.toggle('collapsed', state === 'CLOSED');
         }
@@ -1399,19 +1403,13 @@ function init(): void {
       }
     } catch {}
 
-    // Fetch initial global admin config from server
+    // Fetch initial global admin config from server (Central Source of Truth)
     fetch('/api/admin/config')
       .then((r) => r.json())
       .then((cfg) => {
-        // Merge with local states: if user has a local choice in this browser, respect it
-        try {
-          const localStatesStr = localStorage.getItem('ag_admin_panel_states');
-          if (localStatesStr && cfg.panelStates) {
-            const localStates = JSON.parse(localStatesStr);
-            cfg.panelStates = { ...cfg.panelStates, ...localStates };
-          }
-        } catch {}
-        applyAdminConfig(cfg);
+        if (cfg) {
+          applyAdminConfig(cfg);
+        }
       })
       .catch(() => {});
 
