@@ -77,20 +77,21 @@ export class UnifiedLightningHub {
   private isCacheDirty: boolean = false;
   private isSavingDiskCache: boolean = false;
 
-  // Deterministic Per-Satellite Pacing Streams (Single Unified Pacing Engine)
+  // Deterministic Per-Satellite Pacing Streams with Organic Stochastic Jitter
   private satellitePacers: Record<'goes19' | 'goes18' | 'mtg', {
     id: 'goes19' | 'goes18' | 'mtg';
     periodMs: number;
     allCycleFlashes: LightningEvent[];
     passedQueue: LightningEvent[];
+    scheduledReleaseTimes: number[];
     emittedIds: Set<string>;
     cycleStartTime: number;
     totalScheduled: number;
     emittedCount: number;
   }> = {
-    goes19: { id: 'goes19', periodMs: 20000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
-    goes18: { id: 'goes18', periodMs: 20000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
-    mtg: { id: 'mtg', periodMs: 600000, allCycleFlashes: [], passedQueue: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 }
+    goes19: { id: 'goes19', periodMs: 20000, allCycleFlashes: [], passedQueue: [], scheduledReleaseTimes: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    goes18: { id: 'goes18', periodMs: 20000, allCycleFlashes: [], passedQueue: [], scheduledReleaseTimes: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 },
+    mtg: { id: 'mtg', periodMs: 600000, allCycleFlashes: [], passedQueue: [], scheduledReleaseTimes: [], emittedIds: new Set(), cycleStartTime: 0, totalScheduled: 0, emittedCount: 0 }
   };
   private pacingTimer: ReturnType<typeof setInterval> | null = null;
   private diskSaveTimer: ReturnType<typeof setInterval> | null = null;
@@ -468,7 +469,24 @@ export class UnifiedLightningHub {
       validFlashes[j] = tmp;
     }
 
+    // Generate organic stochastic release times (jittered Poisson distribution across periodMs)
+    const n = validFlashes.length;
+    const releaseTimes: number[] = [];
+    if (n > 0) {
+      const baseInterval = duration / n;
+      for (let i = 0; i < n; i++) {
+        const nominalTime = (i + 0.5) * baseInterval;
+        // Jitter up to +/- 45% of baseInterval for natural storm clustering without exceeding cycle bound
+        const jitter = (Math.random() - 0.5) * 0.90 * baseInterval;
+        const targetTime = Math.max(0, Math.min(duration - 10, nominalTime + jitter));
+        releaseTimes.push(targetTime);
+      }
+      // Sort release times so array stays chronologically aligned
+      releaseTimes.sort((a, b) => a - b);
+    }
+
     pacer.passedQueue = validFlashes;
+    pacer.scheduledReleaseTimes = releaseTimes;
     pacer.cycleStartTime = Date.now();
     pacer.totalScheduled = validFlashes.length;
     pacer.emittedCount = 0;
@@ -496,8 +514,8 @@ export class UnifiedLightningHub {
   }
 
   /**
-   * Deterministic Pacing Tick:
-   * Emits strikes for each satellite smoothly and linearly across its period window.
+   * Organic Stochastic Pacing Tick:
+   * Emits strikes for each satellite smoothly using random Poisson jitter release times.
    */
   private dispatchSatellitePacers(): void {
     const now = Date.now();
@@ -508,19 +526,24 @@ export class UnifiedLightningHub {
       if (pacer.totalScheduled === 0 || pacer.passedQueue.length === 0) continue;
 
       const elapsed = now - pacer.cycleStartTime;
-      const progress = Math.min(1.0, elapsed / Math.max(100, pacer.periodMs));
 
-      // Strictly linear progress: exactly how many should be emitted by this point in time
-      let targetEmitted = Math.min(pacer.totalScheduled, Math.floor(progress * pacer.totalScheduled));
-
-      // End of period guard: drain all remaining strikes when period has elapsed
+      // Count how many scheduled release times have arrived up to current elapsed time
+      let targetEmitted = 0;
       if (elapsed >= pacer.periodMs) {
         targetEmitted = pacer.totalScheduled;
+      } else {
+        while (
+          targetEmitted < pacer.scheduledReleaseTimes.length &&
+          pacer.scheduledReleaseTimes[targetEmitted] <= elapsed
+        ) {
+          targetEmitted++;
+        }
       }
 
       const dueCount = targetEmitted - pacer.emittedCount;
       if (dueCount > 0) {
         const strikesToEmit = pacer.passedQueue.splice(0, dueCount);
+        pacer.scheduledReleaseTimes.splice(0, dueCount);
         pacer.emittedCount += strikesToEmit.length;
 
         for (let i = 0; i < strikesToEmit.length; i++) {
