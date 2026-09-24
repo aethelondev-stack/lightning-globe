@@ -356,14 +356,64 @@ function init(): void {
     }
   };
 
-  // Ultra-Lite TV / Kiosk Profile Detection (Mi Box 2 / Smart TVs / URL flag)
-  const isTvMode = typeof window !== 'undefined' && (
-    window.location.search.includes('tv=1') ||
-    window.location.search.includes('lite=1') ||
-    /Android.*TV|AFTT|MiBOX|SMART-TV/i.test(navigator.userAgent)
-  );
+  // Automatic Hardware & GPU Tier Sniffer (Dahili Intel GPU, TV Box, Zayıf Donanım Tespiti)
+  const detectHardwareTier = (): { isLowTier: boolean; gpuName: string; reason: string } => {
+    if (typeof window === 'undefined') return { isLowTier: false, gpuName: 'SSR', reason: 'SSR' };
+
+    // 1. Explicit URL Override (?tv=1 or ?lite=1 or ?eco=1)
+    if (
+      window.location.search.includes('tv=1') ||
+      window.location.search.includes('lite=1') ||
+      window.location.search.includes('eco=1')
+    ) {
+      return { isLowTier: true, gpuName: 'URL_FLAG', reason: 'Kullanıcı URL ile Lite/TV modu seçti' };
+    }
+
+    // 2. User Agent Check (Smart TV, Mi Box, Android TV, FireStick)
+    const ua = navigator.userAgent || '';
+    if (/Android.*TV|AFTT|MiBOX|SMART-TV|BRAVIA|Tizen|Web0S/i.test(ua)) {
+      return { isLowTier: true, gpuName: 'SMART_TV', reason: 'TV Box / Smart TV cihazı tespit edildi' };
+    }
+
+    // 3. WebGL GPU Unmasked Renderer Query (Donanım Ekran Kartı Analizi)
+    try {
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = (gl as any).getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = (gl as any).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+          const vendor = (gl as any).getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+          const fullGpu = `${vendor} ${renderer}`.trim();
+
+          // Intel Dahili Kartlar (Intel HD, UHD, Iris, GMA) veya Yazılımsal Emülasyonlar (SwiftShader, llvmpipe) veya Mobil GPU'lar (Mali, Adreno 5xx/6xx)
+          const isWeakGpu = /Intel.*(HD|UHD|Iris|GMA|Graphics)|SwiftShader|llvmpipe|Software|Mali-4|Mali-T|Adreno.*(3|4|5)/i.test(fullGpu);
+          
+          if (isWeakGpu) {
+            return { isLowTier: true, gpuName: fullGpu, reason: 'Dahili GPU / Düşük donanım tespit edildi' };
+          }
+
+          return { isLowTier: false, gpuName: fullGpu, reason: 'Güçlü GPU (Dedicated / Apple Silicon)' };
+        }
+      }
+    } catch {}
+
+    // 4. Fallback: Device Memory & CPU Cores check
+    const nav = navigator as any;
+    if ((nav.deviceMemory && nav.deviceMemory <= 3) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 2)) {
+      return { isLowTier: true, gpuName: 'LOW_RAM_CPU', reason: 'Düşük RAM/CPU kapasitesi (<=3GB RAM)' };
+    }
+
+    return { isLowTier: false, gpuName: 'STANDARD', reason: 'Standart donanım' };
+  };
+
+  const hwInfo = detectHardwareTier();
+  const isTvMode = hwInfo.isLowTier;
+
   if (isTvMode) {
-    console.log('📺 [TV Mode] Ultra-Lite TV / Kiosk profile active. Skipping heavy 24h archive to save VRAM and maintain 60 FPS.');
+    console.log(`⚡ [Akıllı Donanım Modu] LITE CANLI MOD DEVREDE! Algılanan: "${hwInfo.gpuName}" | Neden: ${hwInfo.reason}`);
+    console.log('⚡ Ağır 24 saatlik 26MB arşiv atlanıyor. Sadece 0ms canlı akış verilerek 60 FPS kilitlendi!');
+  } else {
+    console.log(`🚀 [Akıllı Donanım Modu] FULL 24S ARŞİV MODU AKTİF! Algılanan GPU: "${hwInfo.gpuName}"`);
   }
 
   // Fast-Boot Snapshot (<100ms instant startup with spatially balanced strikes)
@@ -422,6 +472,10 @@ function init(): void {
             if (mbhProgressContainer) mbhProgressContainer.classList.add('hidden');
           }, 2500);
         });
+      }, 6000);
+    } else {
+      setTimeout(() => {
+        addBootLog('6s', '⚡ Akıllı Lite Mod: Saf Canlı Akış (0ms Gecikmesiz)', 'ok');
       }, 6000);
     }
 
