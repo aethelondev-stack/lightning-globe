@@ -4554,3 +4554,117 @@ html, body {
   box-shadow: 0 0 6px #00e5ff;
   transition: width 0.15s ease-out;
 }
+
+/* ==========================================================================
+   Admin Panel 3-State Panel & Accordion Control Grid (AÇIK / KAPALI / PASİF)
+   ========================================================================== */
+.admin-panel-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.admin-panel-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.admin-panel-card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.1);
+}
+
+.admin-panel-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.03em;
+}
+
+.admin-tri-state-group {
+  display: flex;
+  gap: 6px;
+  background: rgba(2, 6, 23, 0.6);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tri-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  color: #94a3b8;
+  border: 1px solid transparent;
+}
+
+.tri-btn input[type="radio"] {
+  display: none;
+}
+
+.tri-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Selected States */
+.tri-btn-open:has(input:checked) {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.tri-btn-closed:has(input:checked) {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+.tri-btn-passive:has(input:checked) {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Fallback class-based styling if :has is not supported */
+.tri-btn.active-open {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+  font-weight: 700;
+}
+
+.tri-btn.active-closed {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.tri-btn.active-passive {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+  font-weight: 700;
+}

@@ -773,65 +773,90 @@
           <!-- 2. DASHBOARD EKRANI (Doğrulandıktan Sonra) -->
           <div id="admin-dashboard-view" class="admin-dashboard-view hidden">
           <div class="admin-modal-body">
-            <!-- 1. Bölüm: Panel Görünürlükleri (Aktif / Pasif) -->
+            <!-- 1. Bölüm: Panel ve Akordiyon Yönetimi (AÇIK / KAPALI / PASİF 3-State) -->
             <div class="admin-section">
-              <div class="admin-section-title">🖥️ PANEL GÖRÜNÜRLÜK YÖNETİMİ (AKTİF / PASİF)</div>
-              <div class="admin-grid-toggles">
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-hud" checked />
-                  <span class="admin-toggle-label">Sol Üst Telemetri (HUD)</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-live-badge" checked />
-                  <span class="admin-toggle-label">Sol Üst LIVE Rozeti</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-live-feed" checked />
-                  <span class="admin-toggle-label">Canlı Şimşek Günlüğü (Feed)</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-camera-queue" checked />
-                  <span class="admin-toggle-label">Kamera Reji Kuyruğu (Queue)</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-storms" checked />
-                  <span class="admin-toggle-label">Aktif Fırtına Hücreleri</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-leaderboard" checked />
-                  <span class="admin-toggle-label">Ülke Yıldırım Sıralaması</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-analytics" checked />
-                  <span class="admin-toggle-label">Gelişmiş Analiz Paneli</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-toggle-bottom-bar" checked />
-                  <span class="admin-toggle-label">Alt Chat Komut Çubuğu</span>
-                </label>
-              </div>
-            </div>
+              <div class="admin-section-title">🖥️ PANEL VE AKORDİYON YÖNETİMİ (AÇIK / KAPALI / PASİF)</div>
+              
+              <div class="admin-panel-control-grid">
+                <!-- Sol Üst Telemetri (HUD) -->
+                <div class="admin-panel-card" data-panel-key="hud">
+                  <div class="admin-panel-card-title">Sol Üst Telemetri (HUD)</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-hud" value="OPEN" checked /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-hud" value="CLOSED" /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-hud" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
 
-            <!-- 2. Bölüm: Akordiyon Açık/Kapalı Başlangıç Durumları -->
-            <div class="admin-section">
-              <div class="admin-section-title">📂 AKORDİYON BAŞLANGIÇ DURUMLARI (AÇIK / KATLI)</div>
-              <div class="admin-grid-toggles">
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-acc-live-feed" />
-                  <span class="admin-toggle-label">Canlı Günlük Açık Başlasın</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-acc-camera-queue" checked />
-                  <span class="admin-toggle-label">Reji Kuyruğu Açık Başlasın</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-acc-storms" />
-                  <span class="admin-toggle-label">Fırtına Hücreleri Açık Başlasın</span>
-                </label>
-                <label class="admin-toggle-item">
-                  <input type="checkbox" id="admin-acc-leaderboard" />
-                  <span class="admin-toggle-label">Liderlik Tablosu Açık Başlasın</span>
-                </label>
+                <!-- Sol Üst LIVE Rozeti -->
+                <div class="admin-panel-card" data-panel-key="liveBadge">
+                  <div class="admin-panel-card-title">Sol Üst LIVE Rozeti</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-liveBadge" value="OPEN" checked /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-liveBadge" value="CLOSED" /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-liveBadge" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Canlı Şimşek Günlüğü (Feed) -->
+                <div class="admin-panel-card" data-panel-key="liveFeed">
+                  <div class="admin-panel-card-title">Canlı Şimşek Günlüğü (Feed)</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-liveFeed" value="OPEN" /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-liveFeed" value="CLOSED" checked /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-liveFeed" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Kamera Reji Kuyruğu (Queue) -->
+                <div class="admin-panel-card" data-panel-key="directorQueue">
+                  <div class="admin-panel-card-title">Kamera Reji Kuyruğu (Queue)</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-directorQueue" value="OPEN" checked /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-directorQueue" value="CLOSED" /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-directorQueue" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Aktif Fırtına Hücreleri -->
+                <div class="admin-panel-card" data-panel-key="storms">
+                  <div class="admin-panel-card-title">Aktif Fırtına Hücreleri</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-storms" value="OPEN" /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-storms" value="CLOSED" checked /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-storms" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Ülke Yıldırım Sıralaması -->
+                <div class="admin-panel-card" data-panel-key="leaderboard">
+                  <div class="admin-panel-card-title">Ülke Yıldırım Sıralaması</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-leaderboard" value="OPEN" /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-leaderboard" value="CLOSED" checked /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-leaderboard" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Gelişmiş Analiz Paneli -->
+                <div class="admin-panel-card" data-panel-key="analytics">
+                  <div class="admin-panel-card-title">Gelişmiş Analiz Paneli</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-analytics" value="OPEN" /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-analytics" value="CLOSED" checked /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-analytics" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
+
+                <!-- Alt Chat Komut Çubuğu -->
+                <div class="admin-panel-card" data-panel-key="bottomBar">
+                  <div class="admin-panel-card-title">Alt Chat Komut Çubuğu</div>
+                  <div class="admin-tri-state-group">
+                    <label class="tri-btn tri-btn-open"><input type="radio" name="admin-state-bottomBar" value="OPEN" checked /> 🟢 Açık</label>
+                    <label class="tri-btn tri-btn-closed"><input type="radio" name="admin-state-bottomBar" value="CLOSED" /> 🟡 Kapalı</label>
+                    <label class="tri-btn tri-btn-passive"><input type="radio" name="admin-state-bottomBar" value="PASSIVE" /> 🔴 Pasif</label>
+                  </div>
+                </div>
               </div>
             </div>
 

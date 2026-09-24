@@ -799,19 +799,7 @@ function init(): void {
   const btnAdminLogin = document.getElementById('btn-admin-login');
   const btnAdminLogout = document.getElementById('btn-admin-logout');
 
-  const toggleHud = document.getElementById('admin-toggle-hud') as HTMLInputElement | null;
-  const toggleLiveBadge = document.getElementById('admin-toggle-live-badge') as HTMLInputElement | null;
-  const toggleLiveFeed = document.getElementById('admin-toggle-live-feed') as HTMLInputElement | null;
-  const toggleCameraQueue = document.getElementById('admin-toggle-camera-queue') as HTMLInputElement | null;
-  const toggleStorms = document.getElementById('admin-toggle-storms') as HTMLInputElement | null;
-  const toggleLeaderboard = document.getElementById('admin-toggle-leaderboard') as HTMLInputElement | null;
-  const toggleAnalytics = document.getElementById('admin-toggle-analytics') as HTMLInputElement | null;
-  const toggleBottomBar = document.getElementById('admin-toggle-bottom-bar') as HTMLInputElement | null;
 
-  const accLiveFeed = document.getElementById('admin-acc-live-feed') as HTMLInputElement | null;
-  const accCameraQueue = document.getElementById('admin-acc-camera-queue') as HTMLInputElement | null;
-  const accStorms = document.getElementById('admin-acc-storms') as HTMLInputElement | null;
-  const accLeaderboard = document.getElementById('admin-acc-leaderboard') as HTMLInputElement | null;
 
   const sliderSfxVol = document.getElementById('admin-slider-sfx-vol') as HTMLInputElement | null;
   const valSfxVol = document.getElementById('admin-val-sfx-vol');
@@ -1151,138 +1139,129 @@ function init(): void {
     });
   }, 200);
 
-  const applyAdminConfig = (cfg: any) => {
-    if (!cfg) return;
-    if (cfg.sfxVolume !== undefined) {
-      const vol = cfg.sfxVolume / 100;
-      soundDirector.setVolume(vol);
-      if (sliderSfxVol) sliderSfxVol.value = cfg.sfxVolume.toString();
-      if (valSfxVol) valSfxVol.textContent = `${cfg.sfxVolume}%`;
-    }
-    if (cfg.musicVolume !== undefined) {
-      const vol = cfg.musicVolume / 100;
-      bgMusicPlayer.setVolume(vol);
-      if (sliderMusicVol) sliderMusicVol.value = cfg.musicVolume.toString();
-      if (valMusicVol) valMusicVol.textContent = `${cfg.musicVolume}%`;
-    }
-    if (cfg.satelliteRates) {
-      if (cfg.satelliteRates.goes19 && sliderSatGoes19) {
-        sliderSatGoes19.value = cfg.satelliteRates.goes19.toString();
-        updateSatVisuals('goes19');
+    // Tri-State (OPEN / CLOSED / PASSIVE) Helper functions for Panel & Accordion State Management
+    const getTriStateValue = (key: string): 'OPEN' | 'CLOSED' | 'PASSIVE' => {
+      const radios = document.getElementsByName(`admin-state-${key}`) as NodeListOf<HTMLInputElement>;
+      for (let i = 0; i < radios.length; i++) {
+        if (radios[i].checked) return radios[i].value as 'OPEN' | 'CLOSED' | 'PASSIVE';
       }
-      if (cfg.satelliteRates.goes18 && sliderSatGoes18) {
-        sliderSatGoes18.value = cfg.satelliteRates.goes18.toString();
-        updateSatVisuals('goes18');
-      }
-      if (cfg.satelliteRates.mtg && sliderSatMtg) {
-        sliderSatMtg.value = cfg.satelliteRates.mtg.toString();
-        updateSatVisuals('mtg');
-      }
-    } else if (cfg.satelliteThresholds) {
-      if (cfg.satelliteThresholds.goes19 && sliderSatGoes19) {
-        sliderSatGoes19.value = cfg.satelliteThresholds.goes19.toString();
-        updateSatVisuals('goes19');
-      }
-      if (cfg.satelliteThresholds.goes18 && sliderSatGoes18) {
-        sliderSatGoes18.value = cfg.satelliteThresholds.goes18.toString();
-        updateSatVisuals('goes18');
-      }
-      if (cfg.satelliteThresholds.mtg && sliderSatMtg) {
-        sliderSatMtg.value = cfg.satelliteThresholds.mtg.toString();
-        updateSatVisuals('mtg');
-      }
-    }
-    if (cfg.panels) {
-      const hudEl = document.querySelector('.hud-panel') as HTMLElement | null;
-      if (hudEl) hudEl.style.display = cfg.panels.hud !== false ? '' : 'none';
-      if (toggleHud) toggleHud.checked = cfg.panels.hud !== false;
-
-      const liveBadgeEl = document.getElementById('live-broadcast-indicator');
-      if (liveBadgeEl) liveBadgeEl.style.display = cfg.panels.liveBadge !== false ? '' : 'none';
-      if (toggleLiveBadge) toggleLiveBadge.checked = cfg.panels.liveBadge !== false;
-
-      const liveFeedEl = document.getElementById('panel-live-feed');
-      if (liveFeedEl) liveFeedEl.style.display = cfg.panels.liveFeed !== false ? '' : 'none';
-      if (toggleLiveFeed) toggleLiveFeed.checked = cfg.panels.liveFeed !== false;
-
-      const queueEl = document.getElementById('panel-camera-queue');
-      if (queueEl) queueEl.style.display = cfg.panels.directorQueue !== false ? '' : 'none';
-      if (toggleCameraQueue) toggleCameraQueue.checked = cfg.panels.directorQueue !== false;
-
-      const stormsEl = document.getElementById('panel-storms');
-      if (stormsEl) stormsEl.style.display = cfg.panels.storms !== false ? '' : 'none';
-      if (toggleStorms) toggleStorms.checked = cfg.panels.storms !== false;
-
-      const leaderboardEl = document.getElementById('panel-leaderboard');
-      if (leaderboardEl) leaderboardEl.style.display = cfg.panels.leaderboard !== false ? '' : 'none';
-      if (toggleLeaderboard) toggleLeaderboard.checked = cfg.panels.leaderboard !== false;
-
-      const analyticsEl = document.getElementById('panel-analytics');
-      if (analyticsEl) analyticsEl.style.display = cfg.panels.analytics !== false ? '' : 'none';
-      if (toggleAnalytics) toggleAnalytics.checked = cfg.panels.analytics !== false;
-
-      const bottomBarEl = document.getElementById('bottom-command-bar');
-      if (bottomBarEl) bottomBarEl.style.display = cfg.panels.bottomBar !== false ? '' : 'none';
-      if (toggleBottomBar) toggleBottomBar.checked = cfg.panels.bottomBar !== false;
-    }
-    if (cfg.accordions) {
-      const liveFeedEl = document.getElementById('panel-live-feed');
-      if (liveFeedEl) liveFeedEl.classList.toggle('collapsed', !cfg.accordions.liveFeed);
-      if (accLiveFeed) accLiveFeed.checked = !!cfg.accordions.liveFeed;
-
-      const queueEl = document.getElementById('panel-camera-queue');
-      if (queueEl) queueEl.classList.toggle('collapsed', !cfg.accordions.directorQueue);
-      if (accCameraQueue) accCameraQueue.checked = !!cfg.accordions.directorQueue;
-
-      const stormsEl = document.getElementById('panel-storms');
-      if (stormsEl) stormsEl.classList.toggle('collapsed', !cfg.accordions.storms);
-      if (accStorms) accStorms.checked = !!cfg.accordions.storms;
-
-      const leaderboardEl = document.getElementById('panel-leaderboard');
-      if (leaderboardEl) leaderboardEl.classList.toggle('collapsed', !cfg.accordions.leaderboard);
-      if (accLeaderboard) accLeaderboard.checked = !!cfg.accordions.leaderboard;
-    }
-  };
-
-  // Fetch initial global admin config from server
-  fetch('/api/admin/config')
-    .then((r) => r.json())
-    .then((cfg) => applyAdminConfig(cfg))
-    .catch(() => {});
-
-  // Save admin config to central backend
-  btnAdminSaveAll?.addEventListener('click', async () => {
-    const payload = {
-      sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
-      musicVolume: sliderMusicVol ? parseInt(sliderMusicVol.value, 10) : 50,
-      satelliteRates: {
-        goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 8,
-        goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2,
-        mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 20
-      },
-      satelliteThresholds: {
-        goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 2.8,
-        goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2.8,
-        mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 2.8
-      },
-      panels: {
-        hud: toggleHud?.checked ?? true,
-        liveBadge: toggleLiveBadge?.checked ?? true,
-        liveFeed: toggleLiveFeed?.checked ?? true,
-        directorQueue: toggleCameraQueue?.checked ?? true,
-        storms: toggleStorms?.checked ?? true,
-        leaderboard: toggleLeaderboard?.checked ?? true,
-        analytics: toggleAnalytics?.checked ?? true,
-        bottomBar: toggleBottomBar?.checked ?? true
-      },
-      accordions: {
-        liveFeed: accLiveFeed?.checked ?? false,
-        directorQueue: accCameraQueue?.checked ?? true,
-        storms: accStorms?.checked ?? false,
-        leaderboard: accLeaderboard?.checked ?? false
-      },
-      updatedAt: Date.now()
+      return 'OPEN';
     };
+
+    const setTriStateValue = (key: string, state: 'OPEN' | 'CLOSED' | 'PASSIVE') => {
+      const radios = document.getElementsByName(`admin-state-${key}`) as NodeListOf<HTMLInputElement>;
+      for (let i = 0; i < radios.length; i++) {
+        radios[i].checked = (radios[i].value === state);
+      }
+    };
+
+    const applyPanelState = (el: HTMLElement | null, state: 'OPEN' | 'CLOSED' | 'PASSIVE', isAccordion: boolean = false) => {
+      if (!el) return;
+      if (state === 'PASSIVE') {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+        if (isAccordion) {
+          el.classList.toggle('collapsed', state === 'CLOSED');
+        }
+      }
+    };
+
+    const applyAdminConfig = (cfg: any) => {
+      if (!cfg) return;
+      if (cfg.sfxVolume !== undefined) {
+        const vol = cfg.sfxVolume / 100;
+        soundDirector.setVolume(vol);
+        if (sliderSfxVol) sliderSfxVol.value = cfg.sfxVolume.toString();
+        if (valSfxVol) valSfxVol.textContent = `${cfg.sfxVolume}%`;
+      }
+      if (cfg.musicVolume !== undefined) {
+        const vol = cfg.musicVolume / 100;
+        bgMusicPlayer.setVolume(vol);
+        if (sliderMusicVol) sliderMusicVol.value = cfg.musicVolume.toString();
+        if (valMusicVol) valMusicVol.textContent = `${cfg.musicVolume}%`;
+      }
+      if (cfg.satelliteRates) {
+        if (cfg.satelliteRates.goes19 && sliderSatGoes19) {
+          sliderSatGoes19.value = cfg.satelliteRates.goes19.toString();
+          updateSatVisuals('goes19');
+        }
+        if (cfg.satelliteRates.goes18 && sliderSatGoes18) {
+          sliderSatGoes18.value = cfg.satelliteRates.goes18.toString();
+          updateSatVisuals('goes18');
+        }
+        if (cfg.satelliteRates.mtg && sliderSatMtg) {
+          sliderSatMtg.value = cfg.satelliteRates.mtg.toString();
+          updateSatVisuals('mtg');
+        }
+      }
+
+      // Apply 3-State Panel States
+      if (cfg.panelStates) {
+        const panelKeys = ['hud', 'liveBadge', 'liveFeed', 'directorQueue', 'storms', 'leaderboard', 'analytics', 'bottomBar'];
+        const panelElemMap: Record<string, { el: HTMLElement | null; isAccordion: boolean }> = {
+          hud: { el: document.querySelector('.hud-panel'), isAccordion: false },
+          liveBadge: { el: document.getElementById('live-broadcast-indicator'), isAccordion: false },
+          liveFeed: { el: document.getElementById('panel-live-feed'), isAccordion: true },
+          directorQueue: { el: document.getElementById('panel-camera-queue'), isAccordion: true },
+          storms: { el: document.getElementById('panel-storms'), isAccordion: true },
+          leaderboard: { el: document.getElementById('panel-leaderboard'), isAccordion: true },
+          analytics: { el: document.getElementById('panel-analytics'), isAccordion: true },
+          bottomBar: { el: document.getElementById('bottom-command-bar'), isAccordion: false }
+        };
+
+        panelKeys.forEach((key) => {
+          const st = cfg.panelStates[key] || 'OPEN';
+          setTriStateValue(key, st);
+          const item = panelElemMap[key];
+          if (item) {
+            applyPanelState(item.el, st, item.isAccordion);
+          }
+        });
+      } else if (cfg.panels) {
+        // Backward compatibility fallback for legacy boolean configs
+        const legacyMap: Record<string, 'OPEN' | 'CLOSED' | 'PASSIVE'> = {
+          hud: cfg.panels.hud !== false ? 'OPEN' : 'PASSIVE',
+          liveBadge: cfg.panels.liveBadge !== false ? 'OPEN' : 'PASSIVE',
+          liveFeed: cfg.panels.liveFeed !== false ? (cfg.accordions?.liveFeed ? 'OPEN' : 'CLOSED') : 'PASSIVE',
+          directorQueue: cfg.panels.directorQueue !== false ? (cfg.accordions?.directorQueue ? 'OPEN' : 'CLOSED') : 'PASSIVE',
+          storms: cfg.panels.storms !== false ? (cfg.accordions?.storms ? 'OPEN' : 'CLOSED') : 'PASSIVE',
+          leaderboard: cfg.panels.leaderboard !== false ? (cfg.accordions?.leaderboard ? 'OPEN' : 'CLOSED') : 'PASSIVE',
+          analytics: cfg.panels.analytics !== false ? (cfg.accordions?.analytics ? 'OPEN' : 'CLOSED') : 'PASSIVE',
+          bottomBar: cfg.panels.bottomBar !== false ? 'OPEN' : 'PASSIVE'
+        };
+
+        Object.entries(legacyMap).forEach(([key, st]) => {
+          setTriStateValue(key, st);
+        });
+      }
+    };
+
+    // Fetch initial global admin config from server
+    fetch('/api/admin/config')
+      .then((r) => r.json())
+      .then((cfg) => applyAdminConfig(cfg))
+      .catch(() => {});
+
+    // Save admin config to central backend
+    btnAdminSaveAll?.addEventListener('click', async () => {
+      const panelKeys = ['hud', 'liveBadge', 'liveFeed', 'directorQueue', 'storms', 'leaderboard', 'analytics', 'bottomBar'];
+      const panelStates: Record<string, 'OPEN' | 'CLOSED' | 'PASSIVE'> = {};
+      panelKeys.forEach((k) => {
+        panelStates[k] = getTriStateValue(k);
+      });
+
+      const payload = {
+        sfxVolume: sliderSfxVol ? parseInt(sliderSfxVol.value, 10) : 80,
+        musicVolume: sliderMusicVol ? parseInt(sliderMusicVol.value, 10) : 50,
+        satelliteRates: {
+          goes19: sliderSatGoes19 ? parseFloat(sliderSatGoes19.value) : 8,
+          goes18: sliderSatGoes18 ? parseFloat(sliderSatGoes18.value) : 2,
+          mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 20
+        },
+        panelStates,
+        updatedAt: Date.now()
+      };
 
     if (adminSaveStatus) adminSaveStatus.textContent = 'Kaydediliyor...';
     try {
