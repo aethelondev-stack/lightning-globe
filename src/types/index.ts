@@ -8,6 +8,7 @@ export interface EngineOptions {
   alpha?: boolean;
   lowPower?: boolean;
   maxPixelRatio?: number;
+  targetFps?: number;
 }
 
 export type RenderCallback = (delta: number, elapsed: number) => void;

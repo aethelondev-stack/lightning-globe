@@ -4668,3 +4668,118 @@ html, body {
   color: #f87171;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Universal Auto-Scaling for All Screen Sizes (Mobile / Tablet / TV / 4K)
+   ========================================================================== */
+
+/* 1. Large 4K / TV Displays (>= 2200px or TV Aspect) */
+@media screen and (min-width: 2200px) {
+  :root {
+    font-size: 19px;
+  }
+  .controls-bar {
+    transform: scale(1.25);
+    transform-origin: top center;
+  }
+  .hud-panel {
+    transform: scale(1.25);
+    transform-origin: top left;
+  }
+  .music-player-widget {
+    transform: scale(1.25);
+    transform-origin: top right;
+  }
+  .bottom-command-bar {
+    transform: translateX(-50%) scale(1.25);
+  }
+  .right-sidebar {
+    transform: scale(1.2);
+    transform-origin: top right;
+  }
+}
+
+/* 2. Standard Full HD / QHD (1400px - 2199px) */
+@media screen and (min-width: 1400px) and (max-width: 2199px) {
+  :root {
+    font-size: 15px;
+  }
+  .bottom-command-bar {
+    max-width: 90vw;
+  }
+}
+
+/* 3. Small Laptop & Tablet Landscape (1024px - 1399px) */
+@media screen and (max-width: 1399px) {
+  :root {
+    font-size: 13px;
+  }
+  .hud-panel {
+    width: 260px;
+    min-width: 260px;
+    max-width: 260px;
+  }
+  .bottom-command-bar {
+    padding: 8px 18px;
+    gap: 12px;
+    max-width: 92vw;
+  }
+  .bcb-item {
+    font-size: 14px;
+  }
+  .bcb-title {
+    font-size: 14.5px;
+  }
+  .bcb-icon {
+    font-size: 17px;
+  }
+}
+
+/* 4. Tablet Portrait & Mobile Devices (<= 1023px) */
+@media screen and (max-width: 1023px) {
+  :root {
+    font-size: 12px;
+  }
+  .top-control-deck {
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .controls-bar {
+    padding: 3px 5px;
+    gap: 3px;
+  }
+  .ui-btn {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
+  .bottom-command-bar {
+    bottom: 8px;
+    padding: 6px 14px;
+    gap: 8px;
+    max-width: 96vw;
+    overflow-x: auto;
+  }
+  .bcb-item {
+    font-size: 12.5px;
+  }
+  .bcb-title {
+    font-size: 13px;
+  }
+  .bcb-icon {
+    font-size: 15px;
+  }
+  .bcb-note {
+    display: none;
+  }
+  .music-player-widget {
+    top: 10px;
+    right: 10px;
+  }
+  .btn-music-widget {
+    min-width: 140px;
+    max-width: 180px;
+  }
+}
+

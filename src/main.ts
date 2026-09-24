@@ -103,7 +103,8 @@ function init(): void {
   const engine = new Engine({
     canvas,
     lowPower: isTvMode,
-    maxPixelRatio: isTvMode ? 0.75 : undefined
+    maxPixelRatio: isTvMode ? 0.65 : undefined,
+    targetFps: isTvMode ? 30 : undefined
   });
   engine.camera.position.set(0, 30, 380);
   engine.camera.lookAt(0, 0, 0);
@@ -1358,10 +1359,60 @@ function init(): void {
       }
     };
 
+    // Immediate reactive listeners on all radio buttons: instantly changes UI and local storage
+    const allPanelKeys = ['hud', 'liveBadge', 'liveFeed', 'directorQueue', 'storms', 'leaderboard', 'analytics', 'bottomBar'];
+    const liveElemMap: Record<string, { el: HTMLElement | null; isAccordion: boolean }> = {
+      hud: { el: document.querySelector('.hud-panel'), isAccordion: false },
+      liveBadge: { el: document.getElementById('live-broadcast-indicator'), isAccordion: false },
+      liveFeed: { el: document.getElementById('panel-live-feed'), isAccordion: true },
+      directorQueue: { el: document.getElementById('panel-camera-queue'), isAccordion: true },
+      storms: { el: document.getElementById('panel-storms'), isAccordion: true },
+      leaderboard: { el: document.getElementById('panel-leaderboard'), isAccordion: true },
+      analytics: { el: document.getElementById('panel-analytics'), isAccordion: true },
+      bottomBar: { el: document.getElementById('bottom-command-bar'), isAccordion: false }
+    };
+
+    allPanelKeys.forEach((key) => {
+      const radios = document.getElementsByName(`admin-state-${key}`) as NodeListOf<HTMLInputElement>;
+      for (let i = 0; i < radios.length; i++) {
+        radios[i].addEventListener('change', () => {
+          const val = radios[i].value as 'OPEN' | 'CLOSED' | 'PASSIVE';
+          const item = liveElemMap[key];
+          if (item) {
+            applyPanelState(item.el, val, item.isAccordion);
+          }
+          try {
+            const cur = JSON.parse(localStorage.getItem('ag_admin_panel_states') || '{}');
+            cur[key] = val;
+            localStorage.setItem('ag_admin_panel_states', JSON.stringify(cur));
+          } catch {}
+        });
+      }
+    });
+
+    // Apply cached panel states immediately upon controller setup (0ms latency, zero flicker)
+    try {
+      const localStatesStr = localStorage.getItem('ag_admin_panel_states');
+      if (localStatesStr) {
+        const localStates = JSON.parse(localStatesStr);
+        applyAdminConfig({ panelStates: localStates });
+      }
+    } catch {}
+
     // Fetch initial global admin config from server
     fetch('/api/admin/config')
       .then((r) => r.json())
-      .then((cfg) => applyAdminConfig(cfg))
+      .then((cfg) => {
+        // Merge with local states: if user has a local choice in this browser, respect it
+        try {
+          const localStatesStr = localStorage.getItem('ag_admin_panel_states');
+          if (localStatesStr && cfg.panelStates) {
+            const localStates = JSON.parse(localStatesStr);
+            cfg.panelStates = { ...cfg.panelStates, ...localStates };
+          }
+        } catch {}
+        applyAdminConfig(cfg);
+      })
       .catch(() => {});
 
     // Save admin config to central backend (Secured with Bearer Token)

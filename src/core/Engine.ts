@@ -14,9 +14,16 @@ export class Engine {
   private readonly postCallbacks: Set<RenderCallback> = new Set();
   private animationFrameId: number | null = null;
   private isRunning: boolean = false;
+  public readonly targetFps: number | null = null;
+  private minFrameIntervalMs: number = 0;
+  private lastRenderTimestamp: number = 0;
 
   constructor(options: EngineOptions) {
     this.canvas = options.canvas;
+    if (options.targetFps && options.targetFps > 0) {
+      this.targetFps = options.targetFps;
+      this.minFrameIntervalMs = 1000 / options.targetFps;
+    }
 
     // WebGL support check
     if (!this.isWebGLAvailable()) {
@@ -194,10 +201,19 @@ export class Engine {
     this.clock.stop();
   }
 
-  private loop = (): void => {
+  private loop = (timestamp?: number): void => {
     if (!this.isRunning || this.isContextLost) return;
 
     this.animationFrameId = requestAnimationFrame(this.loop);
+
+    // Frame rate throttle guard (e.g. for low-tier hardware / TV boxes)
+    if (this.minFrameIntervalMs > 0 && timestamp !== undefined) {
+      const elapsedSinceLast = timestamp - this.lastRenderTimestamp;
+      if (elapsedSinceLast < this.minFrameIntervalMs) {
+        return;
+      }
+      this.lastRenderTimestamp = timestamp - (elapsedSinceLast % this.minFrameIntervalMs);
+    }
 
     const delta = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.getElapsedTime();
