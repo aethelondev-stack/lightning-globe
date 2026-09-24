@@ -1299,6 +1299,10 @@ function init(): void {
 
       // Apply 3-State Panel States
       if (cfg.panelStates) {
+        try {
+          localStorage.setItem('ag_admin_panel_states', JSON.stringify(cfg.panelStates));
+        } catch {}
+
         const panelKeys = ['hud', 'liveBadge', 'liveFeed', 'directorQueue', 'storms', 'leaderboard', 'analytics', 'bottomBar'];
         const panelElemMap: Record<string, { el: HTMLElement | null; isAccordion: boolean }> = {
           hud: { el: document.querySelector('.hud-panel'), isAccordion: false },

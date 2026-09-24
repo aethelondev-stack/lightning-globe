@@ -6,6 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aethelion — Real-Time Planetary Lightning Observatory</title>
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Zero-Flicker Pre-Hydration: Instantly applies saved admin panel states before DOM paint
+      (function() {
+        try {
+          var saved = localStorage.getItem('ag_admin_panel_states');
+          if (saved) {
+            var st = JSON.parse(saved);
+            var css = '';
+            if (st.bottomBar === 'PASSIVE') css += '#bottom-command-bar { display: none !important; } ';
+            if (st.hud === 'PASSIVE') css += '.hud-panel { display: none !important; } ';
+            if (st.liveBadge === 'PASSIVE') css += '#live-broadcast-indicator { display: none !important; } ';
+            if (st.liveFeed === 'PASSIVE') css += '#panel-live-feed { display: none !important; } ';
+            if (st.directorQueue === 'PASSIVE') css += '#panel-camera-queue { display: none !important; } ';
+            if (st.storms === 'PASSIVE') css += '#panel-storms { display: none !important; } ';
+            if (st.leaderboard === 'PASSIVE') css += '#panel-leaderboard { display: none !important; } ';
+            if (st.analytics === 'PASSIVE') css += '#panel-analytics { display: none !important; } ';
+            if (css) {
+              var styleEl = document.createElement('style');
+              styleEl.id = 'ag-pre-render-panel-rules';
+              styleEl.textContent = css;
+              document.head.appendChild(styleEl);
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app">
