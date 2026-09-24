@@ -6,6 +6,8 @@ export interface EngineOptions {
   canvas: HTMLCanvasElement;
   antialias?: boolean;
   alpha?: boolean;
+  lowPower?: boolean;
+  maxPixelRatio?: number;
 }
 
 export type RenderCallback = (delta: number, elapsed: number) => void;

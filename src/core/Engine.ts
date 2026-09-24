@@ -59,18 +59,20 @@ export class Engine {
     this.camera.lookAt(0, 0, 0);
 
     // 3. WebGLRenderer
+    const isLowPower = options.lowPower ?? false;
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: options.antialias ?? EngineConfig.antialias,
+      antialias: isLowPower ? false : (options.antialias ?? EngineConfig.antialias),
       alpha: options.alpha ?? false,
-      powerPreference: EngineConfig.powerPreference
+      powerPreference: isLowPower ? 'low-power' : EngineConfig.powerPreference
     });
 
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = EngineConfig.toneMappingExposure;
 
-    const pixelRatio = Math.min(window.devicePixelRatio, EngineConfig.maxPixelRatio);
+    const maxPr = options.maxPixelRatio ?? (isLowPower ? 0.75 : EngineConfig.maxPixelRatio);
+    const pixelRatio = Math.min(window.devicePixelRatio, maxPr);
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height);
 
