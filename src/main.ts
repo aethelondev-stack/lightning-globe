@@ -1058,9 +1058,13 @@ function init(): void {
             mtg: sliderSatMtg ? parseFloat(sliderSatMtg.value) : 20
           }
         };
+        const token = sessionStorage.getItem('ag_admin_token') || '';
         await fetch('/api/admin/config', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify(payload)
         });
       } catch {}

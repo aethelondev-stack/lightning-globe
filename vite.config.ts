@@ -15,7 +15,38 @@ export default defineConfig({
   ],
   server: {
     port: 3005,
-    open: false
+    open: false,
+    fs: {
+      deny: [
+        '**/*.key',
+        '**/*.pem',
+        '**/*.env*',
+        '**/*.md',
+        '**/*.bat',
+        '**/*.sh',
+        '**/.cache/**',
+        '**/server/**',
+        '**/tests/**',
+        '**/.git/**'
+      ]
+    }
+  },
+  preview: {
+    port: 3005,
+    fs: {
+      deny: [
+        '**/*.key',
+        '**/*.pem',
+        '**/*.env*',
+        '**/*.md',
+        '**/*.bat',
+        '**/*.sh',
+        '**/.cache/**',
+        '**/server/**',
+        '**/tests/**',
+        '**/.git/**'
+      ]
+    }
   },
   build: {
     target: 'esnext'
