@@ -16,6 +16,7 @@ export default defineConfig({
   server: {
     port: 3005,
     open: false,
+    allowedHosts: true,
     fs: {
       deny: [
         '**/*.key',
@@ -33,6 +34,7 @@ export default defineConfig({
   },
   preview: {
     port: 3005,
+    allowedHosts: true,
     fs: {
       deny: [
         '**/*.key',
